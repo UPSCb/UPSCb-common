@@ -1,0 +1,1 @@
+This directory is meant to contain SBATCH generic scripts only. For project specific scripts, write them in the projects/[project-name]/pipeline directory instead.
