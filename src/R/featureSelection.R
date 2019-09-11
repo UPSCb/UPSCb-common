@@ -137,6 +137,11 @@ setMethod(f = "rangeFeatureSelect",
                    main="Number of selected genes by cutoff values",
                    type="b",ylab="Number of genes",xlab="cutoff",xaxt="n")
               axis(1,1:(mx+1),labels=0:mx)
+              
+              plot(sapply(res,sum),log="y",
+                   main="Number of selected genes by cutoff values",
+                   type="b",ylab="Number of genes",xlab="cutoff",xaxt="n")
+              axis(1,1:(mx+1),labels=0:mx)
             }
             
             ## return
