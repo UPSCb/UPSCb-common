@@ -37,8 +37,8 @@ arguments=(
  
 parallel="-O "'$SLURM_CPUS_PER_TASK'
 command=(
-  [0]="mi -m aracne -M $resultDir/mi/raw.ltr "$parallel 
-  [1]="mi -m CLR -M $resultDir/mi/raw.ltr "$parallel 
+  [0]="mi -m aracne -M $resultDir/mi/mi.tsv "$parallel 
+  [1]="mi -m CLR -M $resultDir/mi/mi.tsv "$parallel 
   [2]="genie3 "$parallel 
   [3]="llr-ensemble "$parallel 
   [4]="narromi "$parallel 
