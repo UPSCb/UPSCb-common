@@ -4,7 +4,7 @@
 set -eux
 
 # project vars
-account=SNIC2018-3-61
+account=SNIC2019-3-207
 mail=nicolas.delhomme@umu.se
 
 # source

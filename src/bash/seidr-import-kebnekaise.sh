@@ -4,7 +4,7 @@
 set -ex
 
 # project vars
-account=SNIC2018-3-61
+account=SNIC2019-3-207
 mail=nicolas.delhomme@umu.se
 
 # source
@@ -61,4 +61,3 @@ for ((i=0;i<len;i++)); do
     # ${arguments[$i]} 
   fi
 done
-
