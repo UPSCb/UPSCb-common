@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # safeguards
-set -eux
+set -ex
 
 # project vars
 account=SNIC2019-3-207
@@ -24,28 +24,28 @@ inference=(aracne clr genie3 llr-ensemble narromi pcor pearson plsnet spearman t
 default="-n 1 -c 28 -t 1-00:00:00"
 
 arguments=(
-  [0]=$default 
-  [1]=$default 
-  [2]="-n 2 -c 28 -t 2-00:00:00" 
-  [3]=$default 
-  [4]=$default 
-  [5]="-n 7 -t 12:00:00" 
-  [6]="-n 7 -t 12:00:00" 
-  [7]=$default 
-  [8]="-n 7 -t 12:00:00" 
+  [0]=$default
+  [1]=$default
+  [2]="-n 2 -c 28 -t 2-00:00:00"
+  [3]=$default
+  [4]=$default
+  [5]="-n 7 -t 12:00:00"
+  [6]="-n 7 -t 12:00:00"
+  [7]=$default
+  [8]="-n 7 -t 12:00:00"
   [9]="-n 3 -c 28 -t 3-00:00:00")
- 
+
 parallel="-O "'$SLURM_CPUS_PER_TASK'
 command=(
-  [0]="mi -m aracne -M $resultDir/mi/mi.tsv "$parallel 
-  [1]="mi -m CLR -M $resultDir/mi/mi.tsv "$parallel 
-  [2]="genie3 "$parallel 
-  [3]="llr-ensemble "$parallel 
-  [4]="narromi "$parallel 
-  [5]="pcor" 
-  [6]="correlation -m pearson" 
-  [7]="plsnet "$parallel 
-  [8]="correlation -m spearman" 
+  [0]="mi -m ARACNE -M $resultDir/mi/mi.tsv "$parallel
+  [1]="mi -m CLR -M $resultDir/mi/mi.tsv "$parallel
+  [2]="genie3 "$parallel
+  [3]="llr-ensemble "$parallel
+  [4]="narromi "$parallel
+  [5]="pcor"
+  [6]="correlation -m pearson"
+  [7]="plsnet "$parallel
+  [8]="correlation -m spearman"
   [9]="tigress "$parallel)
 
 # usage
@@ -80,7 +80,7 @@ if [ ! -d $resultDir/mi ]; then
 fi
 
 # Find the number of genes to set the batch size
-# Rules: set -B to 
+# Rules: set -B to
 # 1) the number of genes if you are using a single node
 # 2) if using more nodes split the number of genes by the number of nodes
 # 3) for batch mode, set it to batch
@@ -89,31 +89,31 @@ default="-B $ngenes"
 
 # the number of nodes depends on the arguments list and default
 optionB=(
-  [0]=$default 
-  [1]=$default 
-  [2]="-B $(expr $(expr $ngenes '/' 2) '+' 1)" 
-  [3]=$default 
-  [4]=$default 
-  [5]=$default 
-  [6]=$default 
-  [7]=$default 
-  [8]=$default 
+  [0]=$default
+  [1]=$default
+  [2]="-B $(expr $(expr $ngenes '/' 2) '+' 1)"
+  [3]=$default
+  [4]=$default
+  [5]=""
+  [6]=""
+  [7]=$default
+  [8]=""
   [9]="-B $(expr $(expr $ngenes '/' 3) '+' 1)")
 
 # Set the number of OMP threads
 # default to 1
 # set to -n (number of cores for pearson, spearman, and pcor
-default=1
+default=
 ompThread=(
   [0]=$default
-  [1]=$default 
-  [2]=$default 
-  [3]=$default 
-  [4]=$default 
+  [1]=$default
+  [2]=$default
+  [3]=$default
+  [4]=$default
   [5]=7
   [6]=7
-  [7]=$default 
-  [8]=7 
+  [7]=$default
+  [8]=7
   [9]=$default)
 
 # Set dependencies
@@ -133,20 +133,24 @@ for ((i=0;i<len;i++)); do
   if [ ! -f $resultDir/$inf/$inf.tsv ]; then
     mkdir -p $resultDir/$inf
     echo "#!/bin/bash" > $resultDir/$inf/$inf.sh
-    echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
+    if [ -z ${ompThread[$i]} ]; then
+	echo "unset OMP_NUM_THREADS" >> $resultDir/$inf/$inf.sh
+    else
+    	echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
+    fi
     echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
-    
+
     # Handle dependencies
-    dep=0
+    dep=
     if [ ! -z ${deps[$i]} ]; then
       dep="-d afterok:${jobIDs[${deps[$i]}]}"
     fi
-    
-    dep=$(sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf \
+
+    dep=$(sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf $dep \
     -e $resultDir/$inf/$inf.err -o $resultDir/$inf/$inf.out ${arguments[$i]} $resultDir/$inf/$inf.sh)
-  
+
     jobIDs[$i]=${dep//[^0-9]/}
-  
+
   fi
 done
 

@@ -21,12 +21,12 @@ inf=el-ensemble
 # kk has 28 per node
 # parameters
 queueParams="-n 1 -c 28 -t 1-00:00:00"
-commandParams="-B $chunksize -O "'$SLURM_CPUS_PER_TASK'
+commandParams="-B $chunkSize -O "'$SLURM_CPUS_PER_TASK'
 
 # usage
 USAGETXT=\
 "
-$0 <expression-matrix.tsv> <genes.tsv> 
+$0 <expression-matrix.tsv> <genes.tsv>
 "
 
 # Validation
@@ -54,12 +54,12 @@ len=${#GENEIDS[@]}
 # Run
 # Create chunks and iterate the submissions
 for ((i=0;i<len;i+=$chunkSize)); do
-  
+
   if [ ! -f results/$inf/$inf.tsv ]; then
     printf "%s\n" "${GENEIDS[@]:$i:$chunkSize}" > gset-$i.txt
-  
+
     echo "#!/bin/bash" > results/$inf/$inf-$i.sh
-    echo "export OMP_NUM_THREADS=1" >> results/$inf/$inf-$i.sh
+    echo "unset OMP_NUM_THREADS" >> results/$inf/$inf-$i.sh
     echo "srun $inf $commandParams -i $1 -g $2 -t gset-$i.txt -o results/$inf/$inf-$i.tsv" >> results/$inf/$inf-$i.sh
     sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf-$i -e results/$inf/$inf-$i.err -o results/$inf/$inf-$i.out $queueParams results/$inf/$inf-$i.sh
   fi
