@@ -84,7 +84,7 @@ gopher <- function(genes=character(0),
       message(f)
       return(NULL)
     }
-    return(as.tibble(f) %>% arrange(padj))
+    return(as_tibble(f) %>% arrange(padj))
   }, tasks)
   names(parsed) <- tasks
   return(parsed)
