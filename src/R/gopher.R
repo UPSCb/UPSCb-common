@@ -7,7 +7,8 @@ gopher <- function(genes=character(0),
                    background = NULL,
                    task = list("go",
                             "pfam",
-                            "kegg"),
+                            "kegg",
+                            "mapman"),
                    alpha=0.05,
                    host="https://microasp.upsc.se",
                    port=5432,
@@ -16,7 +17,7 @@ gopher <- function(genes=character(0),
 
   # arguments
   if(!is.list(task)){
-    task <- list(task)
+    task <- as.list(task)
   }
   
   endpoint <- match.arg(endpoint)
@@ -80,8 +81,8 @@ gopher <- function(genes=character(0),
       message("No enrichments found in task: ", n)
       return(NULL)
     }
-    if(is.character(f)) {
-      message(f)
+    if(! is.null(f$err)) {
+      message(f$err)
       return(NULL)
     }
     return(as_tibble(f) %>% arrange(padj))
