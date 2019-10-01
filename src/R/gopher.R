@@ -10,7 +10,7 @@ gopher <- function(genes=character(0),
                             "kegg",
                             "mapman"),
                    alpha=0.05,
-                   host="https://microasp.upsc.se",
+                   host="https://watson.plantphys.umu.se",
                    port=5432,
                    url="json",
                    endpoint=c("enrichment","gene-to-term","get-sets","term-to-gene")) {
