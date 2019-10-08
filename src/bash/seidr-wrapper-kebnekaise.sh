@@ -153,7 +153,7 @@ for ((i=0;i<len;i++)); do
       else
     	echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
       fi
-      echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
+      echo "srun --cpu-bind=cores ${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
 
       # Handle dependencies
       dep=

@@ -60,7 +60,7 @@ for ((i=0;i<len;i+=$chunkSize)); do
 
     echo "#!/bin/bash" > results/$inf/$inf-$i.sh
     echo "unset OMP_NUM_THREADS" >> results/$inf/$inf-$i.sh
-    echo "srun $inf $commandParams -i $1 -g $2 -t gset-$i.txt -o results/$inf/$inf-$i.tsv" >> results/$inf/$inf-$i.sh
+    echo "srun --cpu-bind=cores $inf $commandParams -i $1 -g $2 -t gset-$i.txt -o results/$inf/$inf-$i.tsv" >> results/$inf/$inf-$i.sh
     sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf-$i -e results/$inf/$inf-$i.err -o results/$inf/$inf-$i.out $queueParams results/$inf/$inf-$i.sh
   fi
 done
