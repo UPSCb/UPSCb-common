@@ -36,6 +36,7 @@ echo >&2 \
                 -m mem requirement (in GB, default 128)
 		            -p number of threads to use (default 16)
                 -s strand specific (Illumina dUTP protocol)
+		-i max intron size
 
         Note:
              You need to set the TRINITY_HOME env. variable to your trinity directory.
@@ -44,14 +45,15 @@ echo >&2 \
 }
 
 ## get the options
-while getopts k:m:p:s option
+while getopts k:m:p:si: option
 do
     case "$option" in
       k) KMER=$OPTARG;;
       m) MEM=$OPTARG;;
       p) PROC=$OPTARG;;
       s) STSPEC="--SS_lib_type RF";;
-		\?) ## unknown flag
+      i) INTRON=$OPTARG;; 
+	 	\?) ## unknown flag
 		usage;;
   esac
 done
@@ -86,6 +88,7 @@ fi
 
 ## run trinity
 echo Assembling
+#$TRINITY_HOME/Trinity --genome_guided_bam $5 --genome_guided_max_intron $INTRON --CPU $GGCPU --seqType fq --max_memory ${JMEM}G  --left $2 --right $3 --CPU $PROC --output $1 --min_kmer_cov $KMER $STSPEC
 $TRINITY_HOME/Trinity --genome_guided_bam $4 --genome_guided_max_intron $INTRON \
 --seqType fq --max_memory $MEM --left $2 --right $3 --CPU $PROC --output $1 \
 --min_kmer_cov $KMER $STSPEC

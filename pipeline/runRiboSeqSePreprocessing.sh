@@ -5,7 +5,7 @@ set -eu
 # Preprocessing script for RNA-Seq data.
 # THIS SCRIPT IS NOT TO BE RUN THROUGH SBATCH, USE BASH!
 ### ========================================================
-VERSION="0.0.1"
+VERSION="0.0.3"
 
 ### ========================================================
 ## pretty print
@@ -40,11 +40,14 @@ ${bold}OPTIONS:${normal}
     -e n      step at which to end (see ${underline}STEPS${nounderline})
     -b dir    path to Bowtie index (required if Bowtie is included in pipeline)
     -m        the memory requirement for performing the alignment, in GB; i.e. 128 (default) allocates 128GB
-    -T        trimming arguments passed to trimmomatic. Overrides defaults in runTrimmomatic.sh
+    -c        clipping arguments paased to trimmomatic. Overrides defaults in runTrimmomatic.sh. Default in this script: ILLUMINACLIP:\"$UPSCb/data/NEB-universal-adapter.fa\":1:15:10
+    -T        trimming arguments passed to trimmomatic. Overrides defaults in runTrimmomatic.sh. Default in this script (we do not trim based on quality) : MINLEN:16
     -f fasta  the transcript fasta sequence file for kallisto
-    -k inx    the Kallisto index file
+    -k inx    the Kallisto index file (use the index that has a kmer size of 15)
     -M        fragment length mean for kallisto
     -S        fragment length sd for kallisto
+    -t        library is s${underline}t${nounderline}randed (illumina protocol, second strand cDNA using dUTP)
+    -a        library is s${underline}t${nounderline}randed (non illumina protocol e.g. first strand cDNA using dUTP)
     
 ${bold}STEPS:${normal}
     The steps of this script are as follows:
@@ -56,6 +59,10 @@ ${bold}STEPS:${normal}
     5) FastQC
     6) Bowtie
     7) Kallisto
+    
+    Tentative extensions
+    8) MultiQC
+    9) Ribowaltz
 
 ${bold}NOTES:${normal}
     * This script should not be run through sbatch, just use bash.
@@ -241,8 +248,11 @@ pstart=1
 pend=7
 mem=
 memArg="--mem"
-trimmomatic_options=
+trimmomatic_clipping=ILLUMINACLIP:$UPSCb/data/NEB-universal-adapter.fa:1:15:10
+trimmomatic_options="MINLEN:16"
 bowtie_index=
+ilm_stranded=0
+non_ilm_stranded=0
 kallisto_index=
 kallisto_fasta=
 fragment_length_mean=
@@ -250,10 +260,12 @@ fragment_length_sd=
 
 # Parse the options
 OPTIND=1
-while getopts "b:Dde:f:hk:M:m:S:s:T:" opt; do
+while getopts "ab:c:Dde:f:hk:M:m:S:s:tT:" opt; do
     case "$opt" in
         h) usage;;
+        a) non_ilm_stranded=1;;
         b) bowtie_index=$OPTARG ;;
+        c) trimmomatic_clipping=$OPTARG ;;
 	    d) dryrun=1;;
         D) debug=1;;
         s) pstart=$OPTARG ;;
@@ -261,6 +273,7 @@ while getopts "b:Dde:f:hk:M:m:S:s:T:" opt; do
         f) kallisto_fasta=$OPTARG ;;
         k) kallisto_index=$OPTARG ;;
 	    m) mem="${OPTARG}GB";;
+	    t) ilm_stranded=1 ;;
 	    T) trimmomatic_options=$OPTARG ;;
 	    M) fragment_length_mean=$OPTARG ;;
 	    S) fragment_length_sd=$OPTARG ;;
@@ -268,6 +281,12 @@ while getopts "b:Dde:f:hk:M:m:S:s:T:" opt; do
     esac
 done
 shift $((OPTIND - 1))
+
+# check for exclusive options
+if [ $ilm_stranded -eq 1 ] && [ $non_ilm_stranded -eq 1 ]; then
+    echo "ERROR: the -a and -t option are mutually exclusive. Choose either or."
+    usage
+fi
 
 # check the number of arguments
 if [ "$#" !=  "4" ]; then
@@ -301,9 +320,9 @@ echo "### ========================================
 ## the toolList list all the necessary tools
 ## the toolArray (starting at 1) link the tool(s) to its respective step(s)
 ## starArray and htseqArray are there to simulate a nested array
-toolList=(fastqc sortmerna java bowtie samtools kallisto)
+toolList=(fastqc sortmerna java bowtie2 samtools kallisto)
 bowtieArray=([0]=3 [1]=4)
-kallistoArray=([0]=5 [1]=8)
+kallistoArray=([0]=4 [1]=5)
 toolArray=([1]=0 [2]=1 [3]=0 [4]=2 [5]=0 [6]=${bowtieArray[*]} [7]=${kallistoArray[*]})
 
 
@@ -337,8 +356,8 @@ if [ $pstart -le 6 ] && [ $pend -ge 6 ]; then
     if [ -z $bowtie_index ]; then
         echo >&2 "ERROR: You are running bowtie but have not given an index (-b)"
         usage
-    elif [ ! -d bowtie_index ]; then
-        echo >&2 "ERROR: Could not find the bowtie index"
+    elif [ ! -d $(dirname bowtie_index) ]; then
+        echo >&2 "ERROR: Could not find the bowtie index directory"
         usage
     fi
 fi
@@ -348,14 +367,14 @@ if [ $pstart -le 7 ] && [ $pend -ge 7 ]; then
     if [ -z $kallisto_index ]; then
         echo >&2 "ERROR: You are running kallisto but have not given an index (-k)"
         usage
-    elif [ ! -d $kallisto_index ]; then
+    elif [ ! -f $kallisto_index ]; then
         echo >&2 "ERROR: Could not find the kallisto index"
         usage
     fi
     if [ -z $kallisto_fasta ]; then
         echo >&2 "ERROR: You are running kallisto but have not given the fasta reference (-f)"
         usage
-    elif [ ! -d $kallisto_fasta ]; then
+    elif [ ! -f $kallisto_fasta ]; then
         echo >&2 "ERROR: Could not find the kallisto fasta reference"
         usage
     fi
@@ -419,7 +438,7 @@ trimmomatic="$outdir/trimmomatic"
 [[ ! -d $trimmomatic ]] && mkdir $trimmomatic
 
 ## Bowtie
-bowtie="$outdir/bowtie"
+bowtie="$outdir/bowtie2"
 [[ ! -d $bowtie ]] && mkdir $bowtie
 
 ## Kallisto
@@ -427,14 +446,8 @@ kallisto="$outdir/kallisto"
 [[ ! -d $kallisto ]] && mkdir $kallisto
 
 ## Export some variables
-[[ -z $UPSCb ]] && export UPSCb=$PIPELINE_DIR/..
-
-## I will just assume that the sortmerna data is symlinked in the repo
-[[ -z $SORTMERNADIR ]] && export SORTMERNADIR=$PIPELINE_DIR/../data/sortmerna
-if [ ! -e $SORTMERNADIR ]; then
-    echo "ERROR: could not find the sortmerna data in $SORTMERNADIR" 1>&2
-    usage
-fi
+: "${UPSCb:=$PIPELINE_DIR/..}"
+#[[ -z $UPSCb ]] && export UPSCb=$PIPELINE_DIR/..
 
 ## final setup
 ## check for sbatch, return 1 if no sbatch, 0 otherwise
@@ -444,7 +457,10 @@ if [ `toolCheck $CMD` -eq 1 ]; then
 fi
 
 ## setup the tmp dir
-[[ -z $SNIC_TMP ]] && export SNIC_TMP=/tmp
+#[[ -z $SNIC_TMP ]] && export SNIC_TMP=/tmp
+# this makes the above set -u friendly
+# From https://stackoverflow.com/questions/11362250/in-bash-how-do-i-test-if-a-variable-is-defined-in-u-mode
+: "${SNIC_TMP:=/tmp}"
 
 echo "### ========================================"
 
@@ -486,7 +502,7 @@ if [ $pstart -le 1 ]; then
         -e $fastqc_raw/${sname}_1_fastqc.err \
         -o $fastqc_raw/${sname}_1_fastqc.out \
         -J ${sname}.RNAseq.FastQC.raw1 \
-        $dep1 runFastQC.sh $fastqc_raw $fastq1`)
+        runFastQC.sh $fastqc_raw $fastq1`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 
 fi
@@ -495,9 +511,17 @@ fi
 if [ $pstart -le 2 ] && [ $pend -ge 2 ]; then
     echo "# Preparing step 2"
 
-    dep1=
+    # because we can have no unset variable, we first try a parameter expansion
+    # it set the variable to empty if it does not exist
+    SORTMERNADIR=${SORTMERNADIR:-}
+    if [ -z $SORTMERNADIR ]; then
+        echo "ERROR: could not find the sortmerna data in $SORTMERNADIR" 1>&2
+        usage
+    fi
+    
+    dep=
     if [ $pstart -lt 2 ] && [ "$CMD" != "bash" ]; then
-        dep1="-d afterok:${JOBIDS[${#JOBIDS[@]}-1]}"
+        dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-1]}"
     fi
 
     JOBCMDS+=(`prepare_$CMD \
@@ -506,7 +530,7 @@ if [ $pstart -le 2 ] && [ $pend -ge 2 ]; then
         -o $sortmerna/${sname}_sortmerna.out \
         $dep \
         -J ${sname}.RNAseq.SortMeRNA \
-        runSortmerna.sh -u $sortmerna $SNIC_TMP $fastq1`)
+        runSortmerna.sh -P 11,6,1 -s 1 -u $sortmerna $SNIC_TMP $fastq1`)
     if [ "$CMD" == "bash" ]; then
 	JOBCMDS+=("export SORTMERNADIR=$SORTMERNADIR;$sortmerna_id")
     else
@@ -556,7 +580,7 @@ if [ $pstart -le 4 ] && [ $pend -ge 4 ]; then
         -o $trimmomatic/${sname}_trimmomatic.log \
         -J ${sname}.RNAseq.Trimmomatic \
         $dep \
-        runTrimmomatic.sh -s $fastq_sort_1 $trimmomatic $trimmomatic_options`)
+        runTrimmomatic.sh -t -s -c $trimmomatic_clipping $fastq_sort_1 $trimmomatic $trimmomatic_options`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 
 fi
@@ -572,7 +596,7 @@ if [ $pstart -le 5 ] && [ $pend -ge 5 ]; then
     if [ $pstart -lt 4 ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-1]}"
     elif [ ! -f $fastq_trimmed_1 ] && [ "$CMD" != "bash" ]; then
-        echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
+        echo >&2 "ERROR: Trimmed FASTQ-files could not be found"
         cleanup
     fi
     JOBCMDS+=(`prepare_$CMD \
@@ -594,7 +618,7 @@ if [ $pstart -le 6 ] && [ $pend -ge 6 ]; then
     if [ $pstart -le 4 ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-2]}"
     elif [ ! -f $fastq_trimmed_1 ] && [ "$CMD" != "bash" ]; then
-        echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
+        echo >&2 "ERROR: Trimmed FASTQ-files could not be found"
         cleanup
     fi
 
@@ -604,7 +628,7 @@ if [ $pstart -le 6 ] && [ $pend -ge 6 ]; then
             -o $bowtie/${sname}_bowtie.out \
             -J ${sname}.RNAseq.bowtie \
             ${mem:+"-m" "$mem"} \
-            $dep runSTAR.sh -s -l "$bam_memory" $star_runner_options $star $star_ref $fastq_trimmed_1 $star_options`)
+            $dep runBowtie2.sh -s $bowtie_index $fastq_trimmed_1 $bowtie $SNIC_TMP`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 
@@ -613,10 +637,10 @@ if [ $pstart -le 7 ] && [ $pend -ge 7 ]; then
     echo "# Preparing step 7"
 
     dep=
-    if [ $pstart -le 5 ] && [ "$CMD" != "bash" ]; then
+    if [ $pstart -le 4 ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-3]}"
     elif ([ ! -f $fastq_trimmed_1 ]) && [ "$CMD" != "bash" ]; then
-        echo >&2 "ERROR: rRNA-filtered FASTQ-file could not be found"
+        echo >&2 "ERROR: Trimmed FASTQ-file could not be found"
         cleanup
     fi
     
@@ -635,7 +659,7 @@ if [ $pstart -le 7 ] && [ $pend -ge 7 ]; then
         -e $kallisto/${sname}_kallisto.err \
         -o $kallisto/${sname}_kallisto.out \
         -J ${sname}.RNAseq.kallisto \
-        $dep runKallisto.sh $single_end_option $kallisto_strand_option $fastq_trimmed_1 $kallisto_index $kallisto_fasta $kallisto`)
+        $dep runKallisto.sh -p $single_end_option $kallisto_strand_option $fastq_trimmed_1 $kallisto_index $kallisto_fasta $kallisto`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 

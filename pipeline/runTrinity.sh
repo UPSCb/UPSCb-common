@@ -32,7 +32,7 @@ READSET=0
 ## usage
 USAGETXT=\
 "
-	Usage: runTrinity.sh [options] <out dir> <left fq(s)> <right fq(s)> <single fq(s)>
+	Usage: runTrinity.sh [options] <out dir> <left fq(s)> <right fq(s)> [single fq(s)]
 
 	Options:
                 -b do not run bowtie as part of Chrysalis. The only reason to do that

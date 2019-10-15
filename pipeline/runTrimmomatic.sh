@@ -142,7 +142,7 @@ fi
 
 log=
 if [ $trimlog -eq 1 ]; then
-    log=-trimlog $out/$pattern.log
+    log="-trimlog $out/$pattern.log"
     echo "Trim log is $log"
 fi
 

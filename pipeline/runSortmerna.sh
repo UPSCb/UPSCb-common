@@ -21,6 +21,8 @@ set -x
 UNPAIRED=0
 PROC=20
 DBS=
+SEEDS=2
+PASSES=
 
 ## source functions
 source $UPSCb/src/bash/functions.sh
@@ -34,6 +36,8 @@ export USAGETXT="
 #                -k drop the rRNA (only for v1.9, default to keep them)
 #                -m run against mtSSU in addition (only for v1.9)
                 -p number of threads to be used (default $PROC)
+                -P number of passes (default to sortmerna defaults)
+		-s number of seeds (default 2)
                 -u single end data (in that case only the forward fastq is needed)
 
          Note:
@@ -64,13 +68,15 @@ fi
 
 ## get the options
 #while getopts d:kmp:u option
-while getopts d:p:u option
+while getopts d:p:P:s:u option
 do
         case "$option" in
       d) DBS=$OPTARG;;
 #	    k) KEEP=0;;
 #	    m) useMtSSU=1;;
 	    p) PROC=$OPTARG;;
+	    P) PASSES="--passes $OPTARG";;
+	    s) SEEDS=$OPTARG;;
 	    u) UNPAIRED=1;;
 		\?) ## unknown flag
 		abort;;
@@ -218,13 +224,15 @@ opt="-a $PROC"
 ## run
 if [ $UNPAIRED == 0 ]; then
 #  if [ $is2dotx != 0 ]; then
-    sortmerna --ref $dbs --reads $tmp/$fm --other $tmp/$fo --log --paired_in --fastx $opt --sam --num_alignments 1 --aligned $tmp/${fo}_rRNA
+    sortmerna --ref $dbs --reads $tmp/$fm --other $tmp/$fo --log --paired_in --fastx $opt \
+--sam --num_alignments 1 $PASSES --num_seeds $SEEDS --aligned $tmp/${fo}_rRNA
 #  else
 #    sortmerna -n $dbNum --db $dbs --I $tmp/$fm --other $tmp/$fo --log $1/$fo --paired-in $opt
-#  fi  
+#  fi
 else
 #  if [ $is2dotx != 0 ]; then
-    sortmerna --ref $dbs --reads $tmp/$f1 --other $1/$fo --log $opt --sam --fastx --num_alignments 1 --aligned $tmp/${fo}_rRNA
+    sortmerna --ref $dbs --reads $tmp/$f1 --other $1/$fo --log $opt --sam \
+--fastx --num_alignments 1 $PASSES --num_seeds $SEEDS --aligned $tmp/${fo}_rRNA
 #  else
 #    sortmerna -n $dbNum --db $dbs --I $tmp/$f1 --other $1/$fo --log $1/$fo $opt
 #  fi
