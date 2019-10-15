@@ -15,13 +15,7 @@ USAGETXT=\
 "
 CPU=32
 
-# sanity
-if [ -z $UPSCb ]; then
-  echo "Set your UPSCb environment variable"
-  exit 1
-fi
-
-source $UPSCb/src/bash/functions.sh
+source ../UPSCb-common/src/bash/functions.sh
 
 isExec seidr
 
