@@ -79,7 +79,7 @@ fi
 
 ## run 
 echo "Blasting but faster"
-fnam=$(basename $3)_$(basename ${2//.f*a*/.blt})
+fnam=$(basename $3)_$(basename ${2//.f*a*/.xml})
 
 diamond $1 -d $3 -p $PROC -q $2 -o $4/$fnam -f $FMT $OPTIONS
 
