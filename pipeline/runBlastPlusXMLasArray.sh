@@ -89,7 +89,7 @@ fi
 ## run BLAST
 echo Blasting
 fnam=$(basename $3)_$(basename ${2//.f*a*/.xml})
-$1 -db $3 -query $2 -out $4/$fnam -evalue $EVALUE $OPTIONS -num_threads $PROC -outfmt $FMT
+$1 -db $3 -query $2.$SLURM_ARRAY_TASK_ID -out $4/${SLURM_ARRAY_TASK_ID}.${fnam} -evalue $EVALUE $OPTIONS -num_threads $PROC -outfmt $FMT
 
 ##
 echo Done
