@@ -52,7 +52,7 @@
 
   ## create the exon gff
   rngList <- rngList[match(geneID[geneID %in% idMap$Parent], names(rngList))]
-  exonNumber <- elementLengths(rngList)
+  exonNumber <- elementNROWS(rngList)
   exonGff <- gff[rep(which(sel)[geneID %in% idMap$Parent], exonNumber)]
   exonGff[,1] <- unlist(start(rngList))
   exonGff[,2] <- unlist(end(rngList))
