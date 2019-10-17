@@ -7,7 +7,7 @@
   features <- match.arg(features, several.ok = TRUE)
   output <- match.arg(output)
 
-  gff <- readGff3(gff3)
+  gff <- readZeroLengthFeaturesGff3(gff3)
 
   ## get the gene <-> pacid map
   # This is mRNA IDs and their parents (genes)
