@@ -73,7 +73,7 @@
   newgff$source <- "UPSC"
 
   ## sort
-  newgff <- newgff[order(seq_name(newgff), newgff[, 1],
+  newgff <- newgff[order(seqnames(newgff), newgff[, 1],
                          factor(as.character(newgff$type),
                                 labels = seq_len(2 + length(features)),
                                 levels = c("gene", features, "exon"))), ]
