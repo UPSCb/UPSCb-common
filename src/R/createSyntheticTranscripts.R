@@ -29,9 +29,7 @@
 
   ## create a set of synthetic exons
   rngList <- IRanges::reduce(
-    IRanges::split(rngs,
-                   idMap[match(mRnaID[mRnaID %in% idMap$ID],
-                               idMap$ID),"Parent"]))
+    split(rngs, idMap[match(mRnaID[mRnaID %in% idMap$ID], idMap$ID), "Parent"]))
 
   ## export the gene, exon and features as gff3
   ## create the new gff object
@@ -56,8 +54,8 @@
   rngList <- rngList[match(geneID[geneID %in% idMap$Parent], names(rngList))]
   exonNumber <- elementLengths(rngList)
   exonGff <- gff[rep(which(sel)[geneID %in% idMap$Parent], exonNumber)]
-  exonGff[,1] <- IRanges::unlist(start(rngList))
-  exonGff[,2] <- IRanges::unlist(end(rngList))
+  exonGff[,1] <- unlist(start(rngList))
+  exonGff[,2] <- unlist(end(rngList))
 
   exonID <- sapply(exonNumber, ":", 1)
   sel <- geneGff$strand == "+"
