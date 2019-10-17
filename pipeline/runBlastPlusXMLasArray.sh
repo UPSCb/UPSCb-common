@@ -74,8 +74,8 @@ case "$1" in
 	abort "Unknown blast command. Not one of blastn, blastp, blastx, tblastn, tblastx. Aborting."
 esac
 
-if [ ! -f $2 ]; then
-    abort "The second argument needs to be the fasta file"
+if [ ! -f $2.$SLURM_ARRAY_TASK_ID ]; then
+    abort "The second argument $2.$SLURM_ARRAY_TASK_ID needs to be the fasta file"
 fi
 
 if [ ! -f $3.$EXT ] && [ ! -f $3.${EXT//hr/al} ]; then
