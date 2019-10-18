@@ -1,15 +1,23 @@
-
-# Ex. y <- gopher(c("GO:0034641", "GO:0071705"), url="pabies", task=c("go"), endpoint = "term-to-gene")
-# y$`GO:0071705`
-# [1] "MA_10427660g0010" "MA_10436496g0010" "MA_552029g0010"   "MA_59139g0010"    "MA_847283g0010"  
-# y$`GO:0034641`
-#[1] "MA_10053307g0010" "MA_10263024g0010" "MA_10426126g0010" "MA_15844g0010"    "MA_169451g0010"   "MA_3184966g0010"  "MA_40229g0010"   
-
-require(tidyr)
-require(tibble)
-require(dplyr)
-require(jsonlite)
-
+#' R wrapper for the gofer2 REST API
+#'
+#' @param genes 
+#' @param background 
+#' @param task 
+#' @param alpha Maximun pAdj value permited
+#' @param host 
+#' @param port 
+#' @param url 
+#' @param endpoint 
+#'
+#' @return
+#'
+#' @examples
+#' # Term to gene lookup
+#' Ex. y <- gopher(c("GO:0034641", "GO:0071705"), url="pabies", task=c("go"), endpoint = "term-to-gene")
+#' y$`GO:0071705`
+#' [1] "MA_10427660g0010" "MA_10436496g0010" "MA_552029g0010"   "MA_59139g0010"    "MA_847283g0010"  
+#' y$`GO:0034641`
+#' [1] "MA_10053307g0010" "MA_10263024g0010" "MA_10426126g0010" "MA_15844g0010"    "MA_169451g0010"   "MA_3184966g0010"  "MA_40229g0010"   
 gopher <- function(genes=character(0),
                    background = NULL,
                    task = list("go",
@@ -22,6 +30,10 @@ gopher <- function(genes=character(0),
                    url="json",
                    endpoint=c("enrichment","gene-to-term","get-sets","term-to-gene")) {
 
+  require(tidyr)
+  require(tibble)
+  require(dplyr)
+  require(jsonlite)
   
   # arguments
   if(endpoint != "term-to-gene" && !is.list(task)){
