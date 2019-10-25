@@ -25,7 +25,7 @@ SEEDS=2
 PASSES=
 
 ## source functions
-source $UPSCb/src/bash/functions.sh
+source $UPSCb/UPSCb-common/src/bash/functions.sh
 
 ## usage
 export USAGETXT="

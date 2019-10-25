@@ -9,7 +9,7 @@
 set -eux
 
 ## helper function
-source $UPSCb/src/bash/functions.sh
+source $UPSCb/UPSCb-common/src/bash/functions.sh
 
 ## Variables
 BOWTIE=
