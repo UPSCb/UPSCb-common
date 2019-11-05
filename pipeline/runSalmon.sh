@@ -5,7 +5,7 @@
 #SBATCH --mem=12GB
 
 # be verbose and fail on errr
-set -ex
+set -eux
 
 # source helpers
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
@@ -15,7 +15,7 @@ CPU=2
 GC="--gcBias"
 SEQ="--seqBias"
 LTYPE="A"
-BIND=/mnt:/mnt 
+BIND=/mnt:/mnt
 IMG=/mnt/picea/projects/singularity/salmon.simg
 
 # USAGE
@@ -23,7 +23,7 @@ IMG=/mnt/picea/projects/singularity/salmon.simg
 USAGETXT=\
 "
     Usage: $0 [options] <index dir> <fwd fq file> <rev fq file> <out dir>
-    
+
     Options:
               b: bind directory path
               i: path to the singularity image
@@ -31,7 +31,7 @@ USAGETXT=\
               l: the library type, defaults to A (automatic) - see https://salmon.readthedocs.io/en/latest/library_type.html#fraglibtype 
               p: number of CPU to use (default 2)
               s: turn off sequence bias correction (on by default)
-" 
+"
 
 # Check the tool is avail
 # we use singularity
