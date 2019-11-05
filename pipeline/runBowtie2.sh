@@ -9,7 +9,7 @@
 set -eux
 
 ## helper function
-source $UPSCb/UPSCb-common/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/UPSCb-common/src/bash/functions.sh
 
 ## Variables
 BOWTIE=

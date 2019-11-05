@@ -8,7 +8,7 @@
 set -ex
 
 # source helpers
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # defaults
 CPU=2

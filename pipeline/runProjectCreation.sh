@@ -39,7 +39,7 @@ Specifics:
 "
 
 # load functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # check the host
 if [ $HOSTNAME != "microasp" ]; then

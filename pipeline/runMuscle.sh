@@ -13,7 +13,7 @@ Usage: $0 <FASTA> <OUTFILE>
 "
 
 # load functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # checks
 if [ $@ -ne 2 ]; then

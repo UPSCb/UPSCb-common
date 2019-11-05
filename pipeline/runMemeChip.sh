@@ -6,7 +6,7 @@
 set -eux
 
 # functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # variables
 CPU=30

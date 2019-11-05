@@ -24,7 +24,7 @@ Usage: $0 <CONFIG-FILE> <GENOME-VERSION> <GENOME-FASTA> <GFF3> <PROTEIN-FASTA> <
 "
 
 # load functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # checks
 if [ $@ -ne 6 ]; then

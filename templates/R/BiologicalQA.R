@@ -9,19 +9,21 @@
 #' ---
 #' # Setup
 #' * Libraries
-suppressPackageStartupMessages(library(data.table))
-suppressPackageStartupMessages(library(DESeq2))
-suppressPackageStartupMessages(library(gplots))
-suppressPackageStartupMessages(library(here))
-suppressPackageStartupMessages(library(hyperSpec))
-suppressPackageStartupMessages(library(parallel))
-suppressPackageStartupMessages(library(pander))
-suppressPackageStartupMessages(library(plotly))
-suppressPackageStartupMessages(library(RColorBrewer))
-suppressPackageStartupMessages(library(scatterplot3d))
-suppressPackageStartupMessages(library(tidyverse))
-suppressPackageStartupMessages(library(tximport))
-suppressPackageStartupMessages(library(vsn))
+suppressPackageStartupMessages({
+  library(data.table)
+  library(DESeq2)
+  library(gplots)
+  library(here)
+  library(hyperSpec)
+  library(parallel)
+  library(pander)
+  library(plotly)
+  library(RColorBrewer)
+  library(scatterplot3d)
+  library(tidyverse)
+  library(tximport)
+  library(vsn)
+})
 
 #' * Helper functions
 source(here("UPSCb-common/src/R/plot.multidensity.R"))

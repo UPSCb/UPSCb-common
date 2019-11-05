@@ -20,7 +20,7 @@ if [ -z $UPSCb ]; then
 fi
 
 # source functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 ## check the options if any
 MEM=40G

@@ -25,7 +25,7 @@ SEEDS=2
 PASSES=
 
 ## source functions
-source $UPSCb/UPSCb-common/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/UPSCb-common/src/bash/functions.sh
 
 ## usage
 export USAGETXT="

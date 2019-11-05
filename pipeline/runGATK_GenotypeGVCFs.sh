@@ -10,7 +10,7 @@ set -ex
 # module load bioinfo-tools GATK
 
 # helper
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 PLOIDY=2
 
