@@ -10,10 +10,10 @@ set -ex
 USAGETXT=\
 "
   Usage: $0 <seidr file> <gold-standard> <score index> <output filename>
-  
+
 "
 
-source ${SLURM_SUBMIT_DIR}/../UPSCb-common/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 isExec seidr
 

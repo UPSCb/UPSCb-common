@@ -17,6 +17,7 @@ usage(){
     Single end: $0 [options] -s <fastq file> <inx file> <transcript fasta file> <out dir>
     Options:
       b: the number of boostrap; default to 100
+      c: convert the BAM to CRAM (requires -p). Default FALSE
       f: force; i.e. overwrite results
       m: the memory multiplier, in GB; i.e. total memory = -m * -t (7 * 8 CPU = 56G by default )
       s: single end sequencing; the function only expects 3 arguments then
@@ -34,20 +35,22 @@ usage(){
 ## VARS
 BOOTSTRAP="-b 100"
 CPU=8
+CRAM=0
 MEMMULT=8
 SINGLE=0
 FORCE=0
 STRANDED="--rf-stranded"
 THREADS="-t $CPU"
-PSEUDOBAM="--rf-stranded"
+PSEUDOBAM=
 FRAGMENT_LENGTH_MEAN=
 FRAGMENT_LENGTH_SD=
 
 # get the options
-while getopts b:fm:st:purFM:S: option
+while getopts b:cfm:st:purFM:S: option
   do
     case "$option" in
     b) BOOTSTRAP="-b $OPTARG";;
+    c) CRAM=1;;
     f) FORCE=1;;
     m) MEMMULT=$OPTARG;;
   	s) SINGLE=1;;
@@ -137,15 +140,16 @@ else
   if [ ! -f $outdir/abundance.tsv ] || [ $FORCE -eq 1 ]; then
     kallisto quant -i $2 $BOOTSTRAP \
     -o $outdir $PSEUDOBAM $THREADS $STRANDED \
-    --single $1 -l $FRAGMENT_LENGTH_MEAN -s $FRAGMENT_LENGTH_SD\
-    > $outdir/$fnam.sam
+    --single $1 -l $FRAGMENT_LENGTH_MEAN -s $FRAGMENT_LENGTH_SD
 
-    samtools view -CT $3 $outdir/$fnam.sam | \
-    samtools sort -o $outdir/${fnam}_pseudo.cram -@ $CPU -m ${MEMMULT}G && \
-    samtools index $outdir/${fnam}_pseudo.cram
+    if [ ! -z $PSEUDOBAM ] && [ $CRAM -eq 1 ]; then  
+      samtools view -CT $3 $outdir/pseudoalignments.bam | \
+      samtools sort -o $outdir/${fnam}_pseudo.cram -@ $CPU -m ${MEMMULT}G && \
+      samtools index $outdir/${fnam}_pseudo.cram
     
-    if [ -f ${fnam}_pseudo.cram ]; then
-      rm $fnam.sam
+      if [ -f ${fnam}_pseudo.cram ]; then
+        rm $outdir/pseudoalignments.bam
+      fi
     fi
   fi
 fi

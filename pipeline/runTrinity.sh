@@ -20,7 +20,7 @@ if [ -z $UPSCb ]; then
 fi
 
 # source functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 ## check the options if any
 MEM=40G
@@ -32,7 +32,7 @@ READSET=0
 ## usage
 USAGETXT=\
 "
-	Usage: runTrinity.sh [options] <out dir> <left fq(s)> <right fq(s)> <single fq(s)>
+	Usage: runTrinity.sh [options] <out dir> <left fq(s)> <right fq(s)> [single fq(s)]
 
 	Options:
                 -b do not run bowtie as part of Chrysalis. The only reason to do that

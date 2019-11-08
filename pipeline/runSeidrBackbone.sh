@@ -12,6 +12,9 @@ set -ex
 # sbatch -n 1 -c 1 OMP_NUM_THREADS=1 seidr backbone -O 1
 CPU=2
 
+# helper functions
+source ../UPSCb-common/src/bash/functions.sh
+
 # usage
 USAGETXT=\
 "
@@ -22,14 +25,10 @@ USAGETXT=\
 "
 
 # sanity
-if [ -z $UPSCb ]; then
-  echo "Set your UPSCb environment variable"
-  exit 1
-fi
-
-source $UPSCb/src/bash/functions.sh
-
 isExec seidr
+if [ $? -ne 0 ]; then
+  abort "seidr is not available. Install it, or load the module"
+fi
 
 if [ $# -ne 3 ]; then
   abort "This script expects 3 arguments"

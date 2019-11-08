@@ -11,7 +11,7 @@ set -eux
 module load bioinfo-tools vsearch/2.13.0
 
 # load some functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # defaults
 CUTOFF=0.9

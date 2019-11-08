@@ -12,7 +12,7 @@ set -ex
 export USAGETXT="Usage: $0 <a file> <b file> <out dir> [bed intersect option]"
 
 # load functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # test the param
 if [ "$#" -lt 3 ]; then

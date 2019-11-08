@@ -2,13 +2,14 @@
 #SBATCH -p node
 #SBATCH -n 16
 #SBATCH --mem=100G
+#SBATCH -t 2-00:00:00
 #SBATCH --mail-type=ALL
 
 ## stop on error
 set -ex
 
 ## modules
-module load bioinfo-tools pasa
+module load bioinfo-tools pasa/2.0.3
 
 ## TODO
 ## integrate the -I option for the max intron length size
@@ -21,15 +22,13 @@ usage(){
 
     Options:
              -c the number of CPU to use (default to 16)
-             -e the step at which to end the pipeline (that step is NOT run) 
+             -e the step at which to end the pipeline (that step is NOT run)
              -s the step at which to restart the pipeline
              -n do not setup the DATABASE
              -r DROP THE DATABASE, USE ONLY FOR CLEAN RESTART
-             
-    
     Note: if -s is not provided the -C option is used instead, i.e. a new database is created
           if -e is set, no preprocessing step is done, i.e. no directory setup and no seqclean
-" 
+"
     exit 1
 }
 
@@ -111,9 +110,9 @@ if [ "$OPTIONS" == "-C" ]; then
     ln -sf $3 trinity
     ln -sf $4 trinityGG
     ln -sf $5 cufflinks
-    
+
     ## combine the fasta
-    cat trinity trinityGG > transcripts.fasta
+    zcat trinity trinityGG > transcripts.fasta
     
     ## TODO - add copying of large genome if needed
     ## mkdir genome.gmap
@@ -138,4 +137,4 @@ if [ ! -z $RESET ]; then
 fi
 
 ## run PASA
-$PASAHOME/scripts/Launch_PASA_pipeline.pl -c config $OPTIONS -R -g genome -t transcripts.fasta.clean --ALIGNERS blat,gmap --TDN tdn.accs --cufflinks_gtf cufflinks -u transcripts.fasta -T --TRANSDECODER --CPU $CPU
+$PASAHOME/scripts/Launch_PASA_pipeline.pl -c config $OPTIONS -R -g genome -t transcripts.fasta.clean --ALIGNERS gmapl --TDN tdn.accs --cufflinks_gtf cufflinks -u transcripts.fasta -T --TRANSDECODER --CPU $CPU

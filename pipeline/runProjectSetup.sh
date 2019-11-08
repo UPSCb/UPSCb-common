@@ -6,9 +6,9 @@ SPECIES=
 GID=
 DATADIR=/mnt/picea/storage/data
 PROJECTDIR=/mnt/picea/projects
-read -r -a KNOWNPIS <<< $(getent group | awk -F: '{if($3 >= 2007 && $3 < 3000){print $1}}' | grep -v u20)
-read -r -a KNOWNSPECIES <<< $(find $DATADIR -mindepth 1 -maxdepth 1 -type d -exec basename "{}" \;)
-read -r -a KNOWNGROUPS <<< $(getent group | awk -F: '{if($3 >= 2007 && $3 < 3000){print $1}}' | grep u20)
+read -r -a KNOWNPIS <<< $(getent group | awk -F: '{if($3 >= 2007 && $3 < 3000){print $1}}' | grep -v u20 | xargs )
+read -r -a KNOWNSPECIES <<< $(find $DATADIR -mindepth 1 -maxdepth 1 -type d -exec basename "{}" \; | xargs )
+read -r -a KNOWNGROUPS <<< $(getent group | awk -F: '{if($3 >= 2007 && $3 < 3000){print $1}}' | grep u20 | xargs )
 
 if [ -z $UPSCb ]; then
   export UPSCb=/mnt/picea/home/delhomme/Git/UPSCb
@@ -39,7 +39,7 @@ Specifics:
 "
 
 # load functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # check the host
 if [ $HOSTNAME != "picea" ]; then

@@ -13,7 +13,7 @@ set -ex
 # module load R
 
 # helper
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # usage
 USAGETXT=\

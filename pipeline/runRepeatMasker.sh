@@ -18,7 +18,7 @@ export USAGETXT=\
 OPT="-qq"
 
 # common function
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 if [ "$#" -lt 3 ]; then
   abort "This function expects at least three arguments"

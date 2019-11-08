@@ -4,55 +4,39 @@
 set -ex
 
 # project vars
-account=SNIC2018-3-61
-mail=nicolas.delhomme@umu.se
-
-# check
-if [ -z $UPSCb ]; then
-  echo "The UPSCb environment variable needs to be set to your UPSCb Git checkout path"
-  exit 1
-fi
+account=SNIC2019-3-207
+mail=nicolas.delhomme@slu.se
 
 # source
-source $UPSCb/src/bash/functions.sh
+source functions.sh
 
 # modules
-#module load bioinfo-tools seidr-devel
-#export PATH=/pfs/nobackup/home/b/bastian/seidr/build:$PATH
 source /pfs/nobackup/home/b/bastian/seidr/build/sourcefile
 
 # Variables
+inference=(aracne clr elnet genie3 llr-ensemble mi narromi pcor pearson plsnet spearman tigress)
 
-inference=(aracne clr elnet genie3 llr-ensemble narromi pcor pearson plsnet spearman tigress)
-
-# 14 workers on 2 nodes (kk has 28 per node)
-# narromi is not thread safe, hence -c 1
-#default="-n 2 -c 14 -t 1-00:00:00"
-#arguments=([0]=$default [1]=$default [2]="-n 2 -c 28 -t 2-00:00:00" [3]=$default [4]="-n 28 -c 1 -t 1-00:00:00" [5]="-n 7 -t 12:00:00" [6]="-n 7 -t 12:00:00" [7]=$default [8]="-n 7 -t 12:00:00" [9]="-n 3 -c 28 -t 3-00:00:00")
-#parallel="-O "'$SLURM_CPUS_PER_TASK'
-#command=([0]="mi -m aracne "$parallel [1]="mi -m CLR "$parallel [2]="genie3 "$parallel [3]="llr-ensemble "$parallel [4]="narromi "$parallel [5]="pcor" [6]="correlation -m pearson" [7]="plsnet "$parallel [8]="correlation -m spearman" [9]="tigress "$parallel)
-CPUs=14
+# additional parameters (elnet is done iteratively, so the format is not the expected one: a matrix, rather an edge list
+arguments=([2]="-f el" [4]="-o llr-ensemble.sf")
+CPUs=28
+Time=1-00:00:00
 
 # usage
 USAGETXT=\
 "
-$0 <inference.tsv> <genes.tsv>
+$0 <genes.tsv>
 
-Methods to be imported: ${inference[@]}
+Methods to be import from: ${inference[@]}
 
 "
 
 # input: gene and data
-if [ $# -ne 2 ]; then
-  abort "This script expects 2 arguments"
+if [ $# -ne 1 ]; then
+  abort "This script expects 1 argument"
 fi
 
 if [ ! -f $1 ]; then
-  abort "The first argument needs to be the inference result file"
-fi
-
-if [ ! -f $2 ]; then
-  abort "The second argument needs to be the gene names tab delimited file"
+  abort "The argument needs to be the gene names tab delimited file"
 fi
 
 # Create template script and submit
@@ -60,16 +44,19 @@ len=${#inference[@]}
 for ((i=0;i<len;i++)); do
   inf=${inference[$i]}
   if [ ! -f results/$inf/$inf.sf ]; then
-    
-    /pfs/nobackup/home/b/bastian/seidr/build/scripts/generate_import_script.py \
-    -i results/$inf/$inf.tsv -g genes.tsv -c $CPUs > results/$inf/${inf}-import.sh
-    
-    # echo "#!/bin/bash" > results/$inf/$inf.sh
-    # echo "unset OMP_NUM_THREADS" >> results/$inf/$inf.sh
-    # echo "srun ${command[$i]} -i $1 -g $2 -o results/$inf/$inf.tsv" >> results/$inf/$inf.sh
-    sbatch --mail-type=ALL --mail-user=$mail -A $account -J import-$inf -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
-  
-    # ${arguments[$i]} 
+
+    if [ -f results/$inf/$inf.tsv ]; then
+      /pfs/nobackup/home/d/delhomme/seidr/scripts/generate_import_script.py \
+      -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
+
+      sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf \
+	-e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
+    else
+      echo "There is no tsv file for $inf"
+    fi
+
+    # ${arguments[$i]}
   fi
 done
+
 
