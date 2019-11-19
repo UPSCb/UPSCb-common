@@ -35,8 +35,9 @@
 #' 
 #' Finally, by defaut the method returns only the specificity scores; _i.e._
 #' output="simple", whereas the _complete_ output will report in addition
-#' aij, maxj(aij), and the n used for calculation, _i.e_ the number of 
-#' samples with expresion > 0.
+#' aij, maxj(aij), and n; _i.e_ the number of 
+#' samples with expresion > 0 - as well as _peak_, a column that returns the
+#' tissue(s) with highest epxression. If multiple, they are comma separated
 #' ```{r empty, echo=FALSE, eval=FALSE}
 #' ```
 #' # Setup
@@ -90,8 +91,7 @@ setMethod(f="expressionSpecificity",
                                   lapply(split.data.frame(t(exp.mat),
                                                           tissues,
                                                           drop=FALSE),
-                                         colMeans,na.rm=TRUE)),na.rm=TRUE)
-                )
+                                         colMeans,na.rm=TRUE)),na.rm=TRUE))
               },
               global = {
                 message("Calculating sample specificity")
@@ -125,7 +125,8 @@ setMethod(f="expressionSpecificity",
                 score=scores,
                 aij=frac$aij,
                 maxn=frac$maxn,
-                n=n
+                n=n,
+                peak=sapply(apply(frac$aij == frac$maxn,1,subset,x=tissues),paste,collapse=",")
               ))
             }
             })
