@@ -149,7 +149,7 @@ if [ $# != 0 ]; then
 fi
 
 ## output name
-outName=$output/`basename ${in1//$FIND/}`
+outName=$output/`basename ${in1//$FIND/.bam}`
 
 ## start star
 if [ $SINGLE == 1 ]; then
@@ -162,7 +162,7 @@ else
 	    gunzip -c $in2 > $tmpDir/${in2//.gz/}
     fi
 
-    echo $BOWTIE $@ $OPT -p $PROC $genome -1 ${in1//.gz/} -2 ${in2//.gz/} | samtools view -bS - | samtools sort - $outName
+    $BOWTIE $@ $OPT -p $PROC $genome -1 ${in1//.gz/} -2 ${in2//.gz/} | samtools view -bS - | samtools sort - $outName
 
     rm $tmpDir/${in1//.gz/} $tmpDir/${in2//.gz/}
  

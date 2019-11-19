@@ -10,14 +10,8 @@ set -ex
 USAGETXT=\
 "
   Usage: $0 <seidr file> <gold-standard> <score index> <output filename>
-  
-"
 
-# sanity
-if [ -z $UPSCb ]; then
-  echo "Set your UPSCb environment variable"
-  exit 1
-fi
+"
 
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
