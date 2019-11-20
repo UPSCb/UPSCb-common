@@ -30,6 +30,9 @@ pal=brewer.pal(8,"Dark2")
 hpal <- colorRampPalette(c("blue","white","red"))(100)
 mar <- par("mar")
 
+#' TODO remember to add a function to check for correlation between logFC and 
+#' transcript length - check for the effective length
+
 #' * Functions
 #' 1. plot specific gene expression
 #' ```{r edit1, echo=FALSE,eval=FALSE}
