@@ -5,7 +5,7 @@ dat <- scan("~/Git/UPSCb/projects/facility/doc/tiggy-gene-example.txt",what="cha
 bg <- scan("~/Git/UPSCb/projects/facility/doc/Tiggy.spruce.background.txt",what="character",skip=1)
 
 # we silence warnings (not good practice, but we know what we're doing) - think to adjust the path
-suppressPackageStartupMessages(source("~delhomme/Git/UPSCb/src/R/gopher.R"))
+suppressPackageStartupMessages(source("~delhomme/Git/UPSCb-common/src/R/gopher.R"))
 
 # we just quantify the run time
 # task has to be a list
