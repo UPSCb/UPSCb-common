@@ -12,6 +12,16 @@
 #' @return
 #'
 #' @examples
+#' # Enrichment
+#' enr <- gopher(c("K00001","K00002"),url='ko', task=list('ko_pathway'))
+#' $ko_pathway
+#' A tibble: 16 x 9
+#' def                                             id           m    mt     n name        nt     padj      pval
+#' <chr>                                           <chr>    <int> <int> <int> <chr>    <int>    <dbl>     <dbl>
+#' 1 https://www.kegg.jp/dbget-bin/www_bget?map00010 map00010 22720   103     2 map00010     2 0.000326 0.0000204
+#' 2 https://www.kegg.jp/dbget-bin/www_bget?map01220 map01220 22720   215     2 map01220     2 0.000713 0.0000891
+#' 3 https://www.kegg.jp/dbget-bin/www_bget?map00626 map00626 22720    29     2 map00626     1 0.00516  0.00255  
+#' 
 #' # Term to gene lookup
 #' Ex. y <- gopher(c("GO:0034641", "GO:0071705"), url="pabies", task=c("go"), endpoint = "term-to-gene")
 #' y$`GO:0071705`
@@ -25,7 +35,7 @@ gopher <- function(genes=character(0),
                             "kegg",
                             "mapman"),
                    alpha=0.05,
-                   host="https://watson.plantphys.umu.se",
+                   host="https://franklin.upsc.se",
                    port=5432,
                    url="json",
                    endpoint=c("enrichment","gene-to-term","get-sets","term-to-gene")) {
