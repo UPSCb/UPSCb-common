@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 usage(){
     echo >&2 \
 "
@@ -29,13 +31,10 @@ if [ ! -d $1 ]; then
     usage
 fi
 
-if [ -z $UPSCb ]; then
-    echo "The UPSCb environment variable needs to be set."
-    usage
-fi
+py=${SLURM_SUBMIT_DIR:-$(dirname $0)}/../src/python/fastQCmultiviewer.py
 
-if [ ! -f $UPSCb/src/python/fastQCmultiviewer.py ]; then
-    echo "Either your UPSC env. var. is not set correctly or your checkout is too old."
+if [ ! -f $py ]; then
+    echo "Fixme; the .. part of the path, also below..."
     usage
 fi
 
@@ -43,5 +42,5 @@ mkdir -p $1/multiview
 
 find $1 -name "*.zip" -type f -exec unzip -f -d $1/multiview "{}" \;
 
-python $UPSCb/src/python/fastQCmultiviewer.py -out_file $1/multiview.html -in_dir $1/multiview
+python $py -out_file $1/multiview.html -in_dir $1/multiview
 

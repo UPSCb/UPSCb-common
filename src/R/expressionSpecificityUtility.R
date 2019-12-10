@@ -121,12 +121,12 @@ setMethod(f="expressionSpecificity",
             if(output=="simple"){
               return(scores)
             } else {
-              return(cbind(
+              return(data.frame(
                 score=scores,
                 aij=frac$aij,
                 maxn=frac$maxn,
                 n=n,
-                peak=sapply(apply(frac$aij == frac$maxn,1,subset,x=tissues),paste,collapse=",")
+                peak=sapply(apply(frac$aij == frac$maxn,1,subset,x=colnames(frac$aij)),paste,collapse=",")
               ))
             }
             })
