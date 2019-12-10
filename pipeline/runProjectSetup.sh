@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # parameters
 PI=
@@ -39,7 +40,7 @@ Specifics:
 "
 
 # load functions
-source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../src/bash/functions.sh
 
 # check the host
 if [ $HOSTNAME != "picea" ]; then

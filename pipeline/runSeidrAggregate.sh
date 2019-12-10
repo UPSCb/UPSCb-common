@@ -15,7 +15,7 @@ USAGETXT=\
 "
 CPU=32
 
-source ../UPSCb-common/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 isExec seidr
 

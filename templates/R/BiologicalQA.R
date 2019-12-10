@@ -117,7 +117,7 @@ ggplot(dat,aes(x,y,fill=CHANGEME)) + geom_col() +
 #' and displayed on a log10 scale.
 #' 
 #' The cumulative gene coverage is as expected
-ggplot(melt(log10(rowMeans(counts))),aes(x=value)) + 
+ggplot(data.frame(value=log10(rowMeans(counts))),aes(x=value)) + 
   geom_density() + ggtitle("gene mean raw counts distribution") +
   scale_x_continuous(name="mean raw counts (log10)")
 
