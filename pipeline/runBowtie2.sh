@@ -9,7 +9,7 @@
 set -eux
 
 ## helper function
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 ## Variables
 BOWTIE=
@@ -21,24 +21,24 @@ OPT="-k 50 --non-deterministic"
 USAGETXT=\
 "
 	Usage: runBowtie2.sh [option] <genome dir> <fwd file> <rv file> <out dir> <tmp dir> [--] [additional bowtie arguments]
-	
+
 	Options:
                 -e bowtie executable
                 -p number of threads to be used (default: $PROC)
-		        -s if there is no reverse file 
-	
+		        -s if there is no reverse file
+
 	Notes:
 		-- is a special argument that stop the command line scanning for the script  options.
 		It is necessary if you want to precised additional - non-default - bowtie arguments.
 
         bowtie2 is run with the following parameter by default:
                  -k 50 --non-deterministic
-                 
-        Setting the [additional bowtie arguments] will override these defaults, set them 
+
+        Setting the [additional bowtie arguments] will override these defaults, set them
         again if you want to extend them
-        
-        The number of processes is set using the -p option of the script, do not set it as 
-        part of the [additional bowtie arguments] 
+
+        The number of processes is set using the -p option of the script, do not set it as
+        part of the [additional bowtie arguments]
 "
 
 ## Tool sanity
@@ -109,7 +109,7 @@ fi
 
 if [ ! -f $1 ]; then
 	echo "The forward fastq file: $1 does not exist"
-	usage	
+	usage
 else
 	in1=$1
 	shift
@@ -149,7 +149,7 @@ if [ $# != 0 ]; then
 fi
 
 ## output name
-outName=$output/`basename ${in1//$FIND/}`
+outName=$output/`basename ${in1//$FIND/.bam}`
 
 ## start star
 if [ $SINGLE == 1 ]; then
@@ -162,7 +162,7 @@ else
 	    gunzip -c $in2 > $tmpDir/${in2//.gz/}
     fi
 
-    echo $BOWTIE $@ $OPT -p $PROC $genome -1 ${in1//.gz/} -2 ${in2//.gz/} | samtools view -bS - | samtools sort - $outName
+    $BOWTIE $@ $OPT -p $PROC $genome -1 ${in1//.gz/} -2 ${in2//.gz/} | samtools view -bS - | samtools sort - $outName
 
     rm $tmpDir/${in1//.gz/} $tmpDir/${in2//.gz/}
  

@@ -40,6 +40,7 @@ ${bold}OPTIONS:${normal}
     -e n      step at which to end (see ${underline}STEPS${nounderline})
     -b dir    path to Bowtie index (required if Bowtie is included in pipeline)
     -m        the memory requirement for performing the alignment, in GB; i.e. 128 (default) allocates 128GB
+    -r        the reference databases for sortmerna
     -c        clipping arguments paased to trimmomatic. Overrides defaults in runTrimmomatic.sh. Default in this script: ILLUMINACLIP:\"$UPSCb/data/NEB-universal-adapter.fa\":1:15:10
     -T        trimming arguments passed to trimmomatic. Overrides defaults in runTrimmomatic.sh. Default in this script (we do not trim based on quality) : MINLEN:16
     -f fasta  the transcript fasta sequence file for kallisto
@@ -257,10 +258,11 @@ kallisto_index=
 kallisto_fasta=
 fragment_length_mean=
 fragment_length_sd=
+sortmerna_db=
 
 # Parse the options
 OPTIND=1
-while getopts "ab:c:Dde:f:hk:M:m:S:s:tT:" opt; do
+while getopts "ab:c:Dde:f:hk:M:m:r:S:s:tT:" opt; do
     case "$opt" in
         h) usage;;
         a) non_ilm_stranded=1;;
@@ -273,6 +275,7 @@ while getopts "ab:c:Dde:f:hk:M:m:S:s:tT:" opt; do
         f) kallisto_fasta=$OPTARG ;;
         k) kallisto_index=$OPTARG ;;
 	    m) mem="${OPTARG}GB";;
+	    r) sortmerna_db="-d $OPTARG";;
 	    t) ilm_stranded=1 ;;
 	    T) trimmomatic_options=$OPTARG ;;
 	    M) fragment_length_mean=$OPTARG ;;
@@ -530,7 +533,7 @@ if [ $pstart -le 2 ] && [ $pend -ge 2 ]; then
         -o $sortmerna/${sname}_sortmerna.out \
         $dep \
         -J ${sname}.RNAseq.SortMeRNA \
-        runSortmerna.sh -P 11,6,1 -s 1 -u $sortmerna $SNIC_TMP $fastq1`)
+        runSortmerna.sh $sortmerna_db -P 11,6,1 -s 1 -u $sortmerna $SNIC_TMP $fastq1`)
     if [ "$CMD" == "bash" ]; then
 	JOBCMDS+=("export SORTMERNADIR=$SORTMERNADIR;$sortmerna_id")
     else

@@ -4,10 +4,10 @@
 #SBATCH --mail-type ALL
 
 # fail on ERROR
-set -e
+set -eu
 
 # load helpers
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 CPU=8
 OPTIONS=
@@ -16,8 +16,8 @@ OPTIONS=
 USAGETXT=\
 "
   $0 [options] <transcript file> <output file>
-  
-  Options: 
+
+  Options:
   -t number of threads (default 8)
   -p triggers --perfectHash
 "

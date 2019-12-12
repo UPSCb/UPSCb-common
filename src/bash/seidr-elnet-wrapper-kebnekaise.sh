@@ -43,6 +43,10 @@ if [ ! -f $2 ]; then
   abort "The second argument needs to be the gene names tab delimited file"
 fi
 
+if [ $(wc -l $2 | cut -d" " -f1) -ne 1 ]; then
+  abort "The second file should have only one line"
+fi
+
 # Setup
 # create the output dir
 mkdir -p results/$inf

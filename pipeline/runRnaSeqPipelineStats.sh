@@ -52,25 +52,26 @@ dir=$(realpath $1)
 #dir=$1
 cd $dir
 mkdir -p reports
+exec=$(realpath $(dirname $0))
 
 # collate the fastqc report
 # raw
 cd $dir/fastqc/raw
-$UPSCb/pipeline/runFastQCMultiviewer.sh .
+$exec/runFastQCMultiviewer.sh .
 echo -e "sample\trawReads" > $dir/reports/rawCounts.txt
 find multiview/*_1_f* -name fastqc_data.txt | sort | xargs -I {} bash -c 'grep "Filename" $0 | awk "BEGIN{ORS=\"\t\"}{print \$2}"; grep "Total Sequences" $0 | awk "{print \$3}"' {} >> $dir/reports/rawCounts.txt
 tar -zcf ../../reports/raw-multiview.tgz multiview multiview.html
 
 # sortmerna
 cd $dir/fastqc/sortmerna
-$UPSCb/pipeline/runFastQCMultiviewer.sh .
+$exec/runFastQCMultiviewer.sh .
 echo -e "sample\tsortedReads" > $dir/reports/sortmernaCounts.txt
 find multiview/*_1.fq* -name fastqc_data.txt | sort | xargs -I {} bash -c 'grep "Filename" $0 | awk "BEGIN{ORS=\"\t\"}{print \$2}"; grep "Total Sequences" $0 | awk "{print \$3}"' {} >> $dir/reports/sortmernaCounts.txt
 tar -zcf ../../reports/sortmerna-multiview.tgz multiview multiview.html
 
 # trimmomatic
 cd $dir/fastqc/trimmomatic
-$UPSCb/pipeline/runFastQCMultiviewer.sh .
+$exec/pipeline/runFastQCMultiviewer.sh .
 echo -e "sample\ttrimmedReads" > $dir/reports/trimmomaticCounts.txt
 find multiview/*_1.fq* -name fastqc_data.txt | sort | xargs -I {} bash -c 'grep "Filename" $0 | awk "BEGIN{ORS=\"\t\"}{print \$2}"; grep "Total Sequences" $0 | awk "{print \$3}"' {} >> $dir/reports/trimmomaticCounts.txt
 tar -zcf ../../reports/trimmomatic-multiview.tgz multiview multiview.html
@@ -78,12 +79,12 @@ tar -zcf ../../reports/trimmomatic-multiview.tgz multiview multiview.html
 # calculate the stats
 # sortmerna
 cd $dir/sortmerna
-$UPSCb/pipeline/runSortmernaStats.sh .
+$exec/pipeline/runSortmernaStats.sh .
 mv sortmernaStats.txt ../reports
 
 # trimmomatic
 cd $dir/trimmomatic
-$UPSCb/pipeline/runTrimmomaticStats.sh .
+$exec/pipeline/runTrimmomaticStats.sh .
 mv trimmomaticStats.txt ../reports
 
 # STAR
@@ -91,7 +92,7 @@ cd $dir/star
 echo -e "sample\taligned" > ../reports/star-counts.txt
 find *_logs -name "*Log.final.out" | sort | xargs -I {} bash -c 'echo $0 | awk -F_ "{printf \"%s_%s\\t\",\$4,\$5}"; grep mapped $0 | grep -i number | grep -v many | awk "BEGIN{SUM=0}{SUM+=\$NF}END{print SUM}"' {} >> ../reports/star-counts.txt
 
-$UPSCb/pipeline/runSTARStats.sh .
+$exec/pipeline/runSTARStats.sh .
 mv STARStats.txt ../reports
 
 # HTSeq
@@ -101,7 +102,7 @@ find . -name "*.txt" | sort | xargs -I {} bash -c 'echo $0 | awk -F_ "{printf \"
 
 # Kallisto
 cd $dir/kallisto
-$UPSCb/pipeline/runKallistoStats.sh .
+$exec/pipeline/runKallistoStats.sh .
 mv kallistoStats.txt ../reports
 
 # create a final archive

@@ -25,12 +25,12 @@ SEEDS=2
 PASSES=
 
 ## source functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 ## usage
 export USAGETXT="
 	Usage: runSortmerna.sh [option] <out dir> <tmp dir> <forward fastq.gz> <reverse fastq.gz>
-	
+
 	Options:
                 -d define your dbs (semi-colon separated)
 #                -k drop the rRNA (only for v1.9, default to keep them)

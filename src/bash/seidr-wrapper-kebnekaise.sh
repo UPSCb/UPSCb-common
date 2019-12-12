@@ -84,6 +84,20 @@ if [ ! -f $2 ]; then
   abort "The second argument needs to be the gene names tab delimited file"
 fi
 
+if [ $(wc -l $2 | cut -d" " -f1) -ne 1 ]; then
+  abort "The second file should have only one line"
+fi
+
+# MIGHT ALSO consider THIS instead of the above. We could have 1 gene as a subset
+# GENES=...
+# HEADLESS=...
+# if [[ $(stat -c "%s" $GENES) -gt $(stat -c "%s" $HEADLESS) ]]
+# then
+#   echo "The file size of column headers can't be greater than that of "
+#   echo "expression values"
+#   exit 1
+#  fi
+
 # create dirs
 if [ ! -d $resultDir ]; then
   mkdir $resultDir

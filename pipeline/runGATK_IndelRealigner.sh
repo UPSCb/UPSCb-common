@@ -11,7 +11,7 @@ set -e
 #module load java
 
 # helper
-source $UPSCb-common/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # Defaults
 JavaMem=6G

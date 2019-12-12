@@ -18,7 +18,7 @@ if [ -z $UPSCb ]; then
 fi
 
 ## source helpers
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 ## check the options if any
 FMT="6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen staxids"

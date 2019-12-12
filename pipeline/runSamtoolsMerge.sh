@@ -7,7 +7,7 @@ module load bioinfo-tools samtools
 set -ex
 
 # functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # test
 #isEnvVarSet $UPSCb

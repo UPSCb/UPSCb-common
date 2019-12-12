@@ -24,7 +24,7 @@ Note:
 "
 
 ## common functions
-source $UPSCb/src/bash/functions.sh
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 ## arguments
 if [ $# != 4 ]; then
