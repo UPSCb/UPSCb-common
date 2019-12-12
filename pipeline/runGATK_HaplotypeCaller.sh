@@ -10,7 +10,8 @@ set -ex
 # module load bioinfo-tools GATK
 
 # helper
-source $UPSCb/src/bash/functions.sh
+# if run by hand, set $SLURM_SUBMIT_DIR to "."
+source ${SLURM_SUBMIT_DIR}/../UPSCb-common/src/bash/functions.sh
 
 # vars
 #Threads=8

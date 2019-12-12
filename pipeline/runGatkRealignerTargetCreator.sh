@@ -12,7 +12,7 @@ set -e
 #module load GATK
 
 # helper
-source $UPSCb/src/bash/functions.sh
+source $UPSCb-common/src/bash/functions.sh
 
 USAGETXT=\
 "

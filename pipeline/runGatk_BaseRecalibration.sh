@@ -7,13 +7,13 @@
 
 set -ex
 
-# module load java
-# module load bioinfo-tools
-# module load GATK
-# module load R
+ module load java
+ module load bioinfo-tools
+ module load GATK
+ module load R
 
 # helper
-source $UPSCb/src/bash/functions.sh
+source $UPSCb-common/src/bash/functions.sh
 
 # usage
 USAGETXT=\
