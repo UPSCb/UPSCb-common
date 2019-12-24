@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#SBATCH -t UNLIMITED
+#SBATCH -t 1-00:00:00
 #SBATCH -p core
 #SBATCH -n 1
 

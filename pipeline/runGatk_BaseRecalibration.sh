@@ -7,10 +7,10 @@
 
 set -ex
 
-# module load java
-# module load bioinfo-tools
-# module load GATK
-# module load R
+ module load java
+ module load bioinfo-tools
+ module load GATK
+ module load R
 
 # helper
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
