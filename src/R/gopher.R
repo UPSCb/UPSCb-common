@@ -147,22 +147,22 @@ gopher <- function(genes=character(0),
     return(parsed)
   }
   
-  tasks <- names(parsed)
+  if(!is.null(parsed$err)){
+    message(parsed$err)
+    return(NULL)
+  }
+  
   # return
-  parsed <- lapply(seq_along(parsed), function(i, task){
-    f <- parsed[[i]]
-    n <- task[i]
+  parsed <- lapply(names(parsed), function(n){
+    f <- parsed[[n]]
+  
     if(length(f) == 0 | is.null(f))
     {
       message("No enrichments found in task: ", n)
       return(NULL)
     }
-    if(! is.null(f$err)) {
-      message(f$err)
-      return(NULL)
-    }
     return(as_tibble(f) %>% arrange(padj))
-  }, tasks)
-  names(parsed) <- tasks
+  })
+  names(parsed) <- unlist(task)
   return(parsed)
 }
