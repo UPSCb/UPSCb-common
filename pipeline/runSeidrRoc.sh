@@ -6,16 +6,33 @@
 
 set -ex
 
+# Check for options
+NGS=
+
 # usage
 USAGETXT=\
 "
-  Usage: $0 <seidr file> <gold-standard> <score index> <output filename>
-
+  Usage: $0 [options] <seidr file> <gold-standard> <score index> <output filename>
+  
+  Options: 
+                -x define your negative golden standard
 "
 
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 isExec seidr
+
+# Get the options
+while getopts x: option
+do
+        case "$option" in
+      x) NGS="-x $OPTARG";;
+    \?) ## unknown flag
+		abort;;
+        esac
+done
+shift `expr $OPTIND - 1`
+
 
 if [ $# -ne 4 ]; then
   abort "This script expects 4 arguments"
@@ -34,4 +51,4 @@ if [ ! -d $(dirname $4) ]; then
 fi
 
 # run
-seidr roc -p 1000 -E 1 -i $3 -g $2 -n $1 > $4
+seidr roc -p 1000 -E 1 -i $3 -g $2 -n $1 $NGS > $4
