@@ -23,7 +23,7 @@ IMG=/mnt/picea/projects/singularity/salmon.simg
 ## a usage function
 USAGETXT=\
 "
-    Usage: $0 [options] <index dir> <fwd fq file> <rev fq file> <out dir>
+    Usage: $0 [options] <index dir> <fq file> <out dir> <fragment length mean> <fragment length sd>
     
     Options:
               b: bind directory path
@@ -56,12 +56,9 @@ do
 done
 shift `expr $OPTIND - 1`
 
-# set the options
-OPTIONS="$GC $SEQ $VAL"
-
-## we get 3 files and 1 dir as input 
-if [ $# != 4 ]; then
-   abort "This function has 4 arguments"
+## we get 2 files, 1 dir and 2 numbers as input 
+if [ $# != 5 ]; then
+   abort "This function has 5 arguments"
 fi
 
 if [ ! -d $1 ]; then
@@ -72,13 +69,18 @@ if [ ! -f $2 ]; then
    abort "The second argument needs to be an existing fq file"
 fi
 
-if [ ! -f $3 ]; then
-   abort "The third argument needs to be an existing fq file"
+if [ ! -d $3 ]; then
+   abort "The third argument needs to be an existing directory"
 fi
 
-if [ ! -d $4 ]; then
-   abort "The fourth argument needs to be an existing directory"
+if [ $4 -lt 1 ]; then
+   abort "The forth argument needs to be a positive number"
 fi
+
+if [ $5 -lt 1 ]; then
+   abort "The fifth argument needs to be a positive number"
+fi
+
 
 bindDir=$(echo $BIND | cut -d: -f1)
 if [ ! -d $bindDir ]; then
@@ -90,12 +92,15 @@ if [ ! -f $IMG ]; then
 fi
 
 # create an output dir based on the sample name
-outdir=$4/$(basename ${2/_1.f*q.gz/})
+outdir=$3/$(basename ${2/.f*q.gz/})
 
 if [ ! -d $outdir ]; then
   mkdir $outdir
 fi
 
+# set the options
+OPTIONS="$GC $SEQ $VAL --fldMean $4 --fldSD $5"
+
 # run
  singularity exec --bind $BIND $IMG \
- salmon quant -p $CPU -i $1 -l $LTYPE -1 $2 -2 $3 -o $outdir $OPTIONS 
+ salmon quant -p $CPU -i $1 -l $LTYPE -r $2 -o $outdir $OPTIONS 
