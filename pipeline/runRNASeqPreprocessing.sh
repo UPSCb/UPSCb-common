@@ -342,7 +342,7 @@ toolList=(fastQValidator fastqc sortmerna java STAR samtools python htseq-count 
 starArray=([0]=4 [1]=5)
 htseqArray=([0]=6 [1]=7)
 kallistoArray=([0]=5 [1]=8)
-toolArray=([1]=0 [2]=1 [3]=2 [4]=1 [5]=3 [6]=1 [7]=${starArray[*]} [8]=${htseqArray[*]} [9]=${kallistoArray[*]})
+toolArray=([1]=0 [2]=1 [3]=2 [4]=1 [5]=3 [6]=1 [7]=${kallistoArray[*]} [8]=${starArray[*]} [9]=${htseqArray[*]})
 
 ## a global var to stop if we miss tools
 ## but only after having checked them all

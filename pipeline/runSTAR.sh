@@ -10,7 +10,7 @@
 set -e -x
 
 ## load the modules
-module load bioinfo-tools star samtools
+#module load bioinfo-tools star samtools
 
 ## vars
 INTRONMAX=70000

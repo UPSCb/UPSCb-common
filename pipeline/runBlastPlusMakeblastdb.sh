@@ -5,8 +5,6 @@
 
 set -ex
 
-module load bioinfo-tools blast/2.3.0+
-
 ## a usage function
 usage(){
     echo >&2 \

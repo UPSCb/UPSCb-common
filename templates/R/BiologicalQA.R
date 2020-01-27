@@ -26,7 +26,6 @@ suppressPackageStartupMessages({
 })
 
 #' * Helper functions
-source(here("UPSCb-common/src/R/plot.multidensity.R"))
 source(here("UPSCb-common/src/R/featureSelection.R"))
 
 #' * Graphics
