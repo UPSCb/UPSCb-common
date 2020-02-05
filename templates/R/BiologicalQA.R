@@ -18,8 +18,6 @@ suppressPackageStartupMessages({
   library(parallel)
   library(pander)
   library(plotly)
-  library(RColorBrewer)
-  library(scatterplot3d)
   library(tidyverse)
   library(tximport)
   library(vsn)
@@ -29,9 +27,7 @@ suppressPackageStartupMessages({
 source(here("UPSCb-common/src/R/featureSelection.R"))
 
 #' * Graphics
-pal <- brewer.pal(8,"Dark2")
 hpal <- colorRampPalette(c("blue","white","red"))(100)
-mar <- par("mar")
 
 #' * Metadata
 #' Sample information
@@ -204,29 +200,6 @@ ggplot(tibble(x=1:length(percent),y=cumsum(percent)),aes(x=x,y=y)) +
   geom_vline(xintercept=nlevel,colour="orange",linetype="dashed",size=0.5) + 
   geom_hline(yintercept=cumsum(percent)[nlevel],colour="orange",linetype="dashed",size=0.5)
   
-#' ### 3 first dimensions
-mar=c(5.1,4.1,4.1,2.1)
-
-#' The PCA shows that a large fraction of the variance is 
-#' explained by both variables.
-scatterplot3d(pc$x[,1],
-              pc$x[,2],
-              pc$x[,3],
-              xlab=paste("Comp. 1 (",percent[1],"%)",sep=""),
-              ylab=paste("Comp. 2 (",percent[2],"%)",sep=""),
-              zlab=paste("Comp. 3 (",percent[3],"%)",sep=""),
-              color=pal[as.integer(dds$CHANGEME)],
-              pch=c(17:19)[as.integer(dds$CHANGEME)])
-legend("topleft",
-       fill=pal[1:nlevels(dds$CHANGEME)],
-       legend=levels(dds$CHANGEME))
-
-legend("topright",
-       pch=17:19,
-       legend=levels(dds$CHANGEME))
-
-par(mar=mar)
-
 #' ### 2D
 pc.dat <- bind_cols(PC1=pc$x[,1],
                     PC2=pc$x[,2],
