@@ -3,6 +3,7 @@
 #SBATCH -p core -n 16
 #SBATCH -t 12:00:00
 #SBATCH --mail-type=ALL
+#SBATCH --mem=96GB
 
 # variables
 CPU=16

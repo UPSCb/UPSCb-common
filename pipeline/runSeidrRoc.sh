@@ -2,7 +2,7 @@
 #SBATCH -A facility
 #SBATCH -t 4:00:00
 #SBATCH -p core -n 1
-#SBATCH --mem=16GB
+#SBATCH --mem=64GB
 
 set -ex
 
