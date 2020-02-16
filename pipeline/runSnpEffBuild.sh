@@ -1,5 +1,6 @@
 #! /bin/bash
-#SBATCH -p core -n1
+#SBATCH -p core -n 1
+#SBATCH --mem=64GB
 #SBATCH -t 1:00:00
 #SBATCH --mail-type=ALL
 #SBATCH -J snpEff-build
@@ -27,7 +28,7 @@ Usage: $0 <CONFIG-FILE> <GENOME-VERSION> <GENOME-FASTA> <GFF3> <PROTEIN-FASTA> <
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # checks
-if [ $@ -ne 6 ]; then
+if [ $# -ne 6 ]; then
   abort "This script expects 6 arguments."
 fi
 
@@ -52,16 +53,16 @@ if [ ! -f $6 ]; then
 fi
 
 # prep
-out=$(dirname $config)
-mkdir $out/$2
+out=$(dirname $1)
+mkdir -p $out/$2
 cd $out/$2
-ln -s $4 genes.gff
-ln -s $5 protein.fa
-ln -s $6 cds.fa
+ln -sf $4 genes.gff
+ln -sf $5 protein.fa
+ln -sf $6 cds.fa
 cd $out
-mkdir $out/genomes
+mkdir -p $out/genomes
 cd $out/genomes
-ln -s $3 $2.fa
+ln -sf $3 $2.fa
 cd $out
 
 # run
