@@ -209,7 +209,7 @@ dir.create(here("data/analysis/DE"),showWarnings=FALSE)
 save(vst,file=here("data/analysis/DE/vst-aware.rda"))
 
 #' ## Gene of interests
-#' ```{r load, echo=FALSE,eval=FALSE}
+#' ```{r goi, echo=FALSE,eval=FALSE}
 #' CHANGEME - Here, you can plot the expression pattern of your gene of
 #' interest. You need to have a list of genes in a text file, one geneID per line
 #' The ID should exist in your vst data.
