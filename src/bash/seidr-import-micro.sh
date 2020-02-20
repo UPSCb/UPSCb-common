@@ -4,41 +4,27 @@
 set -ex
 
 # project vars
-account=u2018015
+account=
 mail=nicolas.delhomme@umu.se
 
-# check
-if [ -z $UPSCb ]; then
-  echo "The UPSCb environment variable needs to be set to your UPSCb Git checkout path"
-  exit 1
-fi
-
-# source
-source $UPSCb/src/bash/functions.sh
-
-# modules
-module load bioinfo-tools seidr-devel
-#export PATH=/pfs/nobackup/home/b/bastian/seidr/build:$PATH
-#source /pfs/nobackup/home/b/bastian/seidr/build/sourcefile
+# source helpers
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # Variables
+inference=(aracne clr elnet genie3 llr-ensemble mi narromi pcor pearson plsnet spearman tigress)
 
-inference=(aracne clr elnet genie3 llr-ensemble narromi pcor pearson plsnet spearman tigress)
-
-# 14 workers on 2 nodes (kk has 28 per node)
-# narromi is not thread safe, hence -c 1
-#default="-n 2 -c 14 -t 1-00:00:00"
-#arguments=([0]=$default [1]=$default [2]="-n 2 -c 28 -t 2-00:00:00" [3]=$default [4]="-n 28 -c 1 -t 1-00:00:00" [5]="-n 7 -t 12:00:00" [6]="-n 7 -t 12:00:00" [7]=$default [8]="-n 7 -t 12:00:00" [9]="-n 3 -c 28 -t 3-00:00:00")
-#parallel="-O "'$SLURM_CPUS_PER_TASK'
-#command=([0]="mi -m aracne "$parallel [1]="mi -m CLR "$parallel [2]="genie3 "$parallel [3]="llr-ensemble "$parallel [4]="narromi "$parallel [5]="pcor" [6]="correlation -m pearson" [7]="plsnet "$parallel [8]="correlation -m spearman" [9]="tigress "$parallel)
-CPUs=14
+# additional parameters (elnet is done iteratively, so the format is not the expected one: a matrix, rather an edge list
+arguments=([2]="-f el" [4]="-o results/llr-ensemble/llr-ensemble.sf")
+CPUs=28
+Time=1-00:00:00
+ShortTime=1:00:00
 
 # usage
 USAGETXT=\
 "
 $0 <genes.tsv>
 
-Methods to be imported: ${inference[@]}
+Methods to be imported from: ${inference[@]}
 
 "
 
@@ -48,21 +34,48 @@ if [ $# -ne 1 ]; then
 fi
 
 if [ ! -f $1 ]; then
-  abort "The first argument needs to be the gene names tab delimited file"
+  abort "The argument needs to be the gene names tab delimited file"
 fi
 
 # Create template script and submit
+jobID=
 len=${#inference[@]}
 for ((i=0;i<len;i++)); do
   inf=${inference[$i]}
-
-  if [ -f results/$inf/$inf.tsv ]; then
-
-    $UPSCb/src/python/generate_import_script.py \
-    -i results/$inf/$inf.tsv -g genes.tsv -c $CPUs  > results/$inf/${inf}-import.sh
-
-    sbatch --mail-type=ALL --mail-user=$mail -A $account -J import-$inf -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
+  if [ "$inf" == "elnet" ]; then
+    # create a job to cat el-ensemble into elnet
+    if [ ! -d results/$inf ]; then
+	mkdir -p results/$inf
+      echo "#!/bin/bash" > results/$inf/cat.sh
+      echo "cat results/el-ensemble/*.tsv > results/$inf/$inf.tsv ">> results/$inf/cat.sh
+      dep=$(sbatch -t $ShortTime -c 1  --mail-type=ALL --mail-user=$mail -A $account -J $inf-cat \
+      -e results/$inf/$inf-$i.err -o results/$inf/$inf-$i.out \
+      results/$inf/cat.sh)
+      jobID="-d afterok:${dep//[^0-9]/}"
+    fi
   fi
+  if [ ! -f results/$inf/$inf.sf ]; then
+    if [ -f results/$inf/$inf.tsv ]; then
+      ./generate_import_script.py \
+      -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
 
+      sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID \
+	-e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
+    else
+      if [ "$jobID" != "" ]; then
+        # most likely the tsv file for elnet won't exist, so give it a chance (as there is a dep)
+	# we touch the file so the generate import script does not fail
+	touch results/$inf/$inf.tsv
+        ./generate_import_script.py \
+        -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
+        sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID \
+	      -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
+      else
+        echo "There is no tsv file for $inf"
+      fi
+    fi
+
+    # ${arguments[$i]}
+  fi
 done
 

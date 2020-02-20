@@ -62,7 +62,7 @@ for ((i=0;i<len;i++)); do
       ./generate_import_script.py \
       -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
 
-      sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID\
+      sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID \
 	-e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
     else
       if [ "$jobID" != "" ]; then
@@ -71,7 +71,7 @@ for ((i=0;i<len;i++)); do
 	touch results/$inf/$inf.tsv
         ./generate_import_script.py \
         -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
-        sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID\
+        sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID \
 	      -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
       else
         echo "There is no tsv file for $inf"
