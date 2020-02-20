@@ -4,11 +4,11 @@
 set -ex
 
 # project vars
-account=
+account=facility
 mail=nicolas.delhomme@umu.se
 
 # source helpers
-source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
+source functions.sh
 
 # Variables
 inference=(aracne clr elnet genie3 llr-ensemble mi narromi pcor pearson plsnet spearman tigress)
@@ -45,7 +45,7 @@ for ((i=0;i<len;i++)); do
   if [ "$inf" == "elnet" ]; then
     # create a job to cat el-ensemble into elnet
     if [ ! -d results/$inf ]; then
-	mkdir -p results/$inf
+	    mkdir -p results/$inf
       echo "#!/bin/bash" > results/$inf/cat.sh
       echo "cat results/el-ensemble/*.tsv > results/$inf/$inf.tsv ">> results/$inf/cat.sh
       dep=$(sbatch -t $ShortTime -c 1  --mail-type=ALL --mail-user=$mail -A $account -J $inf-cat \
@@ -56,25 +56,27 @@ for ((i=0;i<len;i++)); do
   fi
   if [ ! -f results/$inf/$inf.sf ]; then
     if [ -f results/$inf/$inf.tsv ]; then
+      
       ./generate_import_script.py \
       -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
 
       sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID \
-	-e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
+	    -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
     else
       if [ "$jobID" != "" ]; then
         # most likely the tsv file for elnet won't exist, so give it a chance (as there is a dep)
-	# we touch the file so the generate import script does not fail
-	touch results/$inf/$inf.tsv
+	      # we touch the file so the generate import script does not fail
+	      touch results/$inf/$inf.tsv
+        
         ./generate_import_script.py \
         -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
+        
         sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID \
 	      -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
       else
         echo "There is no tsv file for $inf"
       fi
     fi
-
     # ${arguments[$i]}
   fi
 done
