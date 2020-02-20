@@ -1,7 +1,7 @@
 #! /bin/bash -l
-#SBATCH -p node -n 16
+#SBATCH -p node -n 20
 #SBATCH --mail-type=ALL
-
+#SBATCH -t 12:00:00
 ##
 echo Loading
 
@@ -19,7 +19,7 @@ usage(){
     Usage: $0 [options] <out dir> <genome fasta> <alignment bam> <gtf file>
 
     Options:
-             -c the number of CPU to use (default to 16)
+             -c the number of CPU to use (default to 20)
              -i the max intron length (default to 11000)
              -l the library type (see 'cufflinks -h' for options, default to 'fr-unstranded')
              -n do not use --frag-bias-correct (which optimise the count estimates 
@@ -29,7 +29,7 @@ usage(){
     exit 1
 }
 
-CPU="-p 16"
+CPU="-p 20"
 LIBTYPE="--library-type fr-unstranded"
 INTRON="--max-intron-length 11000"
 ESTIMATE=1
@@ -102,7 +102,9 @@ fi
 echo Starting
 
 ## -v stands for verbose without the progress bar
-cufflinks -v --multi-read-correct $FBC $LIBTYPE $INTRON $CPU -o $OUT_PATH $3 -g $4 > $1/$nameOut-cufflinks.out 2> $1/$nameOut-cufflinks.err
+cufflinks -v --3-overhang-tolerance 4000 --no-update-check \
+--multi-read-correct $FBC $LIBTYPE $INTRON $CPU -o $OUT_PATH -g $4 $3 
+#> $1/$nameOut-cufflinks.out 2> $1/$nameOut-cufflinks.err
 
 ## not needed anymore
 #mv $OUT_PATH/genes.fpkm_tracking $OUT_PATH/$nameOut\_genes.fpkm_tracking

@@ -44,12 +44,12 @@ fi
 ##
 echo Setting up
 
-echo 'find $1 -name "*_transcripts.gtf" > $2/cuffmergeMANIFEST'
+find $1 -name "transcripts.gtf" > $2/cuffmergeMANIFEST
 
 ##
 echo Starting
 
-cuffmerge -p 8 $ext -s $3 -o $2 $2/cuffmergeMANIFEST  > $2/cuffmerge.txt 2> $2/cuffmerge.err
+echo cuffmerge -p 8 $ext -s $3 -o $2 $2/cuffmergeMANIFEST
 
 ##
 echo Done
