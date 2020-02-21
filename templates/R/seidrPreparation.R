@@ -40,14 +40,14 @@ vst.cutoff <- "CHANGEME"
 dir.create(here("data/seidr"),showWarnings=FALSE)
 
 #' * gene by column, without names matrix
-write.table(t(vst[vst.cutoff+1,]),
+write.table(t(vst[sels[[vst.cutoff+1]],]),
             file=here("data/seidr/headless.tsv"),
             col.names=FALSE,
             row.names=FALSE,
             sep="\t",quote=FALSE)
 
 #' * gene names, one row
-write.table(t(sub("\\.[0-9]+$","",rownames(vst)[vst.cutoff+1])),
+write.table(t(sub("\\.[0-9]+$","",rownames(vst)[sels[[vst.cutoff+1]]])),
             file=here("data/seidr/genes.tsv"),
             col.names=FALSE,
             row.names=FALSE,
