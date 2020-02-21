@@ -11,7 +11,7 @@ mail=nicolas.delhomme@umu.se
 source functions.sh
 
 # modules
-module load bioinfo-tools seidr-devel
+module load bioinfo-tools clp seidr-devel
 
 # Variables
 resultDir=results
@@ -21,44 +21,45 @@ correlationNCPUs=28
 inference=(aracne clr genie3 llr-ensemble narromi pcor pearson plsnet spearman tigress)
 
 run=(
-  [0]=0
-  [1]=0
-  [2]=0
-  [3]=0
-  [4]=0
+  [0]=1
+  [1]=1
+  [2]=1
+  [3]=1
+  [4]=1
   [5]=1
   [6]=1
-  [7]=0
+  [7]=1
   [8]=1
-  [9]=0)
+  [9]=1)
 
 # 28 workers on 1 nodes (kk has 28 per node) - setting -n 2 -c 14 (14 cores on 2 nodes, results in the same)
-default="-n 1 -c 28 -t 1-00:00:00"
+default="-n 1 -c 28 -t 2-00:00:00"
 
 arguments=(
   [0]=$default
   [1]=$default
-  [2]="-n 2 -c 28 -t 2-00:00:00"
+  [2]="-n 1 -c 42 -t 2-00:00:00"
   [3]=$default
   [4]=$default
-  [5]="-n 1 -c $correlationNCPUs -t 12:00:00"
-  [6]="-n 1 -c $correlationNCPUs -t 12:00:00"
+  [5]="-n $correlationNCPUs -t 12:00:00"
+  [6]="-n $correlationNCPUs -t 12:00:00"
   [7]=$default
-  [8]="-n 1 -c $correlationNCPUs -t 12:00:00"
-  [9]="-n 2 -c 42 -t 3-00:00:00")
+  [8]="-n $correlationNCPUs -t 12:00:00"
+  [9]="-n 2 -c 42 -t 4-00:00:00")
 
-parallel="-O "'$SLURM_CPUS_PER_TASK'
+#parallel="-O "'$SLURM_CPUS_PER_TASK'
+parallel="-O $correlationNCPUs"
 command=(
   [0]="mi -m ARACNE -M $resultDir/mi/mi.tsv "$parallel
   [1]="mi -m CLR -M $resultDir/mi/mi.tsv "$parallel
-  [2]="genie3 "$parallel
+  [2]="genie3 -O 42"
   [3]="llr-ensemble "$parallel
   [4]="narromi "$parallel
   [5]="pcor"
   [6]="correlation -m pearson"
   [7]="plsnet "$parallel
   [8]="correlation -m spearman"
-  [9]="tigress "$parallel)
+  [9]="tigress -O 42")
 
 # usage
 USAGETXT=\
@@ -165,7 +166,7 @@ for ((i=0;i<len;i++)); do
       else
     	echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
       fi
-      echo "srun --cpu-bind=cores ${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
+	echo "${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
 
       # Handle dependencies
       dep=
@@ -174,7 +175,7 @@ for ((i=0;i<len;i++)); do
       fi
 
       dep=$(sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf $dep \
-      -e $resultDir/$inf/$inf.err -o $resultDir/$inf/$inf.out ${arguments[$i]} $resultDir/$inf/$inf.sh)
+      -e $resultDir/$inf/$inf.err -o $resultDir/$inf/$inf.out -p mpi ${arguments[$i]} $resultDir/$inf/$inf.sh)
 
       jobIDs[$i]=${dep//[^0-9]/}
     fi
