@@ -5,7 +5,7 @@ set -ex
 
 # project vars
 account=facility
-mail=nicolas.delhomme@umu.se
+mail=iryna.shutava@umu.se
 
 # source helpers
 source functions.sh
