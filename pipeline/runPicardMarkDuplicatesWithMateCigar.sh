@@ -12,6 +12,8 @@ module load samtools
 #module load picard
 module load Picard-tools
 
+THREADS=1
+
 if [ -z $PICARD_HOME ]; then
     echo >&2 "Could not find picard tools"
     exit 1
@@ -53,7 +55,7 @@ sname=`basename "${inbam/_[st]*[st]*_STAR.bam/}"`
 name_out=`basename "${inbam/.bam/}"`
 
 # Run MarkDuplicates
-java -Xmx${JavaMem} -jar $PICARD_TOOLS_DIR/picard.jar MarkDuplicatesWithMateCigar \
+java -Xmx${JavaMem} -XX:ParallelGCThreads=$THREADS -jar $PICARD_TOOLS_DIR/picard.jar MarkDuplicatesWithMateCigar \
     ASSUME_SORTED=true \
     INPUT=$inbam \
     OUTPUT=$outdir/${name_out}_mkdup.bam \
