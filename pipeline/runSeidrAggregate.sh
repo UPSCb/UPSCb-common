@@ -16,6 +16,7 @@ USAGETXT=\
 CPU=32
 
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
+module load bioinfo-tools seidr-devel
 
 isExec seidr
 
