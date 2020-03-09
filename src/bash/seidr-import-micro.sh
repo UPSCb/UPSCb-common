@@ -16,6 +16,7 @@ inference=(aracne clr elnet genie3 llr-ensemble mi narromi pcor pearson plsnet s
 # additional parameters (elnet is done iteratively, so the format is not the expected one: a matrix, rather an edge list
 arguments=([2]="-f el" [4]="-o results/llr-ensemble/llr-ensemble.sf")
 CPUs=28
+MEM=64G
 Time=1-00:00:00
 ShortTime=1:00:00
 
@@ -42,7 +43,7 @@ jobID=
 len=${#inference[@]}
 for ((i=0;i<len;i++)); do
   inf=${inference[$i]}
-  if [ "$inf" == "elnet" ]; then
+  if [ "$inf" == "elnet" ] && [ -d results/el-ensemble ]; then
     # create a job to cat el-ensemble into elnet
     if [ ! -d results/$inf ]; then
 	    mkdir -p results/$inf
@@ -56,23 +57,25 @@ for ((i=0;i<len;i++)); do
   fi
   if [ ! -f results/$inf/$inf.sf ]; then
     if [ -f results/$inf/$inf.tsv ]; then
-      
+
       ./generate_import_script.py \
       -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
 
       sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID \
-	    -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
+	    -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out \
+	    -c $CPUs --mem=$MEM results/$inf/${inf}-import.sh
     else
       if [ "$jobID" != "" ]; then
         # most likely the tsv file for elnet won't exist, so give it a chance (as there is a dep)
 	      # we touch the file so the generate import script does not fail
 	      touch results/$inf/$inf.tsv
-        
+
         ./generate_import_script.py \
         -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
-        
+
         sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID \
-	      -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
+	      -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out \
+		-c $CPUs --mem=$MEM results/$inf/${inf}-import.sh
       else
         echo "There is no tsv file for $inf"
       fi
