@@ -15,7 +15,7 @@ inference=(aracne clr elnet genie3 llr-ensemble mi narromi pcor pearson plsnet s
 
 # additional parameters (elnet is done iteratively, so the format is not the expected one: a matrix, rather an edge list
 arguments=([2]="-f el" [4]="-o results/llr-ensemble/llr-ensemble.sf")
-CPUs=28
+CPUs=4
 MEM=64G
 Time=1-00:00:00
 ShortTime=1:00:00
