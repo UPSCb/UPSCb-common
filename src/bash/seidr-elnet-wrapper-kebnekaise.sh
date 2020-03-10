@@ -7,9 +7,12 @@ set -ex
 account=SNIC2019-3-207
 mail=nicolas.delhomme@umu.se
 
+# directory
+EXEC=/pfs/nobackup/home/b/bastian/seidr/build/
+
 # source
 source functions.sh
-source /pfs/nobackup/home/b/bastian/seidr/build/sourcefile
+source $EXEC/sourcefile
 
 # Variables
 chunkSize=350
@@ -59,12 +62,12 @@ len=${#GENEIDS[@]}
 # Create chunks and iterate the submissions
 for ((i=0;i<len;i+=$chunkSize)); do
 
-  if [ ! -f results/$inf/$inf.tsv ]; then
+  if [ ! -f results/$inf/$inf-$i.tsv ]; then
     printf "%s\n" "${GENEIDS[@]:$i:$chunkSize}" > gset-$i.txt
 
     echo "#!/bin/bash" > results/$inf/$inf-$i.sh
     echo "unset OMP_NUM_THREADS" >> results/$inf/$inf-$i.sh
-    echo "srun --cpu-bind=cores $inf $commandParams -i $1 -g $2 -t gset-$i.txt -o results/$inf/$inf-$i.tsv" >> results/$inf/$inf-$i.sh
+    echo "srun $EXEC/$inf $commandParams -i $1 -g $2 -t gset-$i.txt -o results/$inf/$inf-$i.tsv" >> results/$inf/$inf-$i.sh
     sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf-$i -e results/$inf/$inf-$i.err -o results/$inf/$inf-$i.out $queueParams results/$inf/$inf-$i.sh
   fi
 done

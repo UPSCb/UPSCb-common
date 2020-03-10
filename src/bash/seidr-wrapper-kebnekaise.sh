@@ -13,7 +13,8 @@ source functions.sh
 # modules
 #module load bioinfo-tools seidr-devel
 #export PATH=/pfs/nobackup/home/b/bastian/seidr/build:$PATH
-source /pfs/nobackup/home/b/bastian/seidr/build/sourcefile
+EXEC=/pfs/nobackup/home/b/bastian/seidr/build
+source $EXEC/sourcefile
 
 # Variables
 resultDir=results
@@ -23,16 +24,16 @@ correlationNCPUs=28
 inference=(aracne clr genie3 llr-ensemble narromi pcor pearson plsnet spearman tigress)
 
 run=(
-  [0]=0
-  [1]=0
-  [2]=0
-  [3]=0
-  [4]=0
+  [0]=1
+  [1]=1
+  [2]=1
+  [3]=1
+  [4]=1
   [5]=1
   [6]=1
-  [7]=0
+  [7]=1
   [8]=1
-  [9]=0)
+  [9]=1)
 
 # 28 workers on 1 nodes (kk has 28 per node) - setting -n 2 -c 14 (14 cores on 2 nodes, results in the same)
 default="-n 1 -c 28 -t 1-00:00:00"
@@ -51,16 +52,16 @@ arguments=(
 
 parallel="-O "'$SLURM_CPUS_PER_TASK'
 command=(
-  [0]="mi -m ARACNE -M $resultDir/mi/mi.tsv "$parallel
-  [1]="mi -m CLR -M $resultDir/mi/mi.tsv "$parallel
-  [2]="genie3 "$parallel
-  [3]="llr-ensemble "$parallel
-  [4]="narromi "$parallel
-  [5]="pcor"
-  [6]="correlation -m pearson"
-  [7]="plsnet "$parallel
-  [8]="correlation -m spearman"
-  [9]="tigress "$parallel)
+  [0]="$EXEC/mi -m ARACNE -M $resultDir/mi/mi.tsv "$parallel
+  [1]="$EXEC/mi -m CLR -M $resultDir/mi/mi.tsv "$parallel
+  [2]="$EXEC/genie3 "$parallel
+  [3]="$EXEC/llr-ensemble "$parallel
+  [4]="$EXEC/narromi "$parallel
+  [5]="$EXEC/pcor"
+  [6]="$EXEC/correlation -m pearson"
+  [7]="$EXEC/plsnet "$parallel
+  [8]="$EXEC/correlation -m spearman"
+  [9]="$EXEC/tigress "$parallel)
 
 # usage
 USAGETXT=\
@@ -87,16 +88,6 @@ fi
 if [ $(wc -l $2 | cut -d" " -f1) -ne 1 ]; then
   abort "The second file should have only one line"
 fi
-
-# MIGHT ALSO consider THIS instead of the above. We could have 1 gene as a subset
-# GENES=...
-# HEADLESS=...
-# if [[ $(stat -c "%s" $GENES) -gt $(stat -c "%s" $HEADLESS) ]]
-# then
-#   echo "The file size of column headers can't be greater than that of "
-#   echo "expression values"
-#   exit 1
-#  fi
 
 # create dirs
 if [ ! -d $resultDir ]; then
@@ -167,7 +158,7 @@ for ((i=0;i<len;i++)); do
       else
     	echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
       fi
-      echo "srun --cpu-bind=cores ${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
+      echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
 
       # Handle dependencies
       dep=
@@ -182,4 +173,3 @@ for ((i=0;i<len;i++)); do
     fi
   fi
 done
-

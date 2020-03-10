@@ -12,6 +12,7 @@ source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # defaults
 CPU=2
+ECLASS=
 GC="--gcBias"
 SEQ="--seqBias"
 VAL="--validateMappings"
@@ -27,6 +28,7 @@ USAGETXT=\
     
     Options:
               b: bind directory path
+              e: dump equivalence class - turn on --dumpEq
               i: path to the singularity image
               g: turn off GC bias correction (on by default)
               l: the library type, defaults to A (automatic) - see https://salmon.readthedocs.io/en/latest/library_type.html#fraglibtype 
@@ -40,10 +42,11 @@ USAGETXT=\
 # isExec salmon
 
 ## get the options
-while getopts b:i:gl:p:sv option
+while getopts b:ei:gl:p:sv option
 do
     case "$option" in
     b) BIND="$OPTARG";;
+    e) ECLASS="--dumpEq";;
     i) IMG="$OPTARG";;
     g) GC="";;
     l) LTYPE="";;
@@ -57,7 +60,7 @@ done
 shift `expr $OPTIND - 1`
 
 # set the options
-OPTIONS="$GC $SEQ $VAL"
+OPTIONS="$GC $SEQ $VAL $ECLASS"
 
 ## we get 3 files and 1 dir as input 
 if [ $# != 4 ]; then

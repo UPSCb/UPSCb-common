@@ -3,6 +3,10 @@
 #SBATCH -t 12:00:00
 #SBATCH --mail-type ALL
 
+# TODO implement that if -d
+#grep "^>" ../../../fasta/Potra01-genome.fa | cut -d " " -f 1 | tr -d '>' > decoys.txt
+#cat ../../../fasta/Potra01-mRNA.fa ../../../fasta/Potra01-genome.fa | gzip -c > gentrome.fa.gz
+
 # fail on ERROR
 set -eux
 
@@ -19,7 +23,7 @@ USAGETXT=\
   $0 [options] <transcript file> <output file>
 
   Options:
-  -d a text file containing the IDs of decoy sequences presnet in the trasncript fasta file
+  -d a text file containing the IDs of decoy sequences present in the transcript fasta file
   -i the salmon image to use, defaults to salmon.simg
   -t number of threads (default 8)
   -p triggers --perfectHash
