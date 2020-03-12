@@ -45,7 +45,7 @@ jobID=
 len=${#inference[@]}
 for ((i=0;i<len;i++)); do
   inf=${inference[$i]}
-  if [ "$inf" == "elnet" ]; then
+  if [ "$inf" == "elnet" ] && [ -d results/el-ensemble ]; then
     # create a job to cat el-ensemble into elnet
     if [ ! -d results/$inf ]; then
 	mkdir -p results/$inf

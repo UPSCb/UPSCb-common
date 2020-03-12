@@ -4,7 +4,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mem=8GB
 
-set -ex
+set -eux
 
 module load bioinfo-tools kallisto
 
@@ -19,19 +19,19 @@ usage(){
 }
 
 ## VARS
-# KMER=""
+KMER=""
 
 
 ## get the options
-# while getopts k: option
-# do
-#     case "$option" in
-# 	k) KMER="$OPTARG";;
-# 	\?) ## unknown flag
-# 	    usage;;
-#   esac
-# done
-# shift `expr $OPTIND - 1`
+while getopts k: option
+do
+    case "$option" in
+	k) KMER="-k $OPTARG";;
+	\?) ## unknown flag
+	    usage;;
+  esac
+done
+shift `expr $OPTIND - 1`
 
 ## we get one file and one dir as input 
 if [ $# != 2 ]; then
@@ -59,4 +59,4 @@ else
 fi
 
 # running
-kallisto index -i $inxName $1
+kallisto index $KMER -i $inxName $1
