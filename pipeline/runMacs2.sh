@@ -1,5 +1,8 @@
 #!/bin/bash
 #SBATCH --mail-type=all
+#SBATCH -p core -n 1
+#SBATCH -t 04:00:00
+#SBATCH --mem=8G
 
 ## stop on error
 set -e
