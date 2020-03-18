@@ -31,7 +31,7 @@ inf=el-ensemble
 # kk has 28 per node
 # parameters
 queueParams="-n 2 -c 14 -t 2-00:00:00"
-commandParams="O "'$SLURM_CPUS_PER_TASK'
+commandParams="-O "'$SLURM_CPUS_PER_TASK'
 
 # usage
 USAGETXT=\
