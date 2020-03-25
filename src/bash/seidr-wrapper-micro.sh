@@ -162,12 +162,16 @@ for ((i=0;i<len;i++)); do
       mkdir -p $resultDir/$inf
       echo "#!/bin/bash" > $resultDir/$inf/$inf.sh
       if [ -z ${ompThread[$i]} ]; then
- 	echo "unset OMP_NUM_THREADS" >> $resultDir/$inf/$inf.sh
+ 	      echo "unset OMP_NUM_THREADS" >> $resultDir/$inf/$inf.sh
       else
-    	echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
+    	  echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
       fi
-	echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
-
+	    if [ ${#optionB[$i]} -eq 0 ]; then
+	      echo "${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
+	    else
+	      echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv --save-resume $resultDir/$inf/$inf.xml" >> $resultDir/$inf/$inf.sh
+      fi
+      
       # Handle dependencies
       dep=
       if [ ! -z ${deps[$i]} ]; then

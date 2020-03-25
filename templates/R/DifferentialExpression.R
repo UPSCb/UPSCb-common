@@ -10,20 +10,23 @@
 #' # Setup
 
 #' * Libraries
-suppressPackageStartupMessages(library(data.table))
-suppressPackageStartupMessages(library(DESeq2))
-suppressPackageStartupMessages(library(gplots))
-suppressPackageStartupMessages(library(here))
-suppressPackageStartupMessages(library(hyperSpec))
-suppressPackageStartupMessages(library(RColorBrewer))
-suppressPackageStartupMessages(library(tidyverse))
-suppressPackageStartupMessages(library(VennDiagram))
+suppressPackageStartupMessages({
+    library(data.table)
+    library(DESeq2)
+    library(gplots)
+    library(here)
+    library(hyperSpec)
+    library(RColorBrewer)
+    library(tidyverse)
+    library(VennDiagram)
+})
 
 #' * Helper files
-suppressMessages(source(here("UPSCb-common/src/R/featureSelection.R")))
-suppressMessages(source(here("UPSCb-common/src/R/plotMA.R")))
-suppressMessages(source(here("UPSCb-common/src/R/volcanoPlot.R")))
-suppressMessages(source(here("UPSCb-common/src/R/gopher.R")))
+suppressMessages({
+    source(here("UPSCb-common/src/R/featureSelection.R"))
+    source(here("UPSCb-common/src/R/volcanoPlot.R"))
+    source(here("UPSCb-common/src/R/gopher.R"))
+})
 
 #' * Graphics
 pal=brewer.pal(8,"Dark2")
@@ -67,7 +70,7 @@ mar <- par("mar")
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
                               expression_cutoff=0,
-                              debug=FALSE){
+                              debug=FALSE,...){
     
     if(length(contrast)==1){
         res <- results(dds,name=contrast)
@@ -109,15 +112,14 @@ mar <- par("mar")
                               res$padj <= padj & abs(res$log2FoldChange) >= lfc & 
                                   ! is.na(res$padj) & res$baseMean >= qe
                           }),sum))
-        
-        plot(ggplot(dat,aes(x=thetas,y=qtl.exp)) + 
-                 geom_line() + geom_point() +
-                 scale_x_continuous("quantiles of expression") + 
-                 scale_y_continuous("base mean expression") +
-                 geom_hline(yintercept=expression_cutoff,
-                            linetype="dotted",col="red"))
-        
         if(debug){
+            plot(ggplot(dat,aes(x=thetas,y=qtl.exp)) + 
+                     geom_line() + geom_point() +
+                     scale_x_continuous("quantiles of expression") + 
+                     scale_y_continuous("base mean expression") +
+                     geom_hline(yintercept=expression_cutoff,
+                                linetype="dotted",col="red"))
+        
             p <- ggplot(dat,aes(x=thetas,y=qtl.exp)) + 
                 geom_line() + geom_point() +
                 scale_x_continuous("quantiles of expression") + 
@@ -148,15 +150,16 @@ mar <- par("mar")
                      geom_line() + geom_point() +
                      scale_x_continuous("base mean of expression") + 
                      scale_y_continuous("Number of DE genes per interval"))
+            
+            p <- ggplot(data.frame(x=dat$qtl.exp[-1],
+                                   y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
+                geom_line() + geom_point() +
+                scale_x_log10("base mean of expression") + 
+                scale_y_continuous("Number of DE genes per interval") + 
+                geom_vline(xintercept=expression_cutoff,
+                           linetype="dotted",col="red")
+            suppressMessages(suppressWarnings(plot(p)))
         }
-        p <- ggplot(data.frame(x=dat$qtl.exp[-1],
-                               y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
-            geom_line() + geom_point() +
-            scale_x_log10("base mean of expression") + 
-            scale_y_continuous("Number of DE genes per interval") + 
-            geom_vline(xintercept=expression_cutoff,
-                       linetype="dotted",col="red")
-        suppressMessages(suppressWarnings(plot(p)))
     }
     
     sel <- res$padj <= padj & abs(res$log2FoldChange) >= lfc & ! is.na(res$padj) & 
@@ -186,7 +189,7 @@ mar <- par("mar")
                   distfun = pearson.dist,
                   hclustfun = function(X){hclust(X,method="ward.D2")},
                   trace="none",col=hpal,labRow = FALSE,
-                  labCol=labels[sample_sel]
+                  labCol=labels[sample_sel],...
         )
     }
     return(list(all=rownames(res[sel,]),
