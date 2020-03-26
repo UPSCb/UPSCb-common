@@ -79,6 +79,9 @@ gopher <- function(genes=character(0),
   
   
   if(!is.null(background)){
+    if(length(background)==0){
+      stop("Your background can not be empty. To provide no background (use the whole population), set it to NULL.")
+    }
     # any transcript IDs?
     # CAVEAT: very UPSC specific (almost)
     # replace by a function that gets the complete pop from gopher and use that to test
