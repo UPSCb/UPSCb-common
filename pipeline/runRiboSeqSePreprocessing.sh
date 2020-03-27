@@ -41,7 +41,7 @@ ${bold}OPTIONS:${normal}
     -b dir    path to Bowtie index (required if Bowtie is included in pipeline)
     -m        the memory requirement for performing the alignment, in GB; i.e. 128 (default) allocates 128GB
     -r        the reference databases for sortmerna
-    -c        clipping arguments paased to trimmomatic. Overrides defaults in runTrimmomatic.sh. Default in this script: ILLUMINACLIP:\"$UPSCb/data/NEB-universal-adapter.fa\":1:15:10
+    -c        clipping arguments paased to trimmomatic. Overrides defaults in runTrimmomatic.sh. Default in this script: ILLUMINACLIP:\"$TRIMMOMATIC_HOME/adapters/NEB-universal-adapter.fa\":1:15:10
     -T        trimming arguments passed to trimmomatic. Overrides defaults in runTrimmomatic.sh. Default in this script (we do not trim based on quality) : MINLEN:16
     -f fasta  the transcript fasta sequence file for kallisto
     -k inx    the Kallisto index file (use the index that has a kmer size of 15)
@@ -249,7 +249,7 @@ pstart=1
 pend=7
 mem=
 memArg="--mem"
-trimmomatic_clipping=ILLUMINACLIP:$UPSCb/data/NEB-universal-adapter.fa:1:15:10
+trimmomatic_clipping=ILLUMINACLIP:$TRIMMOMATIC_HOME/adapters/NEB-universal-adapter.fa:1:15:10
 trimmomatic_options="MINLEN:16"
 bowtie_index=
 ilm_stranded=0
