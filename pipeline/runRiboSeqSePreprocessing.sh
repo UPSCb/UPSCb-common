@@ -130,8 +130,9 @@ prepare_sbatch() {
     dependency=""
 	  memory=""
     debug=""
+    time=""
 
-    while getopts "J:e:o:d:Dm:" opt; do
+    while getopts "J:e:o:d:Dm:t:" opt; do
         case "$opt" in
             J) jobname=$OPTARG ;;
             e) log_path=$OPTARG ;;
@@ -139,6 +140,7 @@ prepare_sbatch() {
             d) dependency=$OPTARG ;;
             D) debug="-p devel -t 1:00:00";;
 	          m) memory=$OPTARG ;;
+	          t) time=$OPTARG ;;
             ?) run_sbatch_usage;;
         esac
     done
@@ -181,6 +183,7 @@ prepare_sbatch() {
     $debug \
     ${memory:+"--mem $memory"} \
     ${dependency:+"-d" "$dependency"} \
+    ${time:+"-t $time"} \
     $PIPELINE_DIR/$script $@
     
 }
@@ -215,8 +218,9 @@ prepare_bash() {
     dependency=""
 	  memory=""
     debug=""
+    time=""
 
-    while getopts "J:e:o:d:Dm:" opt; do
+    while getopts "J:e:o:d:Dm:t:" opt; do
         case "$opt" in
             J) jobname=$OPTARG ;;
             e) log_path=$OPTARG ;;
@@ -224,6 +228,7 @@ prepare_bash() {
             d) dependency=$OPTARG ;;
             D) debug="";;
             m) memory=$OPTARG ;;
+            t) time=$OPTARG ;;
             ?) run_sbatch_usage;;
         esac
     done
