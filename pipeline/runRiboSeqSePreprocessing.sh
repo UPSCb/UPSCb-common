@@ -5,7 +5,7 @@ set -eu
 # Preprocessing script for RNA-Seq data.
 # THIS SCRIPT IS NOT TO BE RUN THROUGH SBATCH, USE BASH!
 ### ========================================================
-VERSION="0.0.3"
+VERSION="0.0.4"
 
 ### ========================================================
 ## pretty print
@@ -38,6 +38,7 @@ ${bold}OPTIONS:${normal}
     -D        Debug. On Uppmax use a devel node to try out changes during development or program updates, it's highly recommended to not run more than one step in this mode
     -s n      step at which to start (see ${underline}STEPS${nounderline})
     -e n      step at which to end (see ${underline}STEPS${nounderline})
+    -p dir    the provisional directory (default to /tmp or $SNIC_TMP) otherwise
     -b dir    path to Bowtie index (required if Bowtie is included in pipeline)
     -m        the memory requirement for performing the alignment, in GB; i.e. 128 (default) allocates 128GB
     -r        the reference databases for sortmerna
@@ -49,6 +50,7 @@ ${bold}OPTIONS:${normal}
     -S        fragment length sd for kallisto
     -t        library is s${underline}t${nounderline}randed (illumina protocol, second strand cDNA using dUTP)
     -a        library is s${underline}t${nounderline}randed (non illumina protocol e.g. first strand cDNA using dUTP)
+
     
 ${bold}STEPS:${normal}
     The steps of this script are as follows:
@@ -262,7 +264,7 @@ sortmerna_db=
 
 # Parse the options
 OPTIND=1
-while getopts "ab:c:Dde:f:hk:M:m:r:S:s:tT:" opt; do
+while getopts "ab:c:Dde:f:hk:M:m:p:r:S:s:tT:" opt; do
     case "$opt" in
         h) usage;;
         a) non_ilm_stranded=1;;
@@ -274,7 +276,8 @@ while getopts "ab:c:Dde:f:hk:M:m:r:S:s:tT:" opt; do
         e) pend=$OPTARG ;;
         f) kallisto_fasta=$OPTARG ;;
         k) kallisto_index=$OPTARG ;;
-	    m) mem="${OPTARG}GB";;
+	m) mem="${OPTARG}GB";;
+	p) SNIC_TMP=$OPTARG ;;
 	    r) sortmerna_db="-d $OPTARG";;
 	    t) ilm_stranded=1 ;;
 	    T) trimmomatic_options=$OPTARG ;;
@@ -533,6 +536,7 @@ if [ $pstart -le 2 ] && [ $pend -ge 2 ]; then
         -o $sortmerna/${sname}_sortmerna.out \
         $dep \
         -J ${sname}.RNAseq.SortMeRNA \
+	-t 2-00:00:00 \
         runSortmerna.sh $sortmerna_db -P 11,6,1 -s 1 -u $sortmerna $SNIC_TMP $fastq1`)
     if [ "$CMD" == "bash" ]; then
 	JOBCMDS+=("export SORTMERNADIR=$SORTMERNADIR;$sortmerna_id")
