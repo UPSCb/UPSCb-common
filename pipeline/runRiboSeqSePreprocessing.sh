@@ -542,7 +542,7 @@ if [ $pstart -le 2 ] && [ $pend -ge 2 ]; then
         $dep \
         -J ${sname}.RNAseq.SortMeRNA \
 	-t 2-00:00:00 \
-        runSortmerna.sh $sortmerna_db -P 11,6,1 -s 1 -u $sortmerna $SNIC_TMP $fastq1`)
+        runSortmerna.sh $sortmerna_db -P 11,6,1 -s 1 -a -u $sortmerna $SNIC_TMP $fastq1`)
     if [ "$CMD" == "bash" ]; then
 	JOBCMDS+=("export SORTMERNADIR=$SORTMERNADIR;$sortmerna_id")
     else
