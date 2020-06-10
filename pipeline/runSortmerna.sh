@@ -23,6 +23,7 @@ PROC=20
 DBS=
 SEEDS=2
 PASSES=
+SAM="--sam --num_alignments 1"
 
 ## source functions
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
@@ -32,12 +33,13 @@ export USAGETXT="
 	Usage: runSortmerna.sh [option] <out dir> <tmp dir> <forward fastq.gz> <reverse fastq.gz>
 
 	Options:
+                -a report alignments (default is on, set to skip)
                 -d define your dbs (semi-colon separated)
 #                -k drop the rRNA (only for v1.9, default to keep them)
 #                -m run against mtSSU in addition (only for v1.9)
                 -p number of threads to be used (default $PROC)
                 -P number of passes (default to sortmerna defaults)
-		-s number of seeds (default 2)
+		            -s number of seeds (default 2)
                 -u single end data (in that case only the forward fastq is needed)
 
          Note:
@@ -68,9 +70,10 @@ fi
 
 ## get the options
 #while getopts d:kmp:u option
-while getopts d:p:P:s:u option
+while getopts ad:p:P:s:u option
 do
         case "$option" in
+        a) SAM=;;
       d) DBS=$OPTARG;;
 #	    k) KEEP=0;;
 #	    m) useMtSSU=1;;
@@ -225,14 +228,14 @@ opt="-a $PROC"
 if [ $UNPAIRED == 0 ]; then
 #  if [ $is2dotx != 0 ]; then
     sortmerna --ref $dbs --reads $tmp/$fm --other $tmp/$fo --log --paired_in --fastx $opt \
---sam --num_alignments 1 $PASSES --num_seeds $SEEDS --aligned $tmp/${fo}_rRNA
+$SAM $PASSES --num_seeds $SEEDS --aligned $tmp/${fo}_rRNA
 #  else
 #    sortmerna -n $dbNum --db $dbs --I $tmp/$fm --other $tmp/$fo --log $1/$fo --paired-in $opt
 #  fi
 else
 #  if [ $is2dotx != 0 ]; then
-    sortmerna --ref $dbs --reads $tmp/$f1 --other $1/$fo --log $opt --sam \
---fastx --num_alignments 1 $PASSES --num_seeds $SEEDS --aligned $tmp/${fo}_rRNA
+    sortmerna --ref $dbs --reads $tmp/$f1 --other $1/$fo --log $opt $SAM \
+--fastx $PASSES --num_seeds $SEEDS --aligned $tmp/${fo}_rRNA
 #  else
 #    sortmerna -n $dbNum --db $dbs --I $tmp/$f1 --other $1/$fo --log $1/$fo $opt
 #  fi
