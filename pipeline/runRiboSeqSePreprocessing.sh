@@ -640,6 +640,7 @@ if [ $pstart -le 6 ] && [ $pend -ge 6 ]; then
             -o $bowtie/${sname}_bowtie.out \
             -J ${sname}.RNAseq.bowtie \
             ${mem:+"-m" "$mem"} \
+            -t 2-00:00:00 \
             $dep runBowtie2.sh -s $bowtie_index $fastq_trimmed_1 $bowtie $SNIC_TMP`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
