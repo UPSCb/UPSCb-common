@@ -167,8 +167,8 @@ mar <- par("mar")
     
     if(verbose){
         message(sprintf("There are %s genes that are DE with the following parameters: FDR <= %s, |log2FC| >= %s, base mean expression > %s",
-                        sum(sel),
-                        lfc,padj,expression_cutoff))
+                        sum(sel),padj,
+                        lfc,expression_cutoff))
     }
     
     val <- rowSums(vst[sel,sample_sel])==0
@@ -211,6 +211,8 @@ vst <- assay(vsd)
 vst <- vst - min(vst)
 dir.create(here("data/analysis/DE"),showWarnings=FALSE)
 save(vst,file=here("data/analysis/DE/vst-aware.rda"))
+write_delim(as.data.frame(vst) %>% rownames_to_column("ID"),
+            here("data/analysis/DE/vst-aware.tsv"))
 
 #' ## Gene of interests
 #' ```{r goi, echo=FALSE,eval=FALSE}

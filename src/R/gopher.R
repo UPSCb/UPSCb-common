@@ -154,7 +154,7 @@ gopher <- function(genes=character(0),
     message(parsed$err)
     return(NULL)
   }
-  
+  np <- names(parsed)  
   # return
   parsed <- lapply(names(parsed), function(n){
     f <- parsed[[n]]
@@ -166,6 +166,7 @@ gopher <- function(genes=character(0),
     }
     return(as_tibble(f) %>% arrange(padj))
   })
-  names(parsed) <- unlist(task)
+  names(parsed) <- np
+  parsed <- parsed[unlist(task)]
   return(parsed)
 }

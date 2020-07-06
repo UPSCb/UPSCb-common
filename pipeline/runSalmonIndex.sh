@@ -3,10 +3,6 @@
 #SBATCH -t 12:00:00
 #SBATCH --mail-type ALL
 
-# TODO implement that if -d
-#grep "^>" ../../../fasta/Potra01-genome.fa | cut -d " " -f 1 | tr -d '>' > decoys.txt
-#cat ../../../fasta/Potra01-mRNA.fa ../../../fasta/Potra01-genome.fa | gzip -c > gentrome.fa.gz
-
 # fail on ERROR
 set -eux
 
@@ -16,6 +12,7 @@ source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 CPU=8
 OPTIONS=
 IMG=/mnt/picea/projects/singularity/salmon.simg
+DECOY=
 
 # usage
 USAGETXT=\
@@ -23,7 +20,7 @@ USAGETXT=\
   $0 [options] <transcript file> <output file>
 
   Options:
-  -d a text file containing the IDs of decoy sequences present in the transcript fasta file
+  -d the genome file to use to build the decoy sequences
   -i the salmon image to use, defaults to salmon.simg
   -t number of threads (default 8)
   -p triggers --perfectHash
@@ -36,9 +33,9 @@ do
   case "$option" in
       d) DECOY=$OPTARG
         if [ ! -f $DECOY ]; then
-          abort "The decoy file does not exist"
+          abort "The genome file to extract the decoys from does not exist"
         fi
-        OPTIONS="-d $DECOY $OPTIONS";;
+        ;;
       i) IMG=$OPTARG;;
 	    t) CPU=$OPTARG;;
 	    p) OPTIONS="--perfectHash $OPTIONS";;
@@ -56,10 +53,21 @@ fi
 if [ ! -f $1 ]; then
   abort "The first argument should be a fasta file"
 fi
+tx=$1
+shift
 
-if [ ! -d `dirname $2` ]; then
+if [ ! -d $1 ]; then
   abort "The output directory does not exist, create it first"
+fi
+out=$1
+shift
+
+if [ $DECOY != "" ]; then
+  grep "^>" $DECOY | cut -d " " -f 1 | tr -d '>' > $out/decoys.txt
+  cat $tx $DECOY | gzip -c > $out/gentrome.fa.gz
+  OPTIONS="-d $out/decoys.txt $OPTIONS"
+  tx=$out/gentrome.fa.gz
 fi
 
 # exec
-singularity exec --bind /mnt:/mnt $IMG salmon index -t $1 -i $2 -p $CPU $OPTIONS
+singularity exec --bind /mnt:/mnt $IMG salmon index -t $tx -i $out -p $CPU $OPTIONS

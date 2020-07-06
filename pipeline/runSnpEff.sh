@@ -43,7 +43,8 @@ out=$(dirname $3)
 fnam=$(basename ${3/.vcf.*/})
 
 # run
-java -Xms4g -Xmx16g -jar $CLASSPATH/snpEff.jar ann -c $1 -s $out/${fnam}_snpEff_summary.html $2 $3
+java -Xms4g -Xmx16g -jar $CLASSPATH/snpEff.jar ann -c $1 \
+-s $out/${fnam}_snpEff_summary.html $2 $3 > $out/$fnam.ann.vcf
 
 # compress and index
 bgzip -f $out/$fnam.ann.vcf

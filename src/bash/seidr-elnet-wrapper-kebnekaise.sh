@@ -4,7 +4,7 @@
 set -ex
 
 # project vars
-account=SNIC2019-3-207
+account=SNIC2020-5-218
 mail=nicolas.delhomme@umu.se
 
 # directory
@@ -23,8 +23,13 @@ inf=el-ensemble
 
 # kk has 28 per node
 # parameters
-queueParams="-n 1 -c 28 -t 1-00:00:00"
+queueParams="-n 1 -c 28 -t 2-00:00:00"
 commandParams="-B $chunkSize -O "'$SLURM_CPUS_PER_TASK'
+
+# Small dataset params
+smallDSet=0
+minProp=80
+maxProp=100
 
 # usage
 USAGETXT=\
@@ -58,6 +63,15 @@ mkdir -p results/$inf
 read -r -a GENEIDS <<< $(cat $2)
 len=${#GENEIDS[@]}
 
+# Extract the number of samples
+nsamples=$(wc -l $1 | cut -d" " -f1)
+
+# Extend the command line for small datasets
+if [ $smallDSet -eq 1 ]; then
+	smallDSetParam="-x $(expr $(expr $nsamples '*' $minProp) '/' 100) -X $(expr $(expr $nsamples '*' $maxProp) '/' 100)"
+	commandParams="$commandParams $smallDSetParam"
+fi
+
 # Run
 # Create chunks and iterate the submissions
 for ((i=0;i<len;i+=$chunkSize)); do
@@ -67,7 +81,7 @@ for ((i=0;i<len;i+=$chunkSize)); do
 
     echo "#!/bin/bash" > results/$inf/$inf-$i.sh
     echo "unset OMP_NUM_THREADS" >> results/$inf/$inf-$i.sh
-    echo "srun $EXEC/$inf $commandParams -i $1 -g $2 -t gset-$i.txt -o results/$inf/$inf-$i.tsv" >> results/$inf/$inf-$i.sh
+    echo "srun $EXEC/$inf $commandParams -i $1 -g $2 -t gset-$i.txt --save-resume results/$inf/$inf-$i.json -o results/$inf/$inf-$i.tsv" >> results/$inf/$inf-$i.sh
     sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf-$i -e results/$inf/$inf-$i.err -o results/$inf/$inf-$i.out $queueParams results/$inf/$inf-$i.sh
   fi
 done
