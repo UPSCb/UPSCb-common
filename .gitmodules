@@ -1,0 +1,3 @@
+[submodule "kogia"]
+	path = kogia
+	url = https://github.com/bschiffthaler/kogia.git
