@@ -16,7 +16,7 @@ module load bioinfo-tools diamond
 ## usage
 USAGETXT=\
 "
-	Usage: runPLncPRO.sh <fasta file> <model file> <blastdb> <out dir>
+	Usage: runPLncPRO.sh <fasta file> <model file> <diamonddb> <out dir>
 	
 	Options:
 	            -t              number of threads  
@@ -49,7 +49,7 @@ if [ ! -f $2 ]; then
   abort "The second argument needs to be the model filepath"
 fi
 
-if [ ! -d $3 ]; then
+if [ ! -f $3 ]; then
   abort "The third argument needs to be the diamond index filepath"
 fi
 
@@ -65,4 +65,4 @@ fnam=$(basename ${1%.*})
 singularity exec --bind /mnt:/mnt /mnt/picea/projects/singularity/delhomme-upscb-lncrna.simg python /opt/plncpro/prediction.py \
 -t $CPU -i $1 -m $2 -d $3 -o $4 -p $4/$fnam.txt
 #singularity exec delhomme-upscb-lncrna.simg python /opt/plncpro/prediction.py
-
+#singularity exec delhomme-upscb-lncrna.simg diamond help
