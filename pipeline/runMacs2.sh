@@ -90,7 +90,9 @@ else
   control=
 fi
 
-macs2 callpeak -t $treatment $control -f BAM -g $GENOME --keep-dup auto --outdir $out $NAME -B --SPMR $PEMODE $@
+singularity exec --bind /mnt:/mnt /mnt/picea/projects/singularity/macs2.sif \
+macs2 callpeak -t $treatment $control -f BAM -g $GENOME --keep-dup auto --outdir \
+$out $NAME -B --SPMR $PEMODE $@
 
 
 ##Running MACS2 bdgcmp to generate fold-enrichment and to remove background noise from BedGraph signal files for reported peaks
