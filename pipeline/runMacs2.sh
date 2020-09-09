@@ -14,7 +14,7 @@ set -x
 GENOME=12000000
 NAME=
 CONTROL=1
-PEMODE=
+MODE="-f BAM"
 ## usage
 usage(){
 echo >&2 \
@@ -35,11 +35,11 @@ while getopts cg:n:p option
 do
         case "$option" in
         c)CONTROL=0;;
-      g) GENOME=$OPTARG;;
-      n) NAME="$OPTARG";;
-	p)PEMODE="-f BAMPE";;
-		\?) ## unknown flag
-		usage;;
+        g) GENOME=$OPTARG;;
+        n) NAME="$OPTARG";;
+      	p)MODE="-f BAMPE";;
+		    \?) ## unknown flag
+		      usage;;
         esac
 done
 shift `expr $OPTIND - 1`
@@ -91,8 +91,8 @@ else
 fi
 
 singularity exec --bind /mnt:/mnt /mnt/picea/projects/singularity/macs2.sif \
-macs2 callpeak -t $treatment $control -f BAM -g $GENOME --keep-dup auto --outdir \
-$out $NAME -B --SPMR $PEMODE $@
+macs2 callpeak -t $treatment $control -g $GENOME --keep-dup auto --outdir \
+$out $NAME -B --SPMR $MODE $@
 
 
 ##Running MACS2 bdgcmp to generate fold-enrichment and to remove background noise from BedGraph signal files for reported peaks
