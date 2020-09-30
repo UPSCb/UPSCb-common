@@ -175,6 +175,9 @@ setMethod(f = "extractFromGenome",
             # order the gff by chrom, start, stop
             gff3 <- gff3[order(seqnames(gff3),gff3[,1]),]
             
+            # sanity check
+            stopifnot(!all(duplicated(getGffAttribute(gff3,"ID")[,1])))
+            
             # Get all sub sequences
             sseq <- subseq(genome[seqnames(gff3)],gff3[,1],gff3[,2])
             
