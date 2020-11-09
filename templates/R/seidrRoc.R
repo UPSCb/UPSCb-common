@@ -39,8 +39,11 @@ plotRoc <- function(f){
          AUPR=as.double(sub(".* ","",sapply(strsplit(vals[lvals + seq(2,length.out=lvals,by=2)],"\t"),"[",1))),
          )
   
-  aucs <- unlist(dat %>% group_by(ALGORITHM) %>% group_map(.,function(x,...){round(trapz(x$FP,x$TP),digits=3)}))
-  names(aucs) <- unique(dat$ALGORITHM)
+  
+  aucs <- dat %>% group_by(ALGORITHM) %>% 
+    group_map(.,function(x,...){data.frame(ALGORITHM=unique(x$ALGORITHM),
+                                           AUC=round(trapz(x$FP,x$TP),digits=3))},
+              .keep=TRUE) %>% bind_rows()
   
   p <- ggplot(dat,aes(x=FP,y=TP,col=ALGORITHM,group=ALGORITHM)) +
     geom_line() + 
