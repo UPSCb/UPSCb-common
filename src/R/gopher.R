@@ -154,7 +154,7 @@ gopher <- function(genes=character(0),
   np <- names(parsed)  
   
   if(!is.null(parsed$err)){
-    message(parsed$err)
+    warning(parsed$err)
     if(override==TRUE){
       np <- np[!grepl("err",np)]  
     } else {
