@@ -38,7 +38,8 @@ gopher <- function(genes=character(0),
                    host="https://franklin.upsc.se",
                    port=5432,
                    url="json",
-                   endpoint=c("enrichment","gene-to-term","get-sets","term-to-gene")) {
+                   endpoint=c("enrichment","gene-to-term","get-sets","term-to-gene"),
+                   override=FALSE) {
 
   require(tidyr)
   require(tibble)
@@ -46,11 +47,11 @@ gopher <- function(genes=character(0),
   require(jsonlite)
   
   # arguments
+  endpoint <- match.arg(endpoint)
+  
   if(endpoint != "term-to-gene" && !is.list(task)){
     task <- as.list(task)
   }
-  
-  endpoint <- match.arg(endpoint)
   
   #term-to-gene behavior
   if(endpoint=="term-to-gene") {
@@ -116,9 +117,9 @@ gopher <- function(genes=character(0),
     }
   )
   # if the connection fails return a NULL object
-  if(is.null(request))
+  if(is.null(request)){
     return(NULL)
-
+  }
   
   # process
   # 
@@ -150,13 +151,19 @@ gopher <- function(genes=character(0),
     return(parsed)
   }
   
+  np <- names(parsed)  
+  
   if(!is.null(parsed$err)){
     message(parsed$err)
-    return(NULL)
+    if(override==TRUE){
+      np <- np[!grepl("err",np)]  
+    } else {
+      return(NULL)
+    }
   }
-  np <- names(parsed)  
+  
   # return
-  parsed <- lapply(names(parsed), function(n){
+  parsed <- lapply(np, function(n){
     f <- parsed[[n]]
   
     if(length(f) == 0 | is.null(f))
