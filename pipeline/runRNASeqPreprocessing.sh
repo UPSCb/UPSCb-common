@@ -1,11 +1,11 @@
 #!/bin/bash
-set -e
+set -eu
 
 ### ========================================================
 # Preprocessing script for RNA-Seq data.
 # THIS SCRIPT IS NOT TO BE RUN THROUGH SBATCH, USE BASH!
 ### ========================================================
-VERSION="0.2.8"
+VERSION="0.3.0"
 
 ### ========================================================
 ## pretty print
@@ -24,7 +24,7 @@ usage() {
     echo "usage: bash `basename $0` [OPTIONS] <proj> <mail> <fastq1> <fastq2> <outdir>
 
 Run the RNA-Seq preprocessing pipeline, i.e. FastQC, Trimmomatic, Sortmerna
-and STAR. You throw in a pair of fastq files and it spits out a BAM file. Sweet!
+and Salmon. You throw in a pair of fastq files and it spits out an sf file. Sweet!
 
 ${bold}ARGUMENTS:${normal}
     proj    project that this should be run as
@@ -39,6 +39,7 @@ ${bold}OPTIONS:${normal}
     -D        Debug. On Uppmax use a devel node to try out changes during development or program updates, it's highly recommended to not run more than one step in this mode
     -s n      step at which to start (see ${underline}STEPS${nounderline})
     -e n      step at which to end (see ${underline}STEPS${nounderline})
+    -E        do not skip the step 1,8-10 (skipped by default)
     -f fasta  the transcript fasta sequence file for kallisto
     -F fasta  the genome fasta file (required if STAR is included in the pipeline)
     -g dir    path to STAR reference to use (required if STAR is included
@@ -53,22 +54,27 @@ ${bold}OPTIONS:${normal}
     -p        fastq data is phred64 encoded
     -t        library is s${underline}t${nounderline}randed (currently only relevant for HTSeq, for the illumina protocol, second strand cDNA using dUTP)
     -a        library is s${underline}t${nounderline}randed (currently only relevant for HTSeq, for the non illumina protocol e.g. first strand cDNA using dUTP)
+    -S        Salmon index
     -T        trimming arguments passed to trimmomatic. Overrides defaults in runTrimmomatic.sh
     -I        the max intron length for STAR
+    -x        the sortmerna index directory
 
 ${bold}STEPS:${normal}
     The steps of this script are as follows:
 
-    1) fastQValidator
+    1) (fastQValidator*)
     2) FastQC
     3) SortMeRNA
     4) FastQC
     5) Trimmomatic
     6) FastQC
-    7) Kallisto
-    8) STAR
-    9) HTSeq-count
+    7) Salmon
+    8) Kallisto*
+    9) STAR*
+    10) (HTSeq-count*)
     
+    The steps marked with * are optional; only accessible if -E is set.
+    The steps in () are tools not supported in kogia
 
 ${bold}NOTES:${normal}
     * This script should not be run through sbatch, just use bash.
@@ -247,6 +253,10 @@ run_bash(){
 ### ========================================================
 ## main
 ### ========================================================
+# This variable holds the absolute path of this script, i.e. the
+# repository's pipeline directory.
+# http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
+PIPELINE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 ## set the default vars
 dryrun=0
@@ -270,31 +280,38 @@ kallisto_index=
 kallisto_fasta=
 star_intron_max=
 genome_fasta=
+salmon_index=
+sortmerna_inx=
+extended=0
+kogia=${PIPELINE_DIR}/../kogia/scripts
 
 # Parse the options
 OPTIND=1
-while getopts "hdDs:e:f:F:g:G:kK:l:H:tai:m:T:pI:" opt; do
+while getopts "adDe:Ef:F:g:G:hH:i:I:kK:l:m:ps:S:tT:x:" opt; do
     case "$opt" in
-        h) usage;;
-	d) dryrun=1;;
-    D) debug=1;;
-        s) pstart=$OPTARG ;;
+        a) non_ilm_stranded=1;;
+	      d) dryrun=1;;
+        D) debug=1;;
         e) pend=$OPTARG ;;
+        E) extended=1;;
         f) kallisto_fasta=$OPTARG ;;
         F) genome_fasta=$OPTARG ;;
         g) star_ref=$OPTARG ;;
+        G) star_gtf=$OPTARG ;;
+        h) usage;;
+        H) htseq_gff=$OPTARG ;;
+        i) idattr=$OPTARG ;;
+        I) star_intron_max=$OPTARG ;;
         k) star_options="-- --genomeLoad LoadAndKeep";;
         K) kallisto_index=$OPTARG ;;
-        G) star_gtf=$OPTARG ;;
         l) bam_memory=$OPTARG ;;
-        H) htseq_gff=$OPTARG ;;
+        m) mem="${OPTARG}GB";;
+        p) phred_value="-q";;
+        s) pstart=$OPTARG ;;
+        S) salmon_index=$OPTARG ;;
         t) ilm_stranded=1 ;;
-        a) non_ilm_stranded=1;;
-        i) idattr=$OPTARG ;;
-	      m) mem="${OPTARG}GB";;
-	      p) phred_value="-q";;
 		    T) trimmomatic_options=$OPTARG ;;
-		    I) star_intron_max=$OPTARG ;;
+		    x) sortmerna_inx="-i $OPTARG";;
         ?) usage;;
     esac
 done
@@ -326,6 +343,11 @@ fi
     usage
 }
 
+[[ $extended -eq 0 ] && [[ $pstart -eq 1 ] || [ $pstart -gt 7 ]]] && {
+  echo "ERROR: you cannot run step 1,8-10 unless you set -E" 1>&2
+  usage
+}
+
 
 echo "### ========================================
 # UPSC pre-RNA-Seq pipeline v$VERSION
@@ -338,11 +360,10 @@ echo "### ========================================
 ## the toolList list all the necessary tools
 ## the toolArray (starting at 1) link the tool(s) to its respective step(s)
 ## starArray and htseqArray are there to simulate a nested array
-toolList=(fastQValidator fastqc sortmerna java STAR samtools python htseq-count kallisto)
-starArray=([0]=4 [1]=5)
-htseqArray=([0]=6 [1]=7)
-kallistoArray=([0]=5 [1]=8)
-toolArray=([1]=0 [2]=1 [3]=2 [4]=1 [5]=3 [6]=1 [7]=${kallistoArray[*]} [8]=${starArray[*]} [9]=${htseqArray[*]})
+toolList=(fastQValidator fastqc sortmerna trimmomatic salmon kallisto samtools star htseq-count)
+htseqArray=([0]=6 [1]=8)
+kallistoArray=([0]=5 [1]=6)
+toolArray=([1]=0 [2]=1 [3]=2 [4]=1 [5]=3 [6]=1 [7]=4 [8]=${kallistoArray[*]} [9]=7 [10]=${htseqArray[*]})
 
 ## a global var to stop if we miss tools
 ## but only after having checked them all
@@ -352,9 +373,9 @@ for ((i=$pstart;i<=$pend;i++)); do
 	tot=$(((${#toolArray[$i]} + 1) / 2))
 	for ((j=0;j<$tot;j++)); do
 	    echo "# Checking step $i ${toolList[${toolArray[$i]:$j:$((j + 1))}]}"
-	    if [ `toolCheck ${toolList[${toolArray[$i]:$j:$((j + 1))}]}` -eq 1 ]; then
-		echo >&2 "ERROR: Please install the missing tool: ${toolList[${toolArray[$i]:$j:$((j + 1))}]}."
-		((status+=1))
+	    if [ $(toolCheck $kogia/${toolList[${toolArray[$i]:$j:$((j + 1))}]}) -eq 1 ] && [ $(toolCheck ${toolList[${toolArray[$i]:$j:$((j + 1))}]}) -eq 1 ]; then
+		    echo >&2 "ERROR: Please install the missing tool: ${toolList[${toolArray[$i]:$j:$((j + 1))}]}."
+		    ((status+=1))
 	    fi
 	done
 done
@@ -366,32 +387,46 @@ echo "### ========================================
 # Preparation started on `date`
 # Going from step $pstart to $pend
 # Provided parameters are:
+# Salmone index: $salmon_index
+# Kallisto index: $kallisto_index
+# Kallisto fasta: $kallisto_fasta
 # STAR genome: $star_ref 
 # STAR gtf: $star_gtf
-# HTSeq gff3: $htseq_gff
-# Kallisto index: $kallisto_index
-# Kallisto fasta: $kallisto_fasta"
+# HTSeq gff3: $htseq_gff"
 
-# Check if kallisto is included and then if the reference is set
+# Check if salmon is included and then if the reference is set
 if [ $pstart -le 7 ] && [ $pend -ge 7 ]; then
-   if [ -z $kallisto_index ]; then
-        echo >&2 "ERROR: You are running kallisto but have not given an index, set the -K option"
+   if [ -z $salmon_index ]; then
+        echo >&2 "ERROR: You are running salmon but have not given an index, set the -S option"
         usage
-    elif [ ! -f $kallisto_index ]; then
-        echo >&2 "ERROR: Could not find the kallisto index file"
+    elif [ ! -d $salmon_index ]; then
+        echo >&2 "ERROR: Could not find the salmon index directory"
         usage
     fi
-    if [ -z $kallisto_fasta ]; then
-        echo >&2 "ERROR: You are running kallisto but have not given a fasta reference, set the -f option"
-        usage
-    elif [ ! -f $kallisto_fasta ]; then
-        echo >&2 "ERROR: Could not find the kallisto fasta file"
-        usage
-    fi 
 fi
 
-# Check if STAR is included and then if the reference is set
-if [ $pstart -le 8 ] && [ $pend -ge 8 ]; then
+if [ $extended -eq 1 ]; then
+
+  # Check if kallisto is included and then if the reference is set
+  if [ $pstart -le 8 ] && [ $pend -ge 8 ]; then
+     if [ -z $kallisto_index ]; then
+          echo >&2 "ERROR: You are running kallisto but have not given an index, set the -K option"
+          usage
+      elif [ ! -f $kallisto_index ]; then
+          echo >&2 "ERROR: Could not find the kallisto index file"
+          usage
+      fi
+      if [ -z $kallisto_fasta ]; then
+          echo >&2 "ERROR: You are running kallisto but have not given a fasta reference, set the -f option"
+          usage
+      elif [ ! -f $kallisto_fasta ]; then
+          echo >&2 "ERROR: Could not find the kallisto fasta file"
+          usage
+      fi 
+  fi
+
+  # Check if STAR is included and then if the reference is set
+  if [ $pstart -le 9 ] && [ $pend -ge 9 ]; then
     if [ -z $star_ref ]; then
         echo >&2 "ERROR: You are running STAR but have not given a STAR reference, set the -g option"
         usage
@@ -416,10 +451,10 @@ if [ $pstart -le 8 ] && [ $pend -ge 8 ]; then
           usage
         fi
     fi
-fi
+  fi
 
-# Check that HTSeq will get a GFF3 file (if it's included in the pipeline)
-if [ $pstart -le 9 ] && [ $pend -ge 9 ]; then
+  # Check that HTSeq will get a GFF3 file (if it's included in the pipeline)
+  if [ $pstart -le 10 ] && [ $pend -ge 10 ]; then
     if [ -z $htseq_gff ] && [ -z $star_gtf ]; then
         echo >&2 "ERROR: HTSeq needs a GFF3 file"
         usage
@@ -429,15 +464,8 @@ if [ $pstart -le 9 ] && [ $pend -ge 9 ]; then
         echo >&2 "ERROR: Could not find gff file: '$htseq_gff'"
         usage
     fi
+  fi
 fi
-
-# This variable holds the absolute path of this script, i.e. the
-# repository's pipeline directory.
-# http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
-PIPELINE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-## abort on any error
-set -e
 
 ## get some vars
 proj=$1
@@ -462,75 +490,33 @@ fastq2="$4"
 
 # Sample name to use for output
 s_prefix=${fastq1%_1.f*q.gz}
-sname=`basename $s_prefix`
+sname=$(basename $s_prefix)
 
-if [ ! -d `dirname $5` ]; then
+if [ ! -d $(dirname $5) ]; then
     echo "ERROR: could not find parent directory for output directory" 1>&2
     usage
 fi
 
 ## Set up the directory structure
 ## in case outdir is .
-outdir=`readlink -f $5`
+outdir=$(readlink -f $5)
 [[ ! -d $outdir ]] && mkdir $outdir
 
 ## Use the directory name as a job identifier
-JOBNAME=`basename $outdir`
+JOBNAME=$(basename $outdir)
 
-## FastQC
-fastqc_raw="$outdir/fastqc/raw"
-[[ ! -d $fastqc_raw ]] && mkdir -p $fastqc_raw
-fastqc_sortmerna="$outdir/fastqc/sortmerna"
-[[ ! -d $fastqc_sortmerna ]] && mkdir $fastqc_sortmerna
-fastqc_trimmomatic="$outdir/fastqc/trimmomatic"
-[[ ! -d $fastqc_trimmomatic ]] && mkdir $fastqc_trimmomatic
+dirList=(fastqc/raw fastqc/raw sortmerna fastqc/sortmerna trimmomatic fastqc/trimmomatic salmon kallisto star htseq-count)
 
-## SortmeRNA
-sortmerna="$outdir/sortmerna"
-[[ ! -d $sortmerna ]] && mkdir $sortmerna
-
-## Trimmomatic
-trimmomatic="$outdir/trimmomatic"
-[[ ! -d $trimmomatic ]] && mkdir $trimmomatic
-
-## STAR
-star="$outdir/star"
-[[ ! -d $star ]] && mkdir $star
-
-## HTSeq
-htseq="$outdir/htseq"
-[[ ! -d $htseq ]] && mkdir $htseq
-
-## Kallisto
-kallisto="$outdir/kallisto"
-[[ ! -d $kallisto ]] && mkdir $kallisto
-
-## Export some variables
-[[ -z $UPSCb ]] && export UPSCb=$PIPELINE_DIR/..
-
-## This is now part of the module
-## I will just assume that the sortmerna data is symlinked in the repo
-#[[ -z $SORTMERNADIR ]] && export SORTMERNADIR=$PIPELINE_DIR/../data/sortmerna
-#if [ ! -e $SORTMERNADIR ]; then
-#    echo "ERROR: could not find the sortmerna data in $SORTMERNADIR" 1>&2
-#    usage
-#fi
+for ((i=$pstart;i<=$pend;i++)); do
+  echo "# Creating directory for step $i: $outdir/$dirList[$((i -1))]" 
+	mkdir -p $outdir/$dirList[$((i -1))]
+done
 
 ## final setup
 ## check for sbatch, return 1 if no sbatch, 0 otherwise
 CMD=sbatch
 if [ `toolCheck $CMD` -eq 1 ]; then
     CMD=bash
-fi
-
-## setup the tmp dir - SNIC_RESOURCE is only present on uppmax
-tmp=/tmp
-if [ -z $SNIC_RESOURCE ]; then
-    tmp=/mnt/picea/tmp
-else
-    mem="mem$mem"
-    memArg="-C"
-    # we don't change tmp, it will be overloaded in the sortmerna runner
 fi
 
 echo "### ========================================"
@@ -565,68 +551,72 @@ IFS=$LFIFS
 
 ## TODO WE NEED A single prepare and run function
 ## that contains the logic
+
 ## Run fastQValidator
-if [ $pstart -le 1 ]; then
-    echo "# Preparing step 1"
+step=0
+if [ $pstart -le (($step+1)) ]; then
+    echo "# Preparing step (($step+1))"
 
     JOBCMDS+=(`prepare_$CMD \
-        -e $fastqc_raw/${sname}_1_validate.err \
-        -o $fastqc_raw/${sname}_1_validate.out \
+        -e $dirList[$step]/${sname}_1_validate.err \
+        -o $dirList[$step]/${sname}_1_validate.out \
         -J ${sname}.RNAseq.FastQValidate1 \
         runFastQValidator.sh $fastq1`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 
     JOBCMDS+=(`prepare_$CMD \
-        -e $fastqc_raw/${sname}_2_validate.err \
-        -o $fastqc_raw/${sname}_2_validate.out \
+        -e $dirList[$step]/${sname}_2_validate.err \
+        -o $dirList[$step]/${sname}_2_validate.out \
         -J ${sname}.RNAseq.FastQCValidate2 \
         runFastQValidator.sh $fastq2`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 
 ## Run FastQC. Depends on a successful run of fastQValidator
-if [ $pstart -le 2 ] && [ $pend -ge 2 ]; then
-    echo "# Preparing step 2"
+(($step+=1))
+if [ $pstart -le (($step+1)) ] && [ $pend -ge (($step+1)) ]; then
+    echo "# Preparing step (($step+1))"
 
     dep1=
     dep2=
-    if [ $pstart -lt 2 ] && [ "$CMD" != "bash" ]; then
+    if [ $pstart -lt (($step+1)) ] && [ "$CMD" != "bash" ]; then
         dep1="-d afterok:${JOBIDS[${#JOBIDS[@]}-2]}"
         dep2="-d afterok:${JOBIDS[${#JOBIDS[@]}-1]}"
     fi
 
     JOBCMDS+=(`prepare_$CMD \
-        -e $fastqc_raw/${sname}_1_fastqc.err \
-        -o $fastqc_raw/${sname}_1_fastqc.out \
+        -e $dirList[$step]/${sname}_1_fastqc.err \
+        -o $dirList[$step]/${sname}_1_fastqc.out \
         -J ${sname}.RNAseq.FastQC.raw1 \
-        $dep1 runFastQC.sh $fastqc_raw $fastq1`)
+        $dep1 runFastQC.sh $dirList[$step] $fastq1`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 
     JOBCMDS+=(`prepare_$CMD \
-        -e $fastqc_raw/${sname}_2_fastqc.err \
-        -o $fastqc_raw/${sname}_2_fastqc.out \
+        -e $dirList[$step]/${sname}_2_fastqc.err \
+        -o $dirList[$step]/${sname}_2_fastqc.out \
         -J ${sname}.RNAseq.FastQC.raw2 \
-        $dep2 runFastQC.sh $fastqc_raw $fastq2`)
+        $dep2 runFastQC.sh $dirList[$step] $fastq2`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 
 ## Run Sortmerna. Depends on a successful run of FastQValidator
-if [ $pstart -le 3 ] && [ $pend -ge 3 ]; then
-    echo "# Preparing step 3"
+(($step+=1))
+if [ $pstart -le (($step+1)) ] && [ $pend -ge (($step+1)) ]; then
+    echo "# Preparing step (($step+1))"
 
     dep=
     ## we do not depend on the FASTQC, but on FastQValidator if it
     ## was started
-    if [ $pstart -eq 1 ] && [ "$CMD" != "bash" ]; then
+    if [ $pstart -eq (($step-1)) ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-3]}"
     fi
     JOBCMDS+=(`prepare_$CMD \
         $debug_var \
-        -e $sortmerna/${sname}_sortmerna.err \
-        -o $sortmerna/${sname}_sortmerna.out \
+        -e $dirList[$step]/${sname}_sortmerna.err \
+        -o $dirList[$step]/${sname}_sortmerna.out \
         $dep \
         -J ${sname}.RNAseq.SortMeRNA \
-        runSortmerna.sh $sortmerna $tmp $fastq1 $fastq2`)
+        runSortmerna.sh $sorterna_inx $dirList[$step] $fastq1 $fastq2`)
     if [ "$CMD" == "bash" ]; then
 	JOBCMDS+=("export SORTMERNADIR=$SORTMERNADIR;$sortmerna_id")
     else
@@ -635,15 +625,16 @@ if [ $pstart -le 3 ] && [ $pend -ge 3 ]; then
 
 fi
 
-fastq_sort_1="$sortmerna/${sname}_sortmerna_1.fq.gz"
-fastq_sort_2="$sortmerna/${sname}_sortmerna_2.fq.gz"
+fastq_sort_1="$dirList[$step]/${sname}_sortmerna_1.fq.gz"
+fastq_sort_2="$dirList[$step]/${sname}_sortmerna_2.fq.gz"
 
 # Run FastQC. Depends on a successful run of SortMeRNA
-if [ $pstart -le 4 ] && [ $pend -ge 4 ]; then
-    echo "# Preparing step 4"
+(($step+=1))
+if [ $pstart -le (($step+1)) ] && [ $pend -ge (($step+1)) ]; then
+    echo "# Preparing step (($step+1))"
 
     dep=
-    if [ $pstart -lt 4 ] && [ "$CMD" != "bash" ]; then
+    if [ $pstart -lt (($step+1)) ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-1]}"
     elif ([ ! -f $fastq_sort_1 ] || [ ! -f $fastq_sort_2 ]) && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
@@ -651,26 +642,27 @@ if [ $pstart -le 4 ] && [ $pend -ge 4 ]; then
     fi
 
     JOBCMDS+=(`prepare_$CMD \
-        -e $fastqc_sortmerna/${sname}_1_fastqc.err \
-        -o $fastqc_sortmerna/${sname}_1_fastqc.out \
+        -e $dirList[$step]/${sname}_1_fastqc.err \
+        -o $dirList[$step]/${sname}_1_fastqc.out \
         -J ${sname}.RNAseq.FastQC.SortMeRNA1 \
-        $dep runFastQC.sh $fastqc_sortmerna $fastq_sort_1`)
+        $dep runFastQC.sh $dirList[$step] $fastq_sort_1`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 
     JOBCMDS+=(`prepare_$CMD \
-        -e $fastqc_sortmerna/${sname}_2_fastqc.err \
-        -o $fastqc_sortmerna/${sname}_2_fastqc.out \
+        -e $dirList[$step]/${sname}_2_fastqc.err \
+        -o $dirList[$step]/${sname}_2_fastqc.out \
         -J ${sname}.RNAseq.FastQC.SortMeRNA2 \
-        $dep runFastQC.sh $fastqc_sortmerna $fastq_sort_2`)
+        $dep runFastQC.sh $dirList[$step] $fastq_sort_2`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 
 ## Run trimmomatic. Depends on a successful run of SortMeRNA
-if [ $pstart -le 5 ] && [ $pend -ge 5 ]; then
-    echo "# Preparing step 5"
+(($step+=1))
+if [ $pstart -le (($step+1)) ] && [ $pend -ge (($step+1)) ]; then
+    echo "# Preparing step (($step+1))"
 
     dep=
-    if [ $pstart -le 3  ] && [ "$CMD" != "bash" ]; then
+    if [ $pstart -le (($step-1))  ] && [ "$CMD" != "bash" ]; then
         # SortMeRNA has to finish, if it was started
 	# hence we check for a pstart lower or equal to 3
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-3]}"
@@ -679,52 +671,76 @@ if [ $pstart -le 5 ] && [ $pend -ge 5 ]; then
         echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
         cleanup
     fi
-    JOBCMDS+=(`prepare_$CMD \
+    JOBCMDS+=($(prepare_$CMD \
         $debug_var \
-        -e $trimmomatic/${sname}_trimmomatic.err \
-        -o $trimmomatic/${sname}_trimmomatic.log \
+        -e $dirList[$step]/${sname}_trimmomatic.err \
+        -o $dirList[$step]/${sname}_trimmomatic.log \
         -J ${sname}.RNAseq.Trimmomatic \
         $dep \
-        runTrimmomatic.sh $phred_value $fastq_sort_1 $fastq_sort_2 $trimmomatic $trimmomatic_options`)
-    JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
+        runTrimmomatic.sh $phred_value $fastq_sort_1 $fastq_sort_2 $dirList[$step] $trimmomatic_options))
+    JOBIDS+=($(run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}))
 fi
 
 ## Trimmed fastq file paths
-fastq_trimmed_1="$trimmomatic/${sname}_sortmerna_trimmomatic_1.fq.gz"
-fastq_trimmed_2="$trimmomatic/${sname}_sortmerna_trimmomatic_2.fq.gz"
+fastq_trimmed_1="$dirList[$step]/${sname}_sortmerna_trimmomatic_1.fq.gz"
+fastq_trimmed_2="$dirList[$step]/${sname}_sortmerna_trimmomatic_2.fq.gz"
 
 # Run FastQC. Depends on a successful run of Trimmomatic
-if [ $pstart -le 6 ] && [ $pend -ge 6 ]; then
-    echo "# Preparing step 6"
+(($step+=1))
+if [ $pstart -le (($step+1)) ] && [ $pend -ge (($step+1)) ]; then
+    echo "# Preparing step (($step+1))"
 
     dep=
-    if [ $pstart -lt 6 ] && [ "$CMD" != "bash" ]; then
+    if [ $pstart -lt (($step+1)) ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-1]}"
     elif ([ ! -f $fastq_trimmed_1 ] || [ ! -f $fastq_trimmed_2 ]) && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
         cleanup
     fi
     JOBCMDS+=(`prepare_$CMD \
-        -e $fastqc_trimmomatic/${sname}_1_fastqc.err \
-        -o $fastqc_trimmomatic/${sname}_1_fastqc.out \
+        -e $dirList[$step]/${sname}_1_fastqc.err \
+        -o $dirList[$step]/${sname}_1_fastqc.out \
         -J ${sname}.RNAseq.FastQC.Trimmomatic1 \
-        $dep runFastQC.sh $fastqc_trimmomatic $fastq_trimmed_1`)
+        $dep runFastQC.sh $dirList[$step] $fastq_trimmed_1`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
     
     JOBCMDS+=(`prepare_$CMD \
-        -e $fastqc_trimmomatic/${sname}_2_fastqc.err \
-        -o $fastqc_trimmomatic/${sname}_2_fastqc.out \
+        -e $dirList[$step]/${sname}_2_fastqc.err \
+        -o $dirList[$step]/${sname}_2_fastqc.out \
         -J ${sname}.RNAseq.FastQC.Trimmomatic2 \
-        $dep runFastQC.sh $fastqc_trimmomatic $fastq_trimmed_2`)
+        $dep runFastQC.sh $dirList[$step] $fastq_trimmed_2`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 
-# Run Kallisto. Depends on a successful run of trimmomatic
-if [ $pstart -le 7 ] && [ $pend -ge 7 ]; then
-    echo "# Preparing step 7"
+# Run Salmon. Depends on a successful run of trimmomatic
+(($step+=1))
+if [ $pstart -le (($step+1)) ] && [ $pend -ge (($step+1)) ]; then
+    echo "# Preparing step (($step+1))"
 
     dep=
     if [ $pstart -le 5 ] && [ "$CMD" != "bash" ]; then
+        dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-5]}"
+    elif ([ ! -f $fastq_trimmed_1 ] || [ ! -f $fastq_trimmed_2 ]) && [ "$CMD" != "bash" ]; then
+        echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
+        cleanup
+    fi
+    
+    JOBCMDS+=($(prepare_$CMD \
+        $debug_var \
+        -e $dirList[$step]/${sname}_salmon.err \
+        -o $dirList[$step]/${sname}_salmon.out \
+        -J ${sname}.RNAseq.kallisto \
+        $dep runSalmon.sh $salmon_index $fastq_trimmed_1 $fastq_trimmed_2 $dirList[$step]))
+    JOBIDS+=($(run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}))
+fi
+
+# Run Kallisto. Depends on a successful run of trimmomatic
+(($step+=1))
+if [ $pstart -le (($step+1)) ] && [ $pend -ge (($step+1)) ]; then
+    echo "# Preparing step (($step+1))"
+
+    dep=
+    if [ $pstart -le (($step-2)) ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-5]}"
     elif ([ ! -f $fastq_trimmed_1 ] || [ ! -f $fastq_trimmed_2 ]) && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
@@ -740,23 +756,24 @@ if [ $pstart -le 7 ] && [ $pend -ge 7 ]; then
 	    kallisto_strand_option="-F"
     fi
   
-    JOBCMDS+=(`prepare_$CMD \
+    JOBCMDS+=($(prepare_$CMD \
         $debug_var \
-        -e $kallisto/${sname}_kallisto.err \
-        -o $kallisto/${sname}_kallisto.out \
+        -e $dirList[$step]/${sname}_kallisto.err \
+        -o $dirList[$step]/${sname}_kallisto.out \
         -J ${sname}.RNAseq.kallisto \
-        $dep runKallisto.sh $kallisto_strand_option $fastq_trimmed_1 $fastq_trimmed_2 $kallisto_index $kallisto_fasta $kallisto`)
-    JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
+        $dep runKallisto.sh $kallisto_strand_option $fastq_trimmed_1 $fastq_trimmed_2 $kallisto_index $kallisto_fasta $dirList[$step]))
+    JOBIDS+=($(run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}))
 fi
 
 # Run STAR. Depends on a successful run of Trimmomatic.
-if [ $pstart -le 8 ] && [ $pend -ge 8 ]; then
-    echo "# Preparing step 8"
+(($step+=1))
+if [ $pstart -le (($step+1)) ] && [ $pend -ge (($step+1)) ]; then
+    echo "# Preparing step (($step+1))"
 
     dep=
     ## Trimmomatic needs finishing if it was started
     ## hence, we check if step 5 was started  
-    if [ $pstart -le 5 ] && [ "$CMD" != "bash" ]; then
+    if [ $pstart -le (($step-3)) ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-3]}"
     elif ([ ! -f $fastq_trimmed_1 ] || [ ! -f $fastq_trimmed_2 ]) && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
@@ -773,37 +790,21 @@ if [ $pstart -le 8 ] && [ $pend -ge 8 ]; then
 
     JOBCMDS+=(`prepare_$CMD \
             $debug_var \
-            -e $star/${sname}_STAR.err \
-            -o $star/${sname}_STAR.out \
+            -e $dirList[$step]/${sname}_STAR.err \
+            -o $dirList[$step]/${sname}_STAR.out \
             -J ${sname}.RNAseq.STAR \
             ${mem:+"-m" "$mem"} \
-            $dep runSTAR.sh -l "$bam_memory" $star_runner_options $star $star_ref $genome_fasta $fastq_trimmed_1 $fastq_trimmed_2 $star_options`)
+            $dep runSTAR.sh -l "$bam_memory" $star_runner_options $dirList[$step] $star_ref $genome_fasta $fastq_trimmed_1 $fastq_trimmed_2 $star_options`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 
 # Run HTSeq. Depends on a successful run of STAR
-if [ $pstart -le 9 ] && [ $pend -ge 9 ]; then
-    echo "# Preparing step 9"
-
-    # this is part of the runner now
-    # Load a proper python version
-    #    module load python/2.7.6
-
-    if hash htseq-count; then
-	## this returns 0 if version 0.6 is found in the help
-	## 1 if not
-        #if [ `htseq-count --help | grep -c "version 0.6"` -ne 1 ]; then
-        #    echo >&2 "ERROR: HTSeq v0.6 or higher is required"
-        #    cleanup
-        #fi
-	echo
-    else
-        echo >&2 "ERROR: Could not find HTSeq in path"
-        cleanup
-    fi
+(($step+=1))
+if [ $pstart -le (($step+1)) ] && [ $pend -ge (($step+1)) ]; then
+    echo "# Preparing step (($step+1))"
 
     dep=
-    if [ $pstart -lt 9 ] && [ "$CMD" != "bash" ]; then
+    if [ $pstart -lt $step ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-1]}"
     elif [ ! -f $star/${sname}_sortmerna_trimmomatic_STAR.bam ] && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: STAR alignment BAM file could not be found"
@@ -821,35 +822,12 @@ if [ $pstart -le 9 ] && [ $pend -ge 9 ]; then
     # HTSeq
     JOBCMDS+=(`prepare_$CMD \
         $debug_var \
-        -e $htseq/${sname}_HTSeq.err \
-        -o $htseq/${sname}_HTSeq.out \
+        -e $dirList[$step]/${sname}_HTSeq.err \
+        -o $dirList[$step]/${sname}_HTSeq.out \
         -J ${sname}.RNAseq.HTSeq \
-        $dep runHTSeq.sh -i $idattr $strand_arg $htseq $star/${sname}_sortmerna_trimmomatic_STAR.bam $htseq_gff`)
+        $dep runHTSeq.sh -i $idattr $strand_arg $dirList[$step] $star/${sname}_sortmerna_trimmomatic_STAR.bam $htseq_gff`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
-
-# Run MultiQC. Depends on a successful run of STAR
-# TODO this needs rethinking! Can be a pipeline step, needs to be done for all samples!
-# if [ $pstart -le 9 ] && [ $pend -ge 9 ]; then
-#     echo "# Preparing step 9"
-# 
-#     dep=
-#     if [ $pstart -lt 9 ] && [ "$CMD" != "bash" ]; then
-#         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-2]}"
-#     elif [ ! -f $star/${sname}_sortmerna_trimmomatic_STAR.bam ] && [ "$CMD" != "bash" ]; then
-#         echo >&2 "ERROR: STAR alignment BAM file could not be found"
-#         cleanup
-#     fi
-# 
-#     JOBCMDS+=(`prepare_$CMD \
-#         $debug_var \
-#         -e $multiqc/${sname}_multiqc.err \
-#         -o $multiqc/${sname}_multiqc.out \
-#         -J ${sname}.RNAseq.multiQC \
-#         $dep runMultiQC.sh $outdir $multiqc`)
-#     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
-# fi
-
 
 echo "### ========================================
 # Preparation done on `date`"
