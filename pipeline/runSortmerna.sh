@@ -20,6 +20,7 @@ INX=
 SEEDS=2
 PASSES=
 SAM=
+DB=/mnt/picea/storage/reference/rRNA/sortmerna/v4.2
 
 # source functions
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
@@ -29,10 +30,11 @@ sortmerna=${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/kogia/scripts/sortmerna
 
 # usage
 export USAGETXT="
-	Usage: runSortmerna.sh [option] <out dir> <db dir> <forward fastq.gz> <reverse fastq.gz>
+	Usage: runSortmerna.sh [option] <out dir> <forward fastq.gz> <reverse fastq.gz>
 
 	Options:
                 -a report alignments (default is not to report)
+                -d the database directory
                 -i index dir
                 -p number of threads to be used (default $PROC)
                 -P number of passes (default to sortmerna defaults)
@@ -44,10 +46,11 @@ export USAGETXT="
     passed as an argument to SortMeRNA in addition.
 "
 # get the options
-while getopts ad:p:P:s:u option
+while getopts ad:i:p:P:s:u option
 do
   case "$option" in
         a) SAM="--sam --num_alignments 1";;
+        d) DB=$OPTARG;;
         i) INX="--idx $OPTARG";;
   	    p) PROC=$OPTARG;;
 	      P) PASSES="--passes $OPTARG";;
@@ -61,15 +64,15 @@ shift `expr $OPTIND - 1`
 
 # we get two dir and two files as input
 if [ $UNPAIRED == 0 ]; then
-    if [ $# != 4 ]; then
-	    abort "This function takes two directories and two files as arguments"
+    if [ $# != 3 ]; then
+	    abort "This function takes one directory and two files as arguments"
     fi
-    if [ ! -f $4 ]; then
+    if [ ! -f $3 ]; then
       abort "The fourth argument needs to be an existing file"
     fi
 else
-    if [ $# != 3 ]; then
-	    abort "This function takes two directories and one file as argument"
+    if [ $# != 2 ]; then
+	    abort "This function takes one directory and one file as argument"
     fi
 fi
 
@@ -93,7 +96,7 @@ else
 fi
 
 # DBs
-dbs=$(find $2 -maxdepth 1 -mindepth 1 -name "*.fasta" -type f -printf " --ref %p")
+dbs=$(find $DB -maxdepth 1 -mindepth 1 -name "*.fasta" -type f -printf " --ref %p")
 
 # run
 if [ $UNPAIRED == 0 ]; then
