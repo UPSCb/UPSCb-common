@@ -477,11 +477,11 @@ kallisto="$outdir/kallisto"
 ## Export some variables
 [[ -z $UPSCb ]] && export UPSCb=$PIPELINE_DIR/..
 ## I will just assume that the sortmerna data is symlinked in the repo
-[[ -z $SORTMERNADIR ]] && export SORTMERNADIR=$PIPELINE_DIR/../data/sortmerna
-if [ ! -e $SORTMERNADIR ]; then
-    echo "ERROR: could not find the sortmerna data in $SORTMERNADIR" 1>&2
-    usage
-fi
+#[[ -z $SORTMERNADIR ]] && export SORTMERNADIR=$PIPELINE_DIR/../data/sortmerna
+#if [ ! -e $SORTMERNADIR ]; then
+#    echo "ERROR: could not find the sortmerna data in $SORTMERNADIR" 1>&2
+#    usage
+#fi
 
 ## final setup
 ## check for sbatch, return 1 if no sbatch, 0 otherwise
