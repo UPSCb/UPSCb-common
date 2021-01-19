@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 #SBATCH -p node
 ## for large files
 ## we don't need the proc but the mem
@@ -26,7 +26,10 @@ DB=/mnt/picea/storage/reference/rRNA/sortmerna/v4.2
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # alias the exec kogia container
-sortmerna=${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/kogia/scripts/sortmerna
+function sortmerna() {
+  ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/kogia/scripts/sortmerna $@
+}
+export -f sortmerna
 
 # usage
 export USAGETXT="
@@ -80,33 +83,32 @@ if [ ! -d $1 ]; then
     abort "The first argument needs to be an existing directory"
 fi
 
-if [ ! -d $2 ]; then
-    abort "The second argument needs to be an existing directory"
-fi
-
-if [ ! -f $3 ]; then
-    abort "The third argument needs to be an existing file"
+if [ ! -f $2 ]; then
+    abort "The second argument needs to be an existing file"
 fi
 
 # PE
 if [ $UNPAIRED == 0 ]; then
-    fo=$(basename ${3//_[1,2].f*q.gz/_sortmerna})
+    fo=$(basename ${2//_[1,2].f*q.gz/_sortmerna})
 else
-    fo=$(basename ${3//.f*q.gz/_sortmerna})
+    fo=$(basename ${2//.f*q.gz/_sortmerna})
 fi
 
 # DBs
 dbs=$(find $DB -maxdepth 1 -mindepth 1 -name "*.fasta" -type f -printf " --ref %p")
 
+# create the tmp dir
+[[ ! -d $1/$fo ]] && mkdir $1/$fo
+
 # run
 if [ $UNPAIRED == 0 ]; then
-    sortmerna $dbs --workdir $1/$fo \
-    --reads $3 --reads $4 $IDX --threads $PROC \
+    sortmerna $dbs --workdir $1/$fo/ \
+    --reads $(realpath $2) --reads $(realpath $3) $INX --threads $PROC \
     --fastx --paired_in --out2 --other $1/$fo $INX \
     --aligned $1/${fo}_rRNA $SAM $PASSES --num_seeds $SEEDS 
 else
-    sortmerna $dbs --reads $3 $IDX --threads $PROC \
-    --fastx --other $1/$fo --workdir $1 \
+    sortmerna $dbs --reads $(realpath $2) $INX --threads $PROC \
+    --fastx --other $1/$fo --workdir $1/$fo/ \
     --aligned $1/${fo}_rRNA $SAM $PASSES --num_seeds $SEEDS 
 fi
 
