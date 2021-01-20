@@ -49,7 +49,7 @@ gopher <- function(genes=character(0),
   # arguments
   endpoint <- match.arg(endpoint)
   
-  if(endpoint != "term-to-gene" && !is.list(task)){
+  if(!endpoint %in% c("term-to-gene","gene-to-term")&& !is.list(task)){
     task <- as.list(task)
   }
   
