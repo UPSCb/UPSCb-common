@@ -54,7 +54,7 @@ gopher <- function(genes=character(0),
   }
   
   #term-to-gene behavior
-  if(endpoint=="term-to-gene") {
+  if(endpoint %in% c("term-to-gene","gene-to-term")) {
     if(length(task)>1) {
       stop("Term to gene, only accepts one type of enrichment per query.")
     }
@@ -150,6 +150,16 @@ gopher <- function(genes=character(0),
     #print(parsed)
     return(parsed)
   }
+  
+  if(endpoint=="gene-to-term"){
+    parsed <- parsed[[task]]
+    termNames <- parsed$id
+    parsed <- lapply(parsed[,"terms"],function(y){return(y$id)})
+    names(parsed) <- termNames
+    parsed[sapply(parsed, is.null)] <- NULL
+    return(parsed)
+  }
+  
   
   np <- names(parsed)  
   
