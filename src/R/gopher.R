@@ -95,16 +95,15 @@ gopher <- function(genes=character(0),
     }
   }
 
-  if(endpoint=="term-to-gene"){
-    body = list(target = list(terms = enrTerms, name = task))
-  } else {
-    body = list(
+  body <- switch (endpoint,
+    "term-to-gene" = list(target = list(terms = enrTerms, name = task)),
+    "gene-to-term" = list(genes = enrTerms, target = task),
+    list(
       genes = genes,
       background = background,
       target = task,
       alpha = alpha
-    )
-  }
+    ))
   
   # request
   # catch conection errors
@@ -152,15 +151,10 @@ gopher <- function(genes=character(0),
   }
   
   if(endpoint=="gene-to-term"){
-    parsed <- parsed[[task]]
-    termNames <- parsed$id
-    parsed <- lapply(parsed[,"terms"],function(y){return(y$id)})
-    names(parsed) <- termNames
-    parsed[sapply(parsed, is.null)] <- NULL
-    return(parsed)
+    return(tibble(ID=rep(parsed[[task]]$id,
+                  sapply(parsed[[task]]$terms,nrow)),
+           GOID=unlist(lapply(parsed[[task]]$terms,"[[","id"))))
   }
-  
-  
   np <- names(parsed)  
   
   if(!is.null(parsed$err)){
@@ -187,3 +181,73 @@ gopher <- function(genes=character(0),
   parsed <- parsed[unlist(task)]
   return(parsed)
 }
+
+
+#' function to collect and retrieve the most likely genes
+#' that created an enrichment
+#'
+#' Note that because of the enrichment process, which can report GO terms enriched while they are
+#' not associated to any of the genes, this function reverse engineer the most likely origin. It is
+#' however possible that this process fails. The results contain an additional flag to report whether
+#' the gene-term link was direct or the result of a walk in the GO graph. The reported association 
+#' term - gene is then marked as ancestor to represent the fact that the provided GO term is an ancestor
+#' of the term to which the gene is associated
+#'
+#' @param genes - a list of gene IDs (typically genes from a differential expression analysis)
+#' @param terms - a list of GO terms (typically those resulting from the enrichment of the `genes`)
+#' @param url - the gofer url to use, default to potra2
+#' @param mc.cores - number of CPUs to use, default to 1
+#'
+#' @return a tibble with 3 columns: ID (the gene ID), GOID (the corresponding enriched term),
+#' and link: the type of link, one of direct or ancestor. Direct means that the GOID was directly 
+#' associated to a gene in genes, while ancestor signifies that the GO term reported is an 
+#' ancestor of a term associated with a gene in genes.
+#'
+#' @examples
+#' genes <- c("Potra2n10c21792","Potra2n10c21793")
+#' terms <- c("GO:0005886","GO:0016020","GO:0110165")
+#' enrichedTermToGenes(genes, terms)
+
+enrichedTermToGenes <- function(genes,terms,url="potra2",mc.cores=1L){
+  suppressPackageStartupMessages({
+    require(GO.db)
+    require(parallel)
+    require(tidyverse)
+  })
+  
+  # make sure that the terms are unique
+  terms <- unique(terms)
+  
+  # get the search space, i.e. the GO terms associated with the genes
+  associatedIDs <- gopher(genes,url=url,task=c("go"), endpoint = "gene-to-term")
+  
+  # find the terms lacking a direct link and annotate them
+  sel <- terms %in% associatedIDs$GOID 
+  
+  # extract the direct annotation
+  associatedIDs %>% filter(GOID %in% terms) %>% mutate(link="direct") %>% bind_rows(
+    # and collect the offsprings of the non direct ones
+    mclapply(
+      # 3. function to process the list of obtained offsprings, and collect the 
+      # corresponding unqie gene ID in the search space
+      # this step is parallelised
+      sapply(
+        # 2. evaluate the expressions
+        lapply(
+          # 1. construct the expression by indentifying the Ontology (BP,CC or MF)
+          # to query the GO database for offsprings
+          paste0("as.list(GO",Ontology(terms[!sel]),"OFFSPRING['",terms[!sel],"'])"),
+          str2expression),
+        eval),
+      function(offsprings,associatedIDs){
+        associatedIDs[associatedIDs$GOID %in% offsprings,"ID"] %>% unique
+      },associatedIDs,mc.cores=mc.cores) %>% 
+      # convert the nested list into a nested tibble
+      enframe(name=c("GOID")) %>% 
+      # unnest (same as melting)
+      unnest(cols=c(value)) %>%
+      # add an annotation column
+      mutate(link="ancestor")
+  )
+}
+
