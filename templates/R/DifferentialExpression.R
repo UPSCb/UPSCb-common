@@ -229,9 +229,14 @@ extractEnrichmentResults <- function(enrichment,task="go",
             titles <- c(BP="Biological Process",
                         CC="Cellular Component",
                         MF="Molecular Function")
-            suppressWarnings(plotEnrichedTreemap(enrichment,enrichment=task,
-                                                 namespace=ns,
-                                                 de=de,title=titles[ns]))
+            suppressWarnings(tryCatch({plotEnrichedTreemap(enrichment,enrichment=task,
+                                                           namespace=ns,
+                                                           de=de,title=titles[ns])},
+                                      error = function(e) {
+                                          message(paste("Treemap plot failed for",ns, 
+                                                        "because of:",e))
+                                          return(NULL)
+                                      }))
         })
     }
 }
