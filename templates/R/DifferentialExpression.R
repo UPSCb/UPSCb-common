@@ -198,6 +198,44 @@ mar <- par("mar")
                 dn=rownames(res[sel & res$log2FoldChange < 0,])))
 }
 
+#' 3. extract and plot the enrichment results
+extractEnrichmentResults <- function(enrichment,task="go",
+                                     diff.exp=c("all","up","dn"),
+                                     go.namespace=c("BP","CC","MF"),
+                                     genes=NULL,export=TRUE,plot=TRUE,
+                                     default_dir=here("data/analysis/DE"),
+                                     default_prefix="DE",
+                                     url="athaliana"){
+    # process args
+    diff.exp <- match.arg(diff.exp)
+    de <- ifelse(diff.exp=="all","none",diff.exp)
+    
+    # write out
+    if(export){
+        write_tsv(enrichment[[task]],
+                  path=here(default_dir,
+                            paste0(default_prefix,"-genes_GO-enrichment.tsv")))
+        if(!is.null(genes)){
+            write_tsv(
+                enrichedTermToGenes(genes=genes,terms=enrichment[[task]]$id,url=url,mc.cores=16L),
+                path=here(default_dir,
+                          paste0(default_prefix,"-enriched-term-to-genes.tsv"))
+            )
+        }
+    }
+    
+    if(plot){
+        sapply(go.namespace,function(ns){
+            titles <- c(BP="Biological Process",
+                        CC="Cellular Component",
+                        MF="Molecular Function")
+            plotEnrichedTreemap(enrichment,enrichment=task,
+                                namespace=ns,
+                                de=de,title=titles[ns])
+        })
+    }
+}
+
 #' * Data
 #' ```{r load, echo=FALSE,eval=FALSE}
 #' CHANGEME - here you are meant to load an RData object
@@ -308,9 +346,14 @@ resultsNames(dds)
 #' the gofer3 REST API (interfaced through the gopher.R script loaded at the
 #' beginning of this fil).
 #' 
-#' Finally we export the go enrichment as a complete table and as a table consisting
-#' of only the `id` and `padj` columns. The latter can be used as input for _e.g._
-#' REVIGO.
+#' Finally we export the go enrichment as a complete table.
+#' We used to export another table consisting
+#' of only the `id` and `padj` columns for using as input for _e.g._
+#' REVIGO; but since flash is EOL and REVIGO not updated, we instead rely on 
+#' the RtoolBox treemap.
+#' 
+#' In addition we now also export the list of genes that most likely resulted in
+#' the corresponding go enrichment.
 #' ```
 background <- rownames(vst)[featureSelect(vst,dds$MGenotype,exp=CHANGEME)]
 
@@ -319,19 +362,12 @@ enr.list <- lapply(res.list,function(r){
 })
 
 dev.null <- lapply(names(enr.list),function(n){
-    r <- enr.list[[n]]
-    write_delim(r$all$go,path=file.path(file.path(here("data/analysis/DE",
-                                              paste0(n,"-all-DE-genes_GO-enrichment.txt")))))
-    write_delim(r$all$go[,c("id","padj")],path=file.path(file.path(here("data/analysis/DE",
-                                                       paste0(n,"-all-DE-genes_GO-enrichment_for-REVIGO.txt")))))
-    write_csv(r$up$go,path=file.path(file.path(here("data/analysis/DE",
-                                                 paste0(n,"-up-DE-genes_GO-enrichment.txt")))))
-    write_delim(r$up$go[,c("id","padj")],path=file.path(file.path(here("data/analysis/DE",
-                                                                        paste0(n,"-up-DE-genes_GO-enrichment_for-REVIGO.txt")))))    
-    write_csv(r$dn$go,path=file.path(file.path(here("data/analysis/DE",
-                                                 paste0(n,"-down-DE-genes_GO-enrichment.txt")))))
-    write_delim(r$dn$go[,c("id","padj")],path=file.path(file.path(here("data/analysis/DE",
-                                                                        paste0(n,"-down-DE-genes_GO-enrichment_for-REVIGO.txt")))))    
+    lapply(names(enr.list[[n]]),function(de){
+        extractEnrichmentResults(enr.list[[n]][[de]],
+                                 diff.exp=de,
+                                 genes=res.list[[n]][[de]],
+                                 default_prefix=paste(n,de,sep="-"))
+    })
 })
 
 #' # Session Info 
