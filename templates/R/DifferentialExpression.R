@@ -6,6 +6,7 @@
 #'  html_document:
 #'    toc: true
 #'    number_sections: true
+#'    code_folding: hide
 #' ---
 #' # Setup
 
