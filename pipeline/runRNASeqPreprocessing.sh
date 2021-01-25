@@ -5,7 +5,7 @@ set -eu
 # Preprocessing script for RNA-Seq data.
 # THIS SCRIPT IS NOT TO BE RUN THROUGH SBATCH, USE BASH!
 ### ========================================================
-VERSION="0.3.0"
+VERSION="0.3.1"
 
 ### ========================================================
 ## pretty print
@@ -72,7 +72,7 @@ ${bold}STEPS:${normal}
     8) Kallisto*
     9) STAR*
     10) (HTSeq-count*)
-    
+
     The steps marked with * are optional; only accessible if -E is set.
     The steps in () are tools not supported in kogia
 
@@ -387,10 +387,10 @@ echo "### ========================================
 # Preparation started on `date`
 # Going from step $pstart to $pend
 # Provided parameters are:
-# Salmone index: $salmon_index
+# Salmon index: $salmon_index
 # Kallisto index: $kallisto_index
 # Kallisto fasta: $kallisto_fasta
-# STAR genome: $star_ref 
+# STAR genome: $star_ref
 # STAR gtf: $star_gtf
 # HTSeq gff3: $htseq_gff"
 
@@ -422,7 +422,7 @@ if [ $extended -eq 1 ]; then
       elif [ ! -f $kallisto_fasta ]; then
           echo >&2 "ERROR: Could not find the kallisto fasta file"
           usage
-      fi 
+      fi
   fi
 
   # Check if STAR is included and then if the reference is set
@@ -438,12 +438,12 @@ if [ $extended -eq 1 ]; then
         echo >&2 "ERROR: Could not find gtf file: '$star_gtf'"
         usage
     fi
-    
+
     if [ ! -z $genome_fasta ] && [ ! -f $genome_fasta ]; then
         echo >&2 "ERROR: Could not find the genome fasta file: '$genome_fasta', set the -F option"
         usage
     fi
-    
+
     # Check that STAR will get a GTF file
     if [ ! -z $star_gtf ] && [ -f $star_gtf ]; then
         if [ ${star_gtf##*.} != "gtf" ]; then
@@ -517,6 +517,16 @@ done
 CMD=sbatch
 if [ `toolCheck $CMD` -eq 1 ]; then
     CMD=bash
+fi
+
+## setup the tmp dir - SNIC_RESOURCE is only present on uppmax
+tmp=/tmp
+if [ -z $SNIC_RESOURCE ]; then
+    tmp=/mnt/picea/tmp
+else
+    mem="mem$mem"
+    memArg="-C"
+    # we don't change tmp, it will be overloaded in the sortmerna runner
 fi
 
 echo "### ========================================"
@@ -616,7 +626,7 @@ if [ $pstart -le (($step+1)) ] && [ $pend -ge (($step+1)) ]; then
         -o $dirList[$step]/${sname}_sortmerna.out \
         $dep \
         -J ${sname}.RNAseq.SortMeRNA \
-        runSortmerna.sh $sorterna_inx $dirList[$step] $fastq1 $fastq2`)
+        runSortmerna.sh $dirList[$step] $tmp $fastq1 $fastq2`)
     if [ "$CMD" == "bash" ]; then
 	JOBCMDS+=("export SORTMERNADIR=$SORTMERNADIR;$sortmerna_id")
     else
