@@ -229,10 +229,11 @@ enrichedTermToGenes <- function(genes,terms,url="potra2",mc.cores=1L){
   missing <- ! terms %in% keys(GO.db)
   
   # extract the direct annotation
-  associatedIDs %>% filter(GOID %in% terms) %>% mutate(link="direct") %>% 
+  associatedIDs %>% filter(GOID %in% terms) %>% mutate(link="direct") %>%
     # report the missing
-    bind_rows(ifelse(all(!missing),tibble(),
-                     tibble(ID=NA,GOID=terms[missing],link="missing"))) %>% 
+    bind_rows(tibble(ID="",
+                     GOID=terms[missing],
+                     link=ifelse(any(missing),"missing",character(0)))) %>%
     # and collate the ancestors
     bind_rows(
       # and 
