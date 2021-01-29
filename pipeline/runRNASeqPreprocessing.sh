@@ -745,7 +745,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
 
     dep=
     if [ $pstart -le 5 ] && [ "$CMD" != "bash" ]; then
-        dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-5]}"
+        dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-3]}"
     elif ([ ! -f $fastq_trimmed_1 ] || [ ! -f $fastq_trimmed_2 ]) && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
         cleanup
@@ -755,7 +755,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
         $debug_var \
         -e $outdir/${dirList[$step]}/${sname}_salmon.err \
         -o $outdir/${dirList[$step]}/${sname}_salmon.out \
-        -J ${sname}.RNAseq.kallisto \
+        -J ${sname}.RNAseq.salmon \
         $dep runSalmon.sh $salmon_index $fastq_trimmed_1 $fastq_trimmed_2 $outdir/${dirList[$step]}))
     JOBIDS+=($(run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}))
 fi
@@ -767,7 +767,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
 
     dep=
     if [ $pstart -le $(($step-2)) ] && [ "$CMD" != "bash" ]; then
-        dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-5]}"
+        dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-4]}"
     elif ([ ! -f $fastq_trimmed_1 ] || [ ! -f $fastq_trimmed_2 ]) && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
         cleanup
@@ -800,7 +800,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
     ## Trimmomatic needs finishing if it was started
     ## hence, we check if step 5 was started  
     if [ $pstart -le $(($step-3)) ] && [ "$CMD" != "bash" ]; then
-        dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-3]}"
+        dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-5]}"
     elif ([ ! -f $fastq_trimmed_1 ] || [ ! -f $fastq_trimmed_2 ]) && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
         cleanup
