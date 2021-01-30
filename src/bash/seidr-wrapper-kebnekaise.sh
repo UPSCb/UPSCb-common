@@ -4,7 +4,7 @@
 set -ex
 
 # project vars
-account=SNIC2019-3-207
+account=SNIC2020-5-218
 mail=nicolas.delhomme@umu.se
 
 # source
@@ -153,12 +153,14 @@ for ((i=0;i<len;i++)); do
     if [ ! -f $resultDir/$inf/$inf.tsv ]; then
       mkdir -p $resultDir/$inf
       echo "#!/bin/bash" > $resultDir/$inf/$inf.sh
+      svr="--save-resume $resultDir/$inf/$inf.json"
       if [ -z ${ompThread[$i]} ]; then
  	echo "unset OMP_NUM_THREADS" >> $resultDir/$inf/$inf.sh
       else
     	echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
+	svr=
       fi
-      echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 --save-resume $resultDir/$inf/$inf.json -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
+      echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 $svr -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
 
       # Handle dependencies
       dep=
