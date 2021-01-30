@@ -6,6 +6,7 @@
 #'  html_document:
 #'    toc: true
 #'    number_sections: true
+#'    code_folding: hide
 #' ---
 #' # Setup
 #' * Libraries
@@ -18,6 +19,7 @@ suppressPackageStartupMessages({
   library(parallel)
   library(pander)
   library(plotly)
+  library(pvclust)
   library(tidyverse)
   library(tximport)
   library(vsn)
@@ -162,6 +164,20 @@ sizes <- sizeFactors(dds)
 pander(sizes)
 boxplot(sizes, main="Sequencing libraries size factor")
 
+#' Assess whether there might be a difference in library size linked to a
+#' given metadata
+#' ```{r echo=FALSE,eval=FALSE}
+#' # Developer: This would need to be ggplot2'ed
+#' ```
+boxplot(split(sizes,samples$Tissue),las=2,
+        main="Sequencing libraries size factor by Tissue")
+
+plot(sizes,log10(colSums(counts(dds))),ylab="log10 raw depth",xlab="scaling factor",
+     col=rainbow(n=nlevels(samples$Tissue))[as.integer(samples$Tissue)],pch=19)
+legend("bottomright",fill=rainbow(n=nlevels(samples$Tissue)),
+       legend=levels(samples$Tissue),cex=0.6)
+
+
 #' ## Variance Stabilising Transformation
 vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
 vst <- assay(vsd)
@@ -213,11 +229,17 @@ ggplotly(p) %>%
   layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
          yaxis=list(title=paste("PC2 (",percent[2],"%)",sep="")))
 
+#' ### Sequencing depth
+#' Number of genes expressed per condition at different cutoffs
+conds <- factor(paste(samples$CHANGEME,samples$CHANGEME))
+dev.null <- rangeSamplesSummary(counts=vst,
+                                conditions=conds,
+                                nrep=3)
+
 #' ### Heatmap
 #' 
 #' Filter for noise
 #' 
-conds <- factor(paste(samples$CHANGEME,samples$CHANGEME))
 sels <- rangeFeatureSelect(counts=vst,
                            conditions=conds,
                            nrep=3)
@@ -233,6 +255,20 @@ hm <- heatmap.2(t(scale(t(vst[sels[[vst.cutoff+1]],]))),
           col=hpal)
 
 plot(as.hclust(hm$colDendrogram),xlab="",sub="")
+
+#' ### Hierarchical clustering
+#' Done to assess the previous dendrogram's reproducibility
+hm.pvclust <- pvclust(data = t(scale(t(vst[sels[[vst.cutoff+1]],]))),
+                       method.hclust = "ward.D2", 
+                       nboot = 1000, parallel = TRUE)
+
+#' plot the clustering with bp and au
+plot(hma.pvclust, labels = samples$SampleName)
+pvrect(hma.pvclust)
+
+#' bootstrapping results as a table
+print(hma.pvclust, digits=3)
+
 
 #' ## Conclusion
 #' CHANGEME
