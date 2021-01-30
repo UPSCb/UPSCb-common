@@ -25,9 +25,23 @@ vst <- read_tsv(here("CHANGEME")) %>%
   column_to_rownames("ID")
 
 #' # Filter
+#' Different ways of filtering are considered. An cutoff on the absolute expression level
+#' or on the variance (standard score), respectively. The latter might be more adequate to
+#' avoid filtering lowly expressed genes that show sufficient, metadata relevant, variance.
 sels <- rangeFeatureSelect(counts=as.matrix(vst),
-                           conditions=factor(sub("\\.\\d+$","",colnames(vst))),
-                           nrep=3)
+                           conditions=dds$Tissue,
+                           nrep=6)
+
+e.cutoff <- 1
+
+s.sels <- rangeFeatureSelect(counts=as.matrix(vst),
+                             conditions=dds$Tissue,
+                             nrep=6,scale=TRUE)
+s.cutoff <- 1
+
+table(s.sels[[s.cutoff]],sels[[e.cutoff  + 1]])
+sum(featureSelect(as.matrix(vst),dds$Tissue,exp=0.1,6))
+sum(featureSelect(as.matrix(vst),dds$Tissue,exp=0.05,6,scale=TRUE))
 
 #' ```{r CHANGEME3,eval=FALSE,echo=FALSE}
 #'  CHANGEME is the vst cutoff devised from the plot above. The goal is to remove / reduce
