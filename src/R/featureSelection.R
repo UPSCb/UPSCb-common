@@ -9,9 +9,18 @@
 #' ---
 #' # What is this about?
 #' 
-#' This file is only a source file containing a function to select feature
+#' This file is only a source file containing functions to 
+#' 
+#' 1. select feature
 #' provided they are expressed at an `exp` cutoff (exp) in at least `nrep` 
 #' replicates of any `condition`.
+#' 
+#' 2. plot 1. over a range of cutoffs
+#' 
+#' 3. generate samples summary of how many genes are expressed using the
+#' given cutoff
+#' 
+#' 4. a function to plot 3.
 #' 
 #' To use it in your script do:
 #' ```{r, eval=FALSE}
@@ -26,7 +35,8 @@ setGeneric(name="featureSelect",
            def=function(counts=matrix(),
                         conditions=factor(),
                         exp=1L,
-                        nrep=2L
+                        nrep=2L,
+                        scale=FALSE
            ){
              standardGeneric("featureSelect")
            })
@@ -35,7 +45,8 @@ setGeneric(name="rangeFeatureSelect",
            def=function(counts=matrix(),
                         conditions=factor(),
                         nrep=2L,
-                        plot=TRUE
+                        plot=TRUE,
+                        scale=FALSE
            ){
              standardGeneric("rangeFeatureSelect")
            })
@@ -47,6 +58,25 @@ setGeneric(name="featureSelectProp",
            ){
                standardGeneric("featureSelectProp")
            })
+
+setGeneric(name="samplesSummary",
+           def=function(counts=matrix(),
+                        conditions=factor(),
+                        exp=1L,
+                        nrep=2L
+           ){
+               standardGeneric("samplesSummary")
+           })
+
+setGeneric(name="rangeSamplesSummary",
+           def=function(counts=matrix(),
+                        conditions=factor(),
+                        nrep=2L,
+                        plot=TRUE
+           ){
+               standardGeneric("rangeSamplesSummary")
+           })
+
 
 #' # Implementation of featureSelect
 #' 
@@ -98,17 +128,17 @@ setMethod(f = "featureSelect",
             counts=matrix(),
             conditions=factor(),
             exp=1L,
-            nrep=2L
+            nrep=2L,
+            scale=FALSE
           ){
             
             ## validation
-            stopifnot(all(dim(counts) > 1))
-            stopifnot(nlevels(conditions)>=2)
-            
+            .validate(counts,conditions)
+             
             ## compute
-            rowSums(sapply(lapply(
-              split.data.frame(t(counts >= exp),conditions)
-              ,colSums), ">=", nrep)) >= 1
+            rowSums(.count(counts=counts,
+                            conditions=conditions,
+                            exp=exp,nrep=nrep,scale=scale),na.rm=TRUE) >= 1
                         
           })
 
@@ -118,30 +148,36 @@ setMethod(f = "rangeFeatureSelect",
             counts=matrix(),
             conditions=factor(),
             nrep=2L,
-            plot=TRUE){
+            plot=TRUE,
+            scale=FALSE){
+              
             ## validation
-            stopifnot(all(dim(counts) > 1))
-            stopifnot(nlevels(conditions)>=2)
+              .validate(counts,conditions)
             
             ## compute
-            mx <- floor(max(counts))
-            res <- lapply(0:mx,function(i){
+            rg <- switch(as.character(scale),
+                "FALSE" = 0:floor(max(counts)),
+                "TRUE" = seq(0,2,0.1)
+            )
+            res <- lapply(rg,function(i){
               featureSelect(counts=counts,
                             conditions=conditions,
-                            exp=i,nrep=nrep)
+                            exp=i,nrep=nrep,scale=scale)
             })
             
             ## plot
             if(plot){
-              plot(sapply(res,sum),
+              plot(rg,sapply(res,sum),
                    main="Number of selected genes by cutoff values",
-                   type="b",ylab="Number of genes",xlab="cutoff",xaxt="n")
-              axis(1,1:(mx+1),labels=0:mx)
+                   type="b",ylab="Number of genes",xlab="cutoff")
+                #,xaxt="n")
+              #axis(1,rg+1,labels=rg)
               
-              plot(sapply(res,sum),log="y",
+              plot(rg,sapply(res,sum),log="y",
                    main="Number of selected genes by cutoff values",
-                   type="b",ylab="Number of genes",xlab="cutoff",xaxt="n")
-              axis(1,1:(mx+1),labels=0:mx)
+                   type="b",ylab="Number of genes",xlab="cutoff")
+              #,xaxt="n")
+              #axis(1,rg+1,labels=rg)
             }
             
             ## return
@@ -157,8 +193,7 @@ setMethod(f = "featureSelectProp",
           ){
               
               ## validation
-              stopifnot(all(dim(counts) > 1))
-              stopifnot(nlevels(conditions)>=2)
+              .validate(counts,conditions)
               
               ## compute
               rowSums(sapply(lapply(
@@ -166,3 +201,79 @@ setMethod(f = "featureSelectProp",
                   ,colSums), ">=", exp)) >= 1
               
           })
+
+setMethod(f = "samplesSummary", 
+          signature = c("matrix","factor"),
+          definition = function(
+              counts=matrix(),
+              conditions=factor(),
+              exp=1L,
+              nrep=2L
+          ){
+              
+              ## validation
+              .validate(counts,conditions)
+              
+              ## compute
+              colSums(.count(counts=counts,
+                              conditions=conditions,
+                              exp=exp,nrep=nrep))
+              
+          })
+
+setMethod(f = "rangeSamplesSummary", 
+          signature = c("matrix","factor"),
+          definition = function(
+              counts=matrix(),
+              conditions=factor(),
+              nrep=2L,
+              plot=TRUE){
+              
+              ## validation
+              .validate(counts,conditions)
+              
+              ## compute
+              mx <- floor(max(counts))
+              res <- sapply(0:mx,function(i){
+                  samplesSummary(counts=counts,
+                                conditions=conditions,
+                                exp=i,nrep=nrep)
+              })
+              
+              ## plot
+              if(plot){
+                  
+                  heatmap.2(log10(res+1),dendrogram="row",
+                            Colv=FALSE,
+                            col=colorRampPalette(c("blue","white","red"))(100),
+                            main="log10 # of genes",xlab="vst expression cutoff")
+                  
+                  meds <- colMedians(res) + 1
+                  barplot(t(t(res) / meds) - 1,
+                          beside=TRUE,col=rainbow(nlevels(conditions)),
+                          main="# gene expressed / median # gene expressed")
+                  legend("topleft",legend=levels(conditions),fill=rainbow(nlevels(conditions)))
+              }
+              
+              ## return
+              return(res)
+          })
+
+# internal function for summarising
+.count <- function(counts=matrix(),
+                   conditions=factor(),
+                   exp=1L,
+                   nrep=2L,scale=FALSE){
+    counts <- switch(as.character(scale),
+        "FALSE" = t(counts),
+        "TRUE" = scale(t(counts))
+    )
+    sapply(lapply(
+        split.data.frame(counts >= exp,conditions)
+        ,colSums), ">=", nrep)
+}
+
+.validate <- function(counts,conditions){
+    stopifnot(all(dim(counts) > 1))
+    stopifnot(nlevels(conditions)>=2)
+}
