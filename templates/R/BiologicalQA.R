@@ -169,13 +169,13 @@ boxplot(sizes, main="Sequencing libraries size factor")
 #' ```{r echo=FALSE,eval=FALSE}
 #' # Developer: This would need to be ggplot2'ed
 #' ```
-boxplot(split(sizes,samples$Tissue),las=2,
+boxplot(split(sizes,dds$CHANGEME),las=2,
         main="Sequencing libraries size factor by Tissue")
 
 plot(sizes,log10(colSums(counts(dds))),ylab="log10 raw depth",xlab="scaling factor",
-     col=rainbow(n=nlevels(samples$Tissue))[as.integer(samples$Tissue)],pch=19)
-legend("bottomright",fill=rainbow(n=nlevels(samples$Tissue)),
-       legend=levels(samples$Tissue),cex=0.6)
+     col=rainbow(n=nlevels(dds$CHANGEME))[as.integer(dds$CHANGEME)],pch=19)
+legend("bottomright",fill=rainbow(n=nlevels(dds$CHANGEME)),
+       legend=levels(dds$CHANGEME),cex=0.6)
 
 
 #' ## Variance Stabilising Transformation
@@ -219,7 +219,7 @@ ggplot(tibble(x=1:length(percent),y=cumsum(percent)),aes(x=x,y=y)) +
 #' ### 2D
 pc.dat <- bind_cols(PC1=pc$x[,1],
                     PC2=pc$x[,2],
-                    samples)
+                    as.data.frame(colData(dds)))
 
 p <- ggplot(pc.dat,aes(x=PC1,y=PC2,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) + 
   geom_point(size=2) + 
@@ -231,7 +231,7 @@ ggplotly(p) %>%
 
 #' ### Sequencing depth
 #' Number of genes expressed per condition at different cutoffs
-conds <- factor(paste(samples$CHANGEME,samples$CHANGEME))
+conds <- factor(paste(dds$CHANGEME,dds$CHANGEME))
 dev.null <- rangeSamplesSummary(counts=vst,
                                 conditions=conds,
                                 nrep=3)
@@ -263,11 +263,11 @@ hm.pvclust <- pvclust(data = t(scale(t(vst[sels[[vst.cutoff+1]],]))),
                        nboot = 1000, parallel = TRUE)
 
 #' plot the clustering with bp and au
-plot(hma.pvclust, labels = samples$SampleName)
-pvrect(hma.pvclust)
+plot(hm.pvclust, labels = conds)
+pvrect(hm.pvclust)
 
 #' bootstrapping results as a table
-print(hma.pvclust, digits=3)
+print(hm.pvclust, digits=3)
 
 
 #' ## Conclusion
