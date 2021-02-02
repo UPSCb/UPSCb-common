@@ -172,26 +172,29 @@ mar <- par("mar")
                         lfc,expression_cutoff))
     }
     
-    val <- rowSums(vst[sel,sample_sel])==0
-    if (sum(val) >0){
-        warning(sprintf("There are %s DE genes that have no vst expression in the selected samples",sum(val)))
-        sel[sel][val] <- FALSE
-    }    
-    
-    if(export){
-        if(!dir.exists(default_dir)){
-            dir.create(default_dir,showWarnings=FALSE,recursive=TRUE,mode="0771")
+    # proceed only if there are DE genes
+    if(sum(sel) > 0){
+        val <- rowSums(vst[sel,sample_sel])==0
+        if (sum(val) >0){
+            warning(sprintf("There are %s DE genes that have no vst expression in the selected samples",sum(val)))
+            sel[sel][val] <- FALSE
+        }    
+        
+        if(export){
+            if(!dir.exists(default_dir)){
+                dir.create(default_dir,showWarnings=FALSE,recursive=TRUE,mode="0771")
+            }
+            write.csv(res,file=file.path(default_dir,paste0(default_prefix,"results.csv")))
+            write.csv(res[sel,],file.path(default_dir,paste0(default_prefix,"genes.csv")))
         }
-        write.csv(res,file=file.path(default_dir,paste0(default_prefix,"results.csv")))
-        write.csv(res[sel,],file.path(default_dir,paste0(default_prefix,"genes.csv")))
-    }
-    if(plot){
-        heatmap.2(t(scale(t(vst[sel,sample_sel]))),
-                  distfun = pearson.dist,
-                  hclustfun = function(X){hclust(X,method="ward.D2")},
-                  trace="none",col=hpal,labRow = FALSE,
-                  labCol=labels[sample_sel],...
-        )
+        if(plot){
+            heatmap.2(t(scale(t(vst[sel,sample_sel]))),
+                      distfun = pearson.dist,
+                      hclustfun = function(X){hclust(X,method="ward.D2")},
+                      trace="none",col=hpal,labRow = FALSE,
+                      labCol=labels[sample_sel],...
+            )
+        }
     }
     return(list(all=rownames(res[sel,]),
                 up=rownames(res[sel & res$log2FoldChange > 0,]),
