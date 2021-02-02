@@ -73,11 +73,14 @@ mar <- par("mar")
                               expression_cutoff=0,
                               debug=FALSE,...){
     
+    # validation
     if(length(contrast)==1){
         res <- results(dds,name=contrast)
     } else {
         res <- results(dds,contrast=contrast)
     }
+    
+    stopifnot(length(sample_sel)==ncol(vst))
     
     if(plot){
         par(mar=c(5,5,5,5))
