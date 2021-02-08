@@ -8,10 +8,10 @@ set -eux
 
 # load helpers
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
+KOGIA=${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/kogia/scripts
 
 CPU=8
 OPTIONS=
-IMG=/mnt/picea/projects/singularity/salmon.simg
 DECOY=
 
 # usage
@@ -70,4 +70,4 @@ if [ $DECOY != "" ]; then
 fi
 
 # exec
-singularity exec --bind /mnt:/mnt $IMG salmon index -t $tx -i $out -p $CPU $OPTIONS
+$KOGIA/salmon index -t $tx -i $out -p $CPU $OPTIONS
