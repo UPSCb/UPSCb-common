@@ -41,10 +41,12 @@ gopher <- function(genes=character(0),
                    endpoint=c("enrichment","gene-to-term","get-sets","term-to-gene"),
                    override=FALSE) {
 
-  require(tidyr)
-  require(tibble)
-  require(dplyr)
-  require(jsonlite)
+  suppressPackageStartupMessages({
+    require(tidyr)
+    require(tibble)
+    require(dplyr)
+    require(jsonlite)
+  })
   
   # arguments
   endpoint <- match.arg(endpoint)
@@ -199,13 +201,15 @@ gopher <- function(genes=character(0),
 #' @param mc.cores - number of CPUs to use, default to 1
 #'
 #' @return a tibble with 3 columns: ID (the gene ID), GOID (the corresponding enriched term),
-#' and link: the type of link, one of direct or ancestor. Direct means that the GOID was directly 
-#' associated to a gene in genes, while ancestor signifies that the GO term reported is an 
-#' ancestor of a term associated with a gene in genes.
+#' and link: the type of link, one of `direct`, `ancestor` or `missing`. `direct` means that the GOID was directly 
+#' associated to a gene in genes, while `ancestor` signifies that the GO term reported is an 
+#' ancestor of a term associated with a gene in genes. Finally, a third type of link can be reported:
+#' `missing`, which signifies that either the term is obsolete (terms used an older version of GO) or
+#' novel (the GO.db is outdated).
 #'
 #' @examples
 #' genes <- c("Potra2n10c21792","Potra2n10c21793")
-#' terms <- c("GO:0005886","GO:0016020","GO:0110165")
+#' terms <- c("GO:0005886","GO:0016020","GO:0110165","GO:0051193")
 #' enrichedTermToGenes(genes, terms)
 
 enrichedTermToGenes <- function(genes,terms,url="potra2",mc.cores=1L){
@@ -221,33 +225,39 @@ enrichedTermToGenes <- function(genes,terms,url="potra2",mc.cores=1L){
   # get the search space, i.e. the GO terms associated with the genes
   associatedIDs <- gopher(genes,url=url,task=c("go"), endpoint = "gene-to-term")
   
-  # find the terms lacking a direct link and annotate them
-  sel <- terms %in% associatedIDs$GOID 
+  # find the terms either obsolete or missing in GO.db (the latter if GO.db is out-of-date)
+  missing <- ! terms %in% keys(GO.db)
   
   # extract the direct annotation
-  associatedIDs %>% filter(GOID %in% terms) %>% mutate(link="direct") %>% bind_rows(
-    # and collect the offsprings of the non direct ones
-    mclapply(
-      # 3. function to process the list of obtained offsprings, and collect the 
-      # corresponding unqie gene ID in the search space
-      # this step is parallelised
-      sapply(
-        # 2. evaluate the expressions
-        lapply(
-          # 1. construct the expression by indentifying the Ontology (BP,CC or MF)
-          # to query the GO database for offsprings
-          paste0("as.list(GO",Ontology(terms[!sel]),"OFFSPRING['",terms[!sel],"'])"),
-          str2expression),
-        eval),
-      function(offsprings,associatedIDs){
-        associatedIDs[associatedIDs$GOID %in% offsprings,"ID"] %>% unique
-      },associatedIDs,mc.cores=mc.cores) %>% 
-      # convert the nested list into a nested tibble
-      enframe(name=c("GOID")) %>% 
-      # unnest (same as melting)
-      unnest(cols=c(value)) %>%
-      # add an annotation column
-      mutate(link="ancestor")
-  )
+  associatedIDs %>% filter(GOID %in% terms) %>% mutate(link="direct") %>%
+    # report the missing
+    bind_rows(tibble(ID="",
+                     GOID=terms[missing],
+                     link=ifelse(any(missing),"missing",character(0)))) %>%
+    # and collate the ancestors
+    bind_rows(
+      # and 
+      mclapply(
+        # 3. function to process the list of obtained offsprings, and collect the 
+        # corresponding unique gene ID in the search space
+        # this step is parallelised
+        sapply(
+          # 2. evaluate the expressions
+          lapply(
+            # 1. construct the expression by indentifying the Ontology (BP,CC or MF)
+            # to query the GO database for offsprings
+            paste0("as.list(GO",Ontology(terms[!missing]),"OFFSPRING['",terms[!missing],"'])"),
+            str2expression),
+          eval),
+        function(offsprings,associatedIDs){
+          associatedIDs[associatedIDs$GOID %in% offsprings,"ID"] %>% unique
+        },associatedIDs,mc.cores=mc.cores) %>% 
+        # convert the nested list into a nested tibble
+        enframe(name=c("GOID")) %>% 
+        # unnest (same as melting)
+        unnest(cols=c(value)) %>%
+        # add an annotation column
+        mutate(link="ancestor")
+    )
 }
 
