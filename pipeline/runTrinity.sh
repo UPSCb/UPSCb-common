@@ -1,9 +1,9 @@
 #!/bin/bash -l
-#SBATCH -p core
+#SBATCH -p node
 ## for large files
 ## we don't need the proc but the mem
 ## we could give that as param
-#SBATCH -n 16
+#SBATCH -n 20
 ## time too for large files
 #SBATCH --mail-type=ALL
 
@@ -24,10 +24,11 @@ source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 ## check the options if any
 MEM=40G
-PROC=16
+PROC=20
 BOWTIE=
 TRIM=0
 READSET=0
+LONGREADS=
 
 ## usage
 USAGETXT=\
@@ -39,6 +40,7 @@ USAGETXT=\
                    is if the inchworm file is larger than 4Gbp. bowtie cannot index
                    files larger than 4Gbp. It is also extremely slow (samtools sort 
                    step is mono-CPU)
+		-l long reads (pac bio or other) as a fasta file
                 -m mem requirement (default 40G) (rule of thumb 1.5G/1M read pairs)
 		        -p number of threads to use (default 16)
 		        -r normalise by read set
@@ -52,10 +54,11 @@ USAGETXT=\
 "
 
 ## get the options
-while getopts b:m:p:rs:t option
+while getopts b:l:m:p:rs:t option
 do
         case "$option" in
 	    b) BOWTIE="--no_bowtie";;
+	    l) LONGREADS="$OPTARG";;
 	    m) MEM=$OPTARG;;
 	    p) PROC=$OPTARG;;
 	    r) READSET=1;;
@@ -104,6 +107,15 @@ if [ ! -z $4 ]; then
     SGL="--single $4"
 fi
 
+## check args
+if [ ! -z $LONGREADS ]; then
+	if [ ! -f $LONGREADS ]; then
+		abort "-l should point to an existing fasta file"
+	else
+		LONGREADS="--long_reads $LONGREADS"
+	fi	
+fi
+
 ## if there are too many files, let's do the diginorm in chunk
 if [ $(echo $2 | grep -o "," | wc -l) -gt 50 ] || [ $READSET -eq 1 ] ; then
     NORM="--normalize_by_read_set"
@@ -113,13 +125,14 @@ fi
 echo Assembling
 
 if [ $TRIM -eq 1 ]; then
-    singularity exec --bind /mnt:/mnt /mnt/picea/projects/singularity/trinity-2.8.3.1.simg \
-    Trinity  $BOWTIE --seqType fq --max_memory $MEM \
+#    singularity exec --bind /mnt:/mnt /mnt/picea/projects/singularity/trinity-2.8.3.1.simg \
+    Trinity  $BOWTIE --seqType fq --max_memory $MEM $LONGREADS \
     --left $2 --right $3 $SGL --output $1 --CPU $PROC $NORM $SPEC \
-    --trimmomatic --quality_trimming_params "ILLUMINACLIP:/usr/local/bin/trinityrnaseq/trinity-plugins/Trimmomatic/adapters/TruSeq3-PE.fa:2:30:10 SLIDINGWINDOW:4:5 MINLEN:25"
+    --trimmomatic --quality_trimming_params "ILLUMINACLIP:/sw/apps/bioinfo/trimmomatic/0.36/rackham/adapters/TruSeq3-PE.fa:2:30:10 SLIDINGWINDOW:4:5 MINLEN:25"
+#    --trimmomatic --quality_trimming_params "ILLUMINACLIP:/usr/local/bin/trinityrnaseq/trinity-plugins/Trimmomatic/adapters/TruSeq3-PE.fa:2:30:10 SLIDINGWINDOW:4:5 MINLEN:25"
 else
-    singularity exec --bind /mnt:/mnt /mnt/picea/projects/singularity/trinity-2.8.3.1.simg \
-    Trinity  $BOWTIE --seqType fq --max_memory $MEM \
+#    singularity exec --bind /mnt:/mnt /mnt/picea/projects/singularity/trinity-2.8.3.1.simg \
+    Trinity  $BOWTIE --seqType fq --max_memory $MEM $LONGREADS \
     --left $2 --right $3 $SGL --output $1 --CPU $PROC $NORM $SPEC
 fi
 
