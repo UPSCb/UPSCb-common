@@ -24,6 +24,7 @@ suppressPackageStartupMessages({
 
 #' * Helper files
 suppressMessages({
+    source(here("UPSCb-common/Rtoolbox/src/plotEnrichedTreemap.R"))
     source(here("UPSCb-common/src/R/featureSelection.R"))
     source(here("UPSCb-common/src/R/volcanoPlot.R"))
     source(here("UPSCb-common/src/R/gopher.R"))
@@ -71,13 +72,19 @@ mar <- par("mar")
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
                               expression_cutoff=0,
-                              debug=FALSE,...){
+                              debug=FALSE,filter=c("median",NULL),...){
+    
+    # get the filter
+    if(!is.null(match.arg(filter))){
+        filter <- rowMedians(counts(dds,normalized=TRUE))
+        message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
+    }
     
     # validation
     if(length(contrast)==1){
-        res <- results(dds,name=contrast)
+        res <- results(dds,name=contrast,filter = filter)
     } else {
-        res <- results(dds,contrast=contrast)
+        res <- results(dds,contrast=contrast,filter = filter)
     }
     
     stopifnot(length(sample_sel)==ncol(vst))
