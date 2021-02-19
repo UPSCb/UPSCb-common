@@ -39,14 +39,7 @@ hpal <- colorRampPalette(c("blue","white","red"))(100)
 #' # as columns, e.g. the SamplingTime for a time series experiment
 #'  ```
 samples <- read_csv(here("doc/CHANGE-ME.csv"),
-                      col_types=cols(
-                        col_factor(),
-                        col_integer(),
-                        col_factor(),
-                        col_factor(),
-                        col_factor(),
-                        col_factor()
-                      ))
+                      col_types=cols(.default=col_factor()))
 
 #' tx2gene translation table
 #' ```{r CHANGEME2,eval=FALSE,echo=FALSE}
