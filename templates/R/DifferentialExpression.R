@@ -221,36 +221,42 @@ extractEnrichmentResults <- function(enrichment,task="go",
                                      url="athaliana"){
     # process args
     diff.exp <- match.arg(diff.exp)
-    de <- ifelse(diff.exp=="all","none",diff.exp)
-    
-    # write out
-    if(export){
-        write_tsv(enrichment[[task]],
-                  path=here(default_dir,
-                            paste0(default_prefix,"-genes_GO-enrichment.tsv")))
-        if(!is.null(genes)){
-            write_tsv(
-                enrichedTermToGenes(genes=genes,terms=enrichment[[task]]$id,url=url,mc.cores=16L),
-                path=here(default_dir,
-                          paste0(default_prefix,"-enriched-term-to-genes.tsv"))
-            )
+    de <- ifelse(diff.exp=="all","none",
+                 ifelse(diff.exp=="dn","down",diff.exp))
+    # sanity
+    if( is.null(enrichment[[task]]) | length(enrichment[[task]]) == 0){
+        message(paste("No enrichment for",task))
+    } else {
+        
+        # write out
+        if(export){
+            write_tsv(enrichment[[task]],
+                      file=here(default_dir,
+                                paste0(default_prefix,"-genes_GO-enrichment.tsv")))
+            if(!is.null(genes)){
+                write_tsv(
+                    enrichedTermToGenes(genes=genes,terms=enrichment[[task]]$id,url=url,mc.cores=16L),
+                    file=here(default_dir,
+                              paste0(default_prefix,"-enriched-term-to-genes.tsv"))
+                )
+            }
         }
-    }
-    
-    if(plot){
-        sapply(go.namespace,function(ns){
-            titles <- c(BP="Biological Process",
-                        CC="Cellular Component",
-                        MF="Molecular Function")
-            suppressWarnings(tryCatch({plotEnrichedTreemap(enrichment,enrichment=task,
-                                                           namespace=ns,
-                                                           de=de,title=titles[ns])},
-                                      error = function(e) {
-                                          message(paste("Treemap plot failed for",ns, 
-                                                        "because of:",e))
-                                          return(NULL)
-                                      }))
-        })
+        
+        if(plot){
+            sapply(go.namespace,function(ns){
+                titles <- c(BP="Biological Process",
+                            CC="Cellular Component",
+                            MF="Molecular Function")
+                suppressWarnings(tryCatch({plotEnrichedTreemap(enrichment,enrichment=task,
+                                                               namespace=ns,
+                                                               de=de,title=paste(default_prefix,titles[ns]))},
+                                          error = function(e) {
+                                              message(paste("Treemap plot failed for",ns, 
+                                                            "because of:",e))
+                                              return(NULL)
+                                          }))
+            })
+        }
     }
 }
 
