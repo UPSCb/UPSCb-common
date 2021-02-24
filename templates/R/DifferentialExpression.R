@@ -378,6 +378,8 @@ resultsNames(dds)
 #' 
 #' In addition we now also export the list of genes that most likely resulted in
 #' the corresponding go enrichment.
+#' 
+#' Make sure to change the url to match your organism
 #' ```
 background <- rownames(vst)[featureSelect(vst,dds$MGenotype,exp=CHANGEME)]
 
@@ -390,7 +392,8 @@ dev.null <- lapply(names(enr.list),function(n){
         extractEnrichmentResults(enr.list[[n]][[de]],
                                  diff.exp=de,
                                  genes=res.list[[n]][[de]],
-                                 default_prefix=paste(n,de,sep="-"))
+                                 default_prefix=paste(n,de,sep="-"),
+                                 url="athaliana")
     })
 })
 
