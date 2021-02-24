@@ -250,7 +250,7 @@ extractEnrichmentResults <- function(enrichment,task="go",
                             MF="Molecular Function")
                 suppressWarnings(tryCatch({plotEnrichedTreemap(enrichment,enrichment=task,
                                                                namespace=ns,
-                                                               de=de,title=titles[ns])},
+                                                               de=de,title=paste(default_prefix,titles[ns]))},
                                           error = function(e) {
                                               message(paste("Treemap plot failed for",ns, 
                                                             "because of:",e))
@@ -379,6 +379,9 @@ resultsNames(dds)
 #' 
 #' In addition we now also export the list of genes that most likely resulted in
 #' the corresponding go enrichment.
+#' 
+#' Make sure to change the `url` to match your species
+#' 
 #' ```
 background <- rownames(vst)[featureSelect(vst,dds$MGenotype,exp=CHANGEME)]
 
@@ -391,7 +394,8 @@ dev.null <- lapply(names(enr.list),function(n){
         extractEnrichmentResults(enr.list[[n]][[de]],
                                  diff.exp=de,
                                  genes=res.list[[n]][[de]],
-                                 default_prefix=paste(n,de,sep="-"))
+                                 default_prefix=paste(n,de,sep="-"),
+                                 url="athaliana")
     })
 })
 
