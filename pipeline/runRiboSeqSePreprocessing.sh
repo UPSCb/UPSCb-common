@@ -691,7 +691,7 @@ if [ $pstart -le 8 ] && [ $pend -ge 8 ]; then
     dep=
     if [ $pstart -le 4 ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-3]}"
-    elif ([ ! -f $fastq_trimmed_1 ] || [ ! -f $fastq_trimmed_2 ]) && [ "$CMD" != "bash" ]; then
+    elif ([ ! -f $fastq_trimmed_1 ]) && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
         cleanup
     fi
@@ -701,7 +701,7 @@ if [ $pstart -le 8 ] && [ $pend -ge 8 ]; then
         -e $salmon/${sname}_salmon.err \
         -o $salmon/${sname}_salmon.out \
         -J ${sname}.RNAseq.salmon \
-        $dep runSeSalmon.sh $salmon_index $fastq_trimmed_1 $salmon`)
+        $dep runSalmonSE.sh $salmon_index $fastq_trimmed_1 $salmon $fragment_length_mean $fragment_length_sd`)
         JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 
