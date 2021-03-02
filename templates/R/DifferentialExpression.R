@@ -381,6 +381,7 @@ resultsNames(dds)
 #' 
 #' Make sure to change the url to match your organism
 #' ```
+#' TODO USE THE independent filtering to decide on the background. Think about it
 background <- rownames(vst)[featureSelect(vst,dds$MGenotype,exp=CHANGEME)]
 
 enr.list <- lapply(res.list,function(r){
