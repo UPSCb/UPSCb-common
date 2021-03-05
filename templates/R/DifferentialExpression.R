@@ -82,9 +82,9 @@ mar <- par("mar")
     
     # validation
     if(length(contrast)==1){
-        res <- results(dds,name=contrast,filter = filter)
+        res <- results(dds,name=contrast,filter = filter,lfcThreshold=lfc,alpha=padj)
     } else {
-        res <- results(dds,contrast=contrast,filter = filter)
+        res <- results(dds,contrast=contrast,filter = filter,lfcThreshold=lfc,alpha=padj)
     }
     
     stopifnot(length(sample_sel)==ncol(vst))

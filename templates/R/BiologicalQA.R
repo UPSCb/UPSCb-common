@@ -76,9 +76,10 @@ names(filelist) <- samples$SampleID
 #' If the species has only one transcript per gene, replace with the following
 #' counts <- suppressMessages(round(tximport(files = filelist, type = "salmon",txOut=TRUE)$counts))
 #' ```
-counts <- suppressMessages(round(tximport(files = filelist, 
+txi <- suppressMessages(round(tximport(files = filelist, 
                                   type = "salmon",
-                                  tx2gene=tx2gene)$counts))
+                                  tx2gene=tx2gene)))
+counts <- txi$counts
 
 #' ## Quality Control
 #' * Check how many genes are never expressed
@@ -143,8 +144,8 @@ write.csv(counts,file=here("data/analysis/salmon/raw-unormalised-gene-expression
 #'  # It is technically irrelevant here, as we are only doing the quality assessment of the data, 
 #'  # but it does not harm setting it correctly for the differential expression analyses that may follow.
 #'  ```
-dds <- DESeqDataSetFromMatrix(
-  countData = counts,
+dds <- DESeqDataSetFromTximport(
+  txi=txi,
   colData = samples,
   design = ~ CHANGEME)
 
