@@ -79,9 +79,16 @@ for ((i=0;i<len;i+=$chunkSize)); do
   if [ ! -f results/$inf/$inf-$i.tsv ]; then
     printf "%s\n" "${GENEIDS[@]:$i:$chunkSize}" > gset-$i.txt
 
+    srv=
+    if [ -f results/$inf/$inf-$i.json ]; then
+      srv="--resume-from results/$inf/$inf-$i.json"
+    else
+      srv="--save-resume results/$inf/$inf-$i.json"
+    fi
+
     echo "#!/bin/bash" > results/$inf/$inf-$i.sh
     echo "unset OMP_NUM_THREADS" >> results/$inf/$inf-$i.sh
-    echo "srun $EXEC/$inf $commandParams -i $1 -g $2 -t gset-$i.txt --save-resume results/$inf/$inf-$i.json -o results/$inf/$inf-$i.tsv" >> results/$inf/$inf-$i.sh
+    echo "srun $EXEC/$inf $commandParams -i $1 -g $2 -t gset-$i.txt $srv -o results/$inf/$inf-$i.tsv" >> results/$inf/$inf-$i.sh
     sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf-$i -e results/$inf/$inf-$i.err -o results/$inf/$inf-$i.out $queueParams results/$inf/$inf-$i.sh
   fi
 done

@@ -5,7 +5,7 @@ set -ex
 
 # project vars
 account=SNIC2020-5-218
-mail=nicolas.delhomme@umu.se
+mail=
 
 # source
 source functions.sh
@@ -42,13 +42,13 @@ arguments=(
   [0]=$default
   [1]=$default
   [2]="-n 2 -c 28 -t 2-00:00:00"
-  [3]=$default
+  [3]="-n 2 -c 28 -t 2-00:00:00"
   [4]=$default
   [5]="-n 1 -c $correlationNCPUs -t 12:00:00"
   [6]="-n 1 -c $correlationNCPUs -t 12:00:00"
   [7]=$default
   [8]="-n 1 -c $correlationNCPUs -t 12:00:00"
-  [9]="-n 3 -c 28 -t 3-00:00:00")
+  [9]="-n 4 -c 28 -t 4-00:00:00")
 
 parallel="-O "'$SLURM_CPUS_PER_TASK'
 command=(
@@ -56,7 +56,7 @@ command=(
   [1]="$EXEC/mi -m CLR -M $resultDir/mi/mi.tsv "$parallel
   [2]="$EXEC/genie3 "$parallel
   [3]="$EXEC/llr-ensemble "$parallel
-  [4]="$EXEC/narromi "$parallel
+  [4]="$EXEC/narromi -m interior-point "$parallel
   [5]="$EXEC/pcor"
   [6]="$EXEC/correlation -m pearson"
   [7]="$EXEC/plsnet "$parallel
@@ -83,6 +83,10 @@ fi
 
 if [ ! -f $2 ]; then
   abort "The second argument needs to be the gene names tab delimited file"
+fi
+
+if [ -z "$mail"]; then
+  abort "Edit the script and add your email"
 fi
 
 if [ $(wc -l $2 | cut -d" " -f1) -ne 1 ]; then
@@ -153,7 +157,11 @@ for ((i=0;i<len;i++)); do
     if [ ! -f $resultDir/$inf/$inf.tsv ]; then
       mkdir -p $resultDir/$inf
       echo "#!/bin/bash" > $resultDir/$inf/$inf.sh
-      svr="--save-resume $resultDir/$inf/$inf.json"
+      if [ -f $resultDir/$inf/$inf.json ]; then
+        svr="--resume-from $resultDir/$inf/$inf.json"
+      else
+        svr="--save-resume $resultDir/$inf/$inf.json"
+      fi
       if [ -z ${ompThread[$i]} ]; then
  	echo "unset OMP_NUM_THREADS" >> $resultDir/$inf/$inf.sh
       else
