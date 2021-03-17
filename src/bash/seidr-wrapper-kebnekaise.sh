@@ -21,7 +21,7 @@ resultDir=results
 
 correlationNCPUs=28
 
-inference=(aracne clr genie3 llr-ensemble narromi pcor pearson plsnet spearman tigress)
+inference=(aracne clr genie3 llr-ensemble narromi pcor pearson plsnet spearman tigress tomsimilarity)
 
 run=(
   [0]=1
@@ -33,7 +33,8 @@ run=(
   [6]=1
   [7]=1
   [8]=1
-  [9]=1)
+  [9]=1
+  [10]=1)
 
 # 28 workers on 1 nodes (kk has 28 per node) - setting -n 2 -c 14 (14 cores on 2 nodes, results in the same)
 default="-n 1 -c 28 -t 1-00:00:00"
@@ -42,13 +43,14 @@ arguments=(
   [0]=$default
   [1]=$default
   [2]="-n 2 -c 28 -t 2-00:00:00"
-  [3]="-n 2 -c 28 -t 2-00:00:00"
+  [3]="-n 1 -c 28 -t 5-00:00:00"
   [4]=$default
   [5]="-n 1 -c $correlationNCPUs -t 12:00:00"
   [6]="-n 1 -c $correlationNCPUs -t 12:00:00"
   [7]=$default
   [8]="-n 1 -c $correlationNCPUs -t 12:00:00"
-  [9]="-n 4 -c 28 -t 4-00:00:00")
+  [9]="-n 4 -c 28 -t 7-00:00:00"
+  [10]="-n 1 -c $correlationNCPUs -t 12:00:00")
 
 parallel="-O "'$SLURM_CPUS_PER_TASK'
 command=(
@@ -61,7 +63,8 @@ command=(
   [6]="$EXEC/correlation -m pearson"
   [7]="$EXEC/plsnet "$parallel
   [8]="$EXEC/correlation -m spearman"
-  [9]="$EXEC/tigress "$parallel)
+  [9]="$EXEC/tigress "$parallel
+  [10]="$EXEC/tomsimilarity -m bicor")
 
 # usage
 USAGETXT=\
@@ -121,7 +124,8 @@ optionB=(
   [6]=""
   [7]=$default
   [8]=""
-  [9]="-B $(expr $(expr $ngenes '/' 3) '+' 1)")
+  [9]="-B $(expr $(expr $ngenes '/' 3) '+' 1)"
+  [10]="")
 
 # Set the number of OMP threads
 # default to 1
@@ -137,7 +141,8 @@ ompThread=(
   [6]=$correlationNCPUs
   [7]=$default
   [8]=$correlationNCPUs
-  [9]=$default)
+  [9]=$default
+  [10]=$correlationNCPUs)
 
 # Set dependencies
 # Both ARACNE and CLR calculate the RAW MI
