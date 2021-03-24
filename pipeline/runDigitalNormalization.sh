@@ -3,9 +3,9 @@
 ## for large files
 ## we don't need the proc but the mem
 ## we could give that as param
-#SBATCH -n 16
+#SBATCH -n 20
 ## time too for large files
-#SBATCH -t 7-00:00:00
+#SBATCH -t 1-00:00:00
 #SBATCH --mail-type=ALL
 ## mail-user and A have to be set in the submit script
 
@@ -21,8 +21,8 @@ module load trinity
 
 ## check the options if any
 MEM=40G
-KMER=50
-PROC=16
+KMER=200
+PROC=20
 SINGLE=0
 
 ## usage
@@ -33,7 +33,7 @@ echo >&2 \
 	runDigitalNormalization.sh [options] -s <single fq> <out dir> [trinity options]
 
 	Options:
-                -k max kmer cov (default 50)
+                -k max kmer cov (default 200)
                 -m mem requirement (default 40G) (rule of thumb 1.5G/1M read pairs)
 		            -p number of threads to use (default 16)
                 -s for single (SE) files
@@ -104,15 +104,15 @@ if [ $SINGLE -eq 0 ]; then
 fi
 
 ## do we have file lists
-firstLine=`head -1 $fwd`
-LIST=""
-if [ -f $firstLine ]; then
-	LIST="_list"
-	if [ $SINGLE -ne 0 ]; then
-		echo "When using SE reads, there is no support for file lists."
-		exit 1;
-	fi
-fi
+#firstLine=`head -1 $fwd`
+#LIST=""
+#if [ -f $firstLine ]; then
+#	LIST="_list"
+#	if [ $SINGLE -ne 0 ]; then
+#		echo "When using SE reads, there is no support for file lists."
+#		exit 1;
+#	fi
+#fi
 
 ## run trinity
 if [ $SINGLE -eq 0 ]; then
