@@ -8,7 +8,8 @@ account=SNIC2020-5-218
 mail=nicolas.delhomme@umu.se
 
 # directory
-EXEC=/pfs/nobackup/home/b/bastian/seidr-devel/build/
+#EXEC=/pfs/nobackup/home/b/bastian/seidr-devel/build/
+EXEC=/pfs/proj/nobackup/fs/projnb10/snic2019-35-44/software/seidr/build
 
 # source
 source functions.sh

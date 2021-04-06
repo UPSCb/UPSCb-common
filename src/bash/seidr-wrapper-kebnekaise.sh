@@ -13,7 +13,8 @@ source functions.sh
 # modules
 #module load bioinfo-tools seidr-devel
 #export PATH=/pfs/nobackup/home/b/bastian/seidr/build:$PATH
-EXEC=/pfs/nobackup/home/b/bastian/seidr/build
+EXEC=/pfs/proj/nobackup/fs/projnb10/snic2019-35-44/software/seidr/build
+#/pfs/nobackup/home/b/bastian/seidr-devel/build
 source $EXEC/sourcefile
 
 # Variables
