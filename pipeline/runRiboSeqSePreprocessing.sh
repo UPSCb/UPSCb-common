@@ -5,7 +5,7 @@ set -eu
 # Preprocessing script for RNA-Seq data.
 # THIS SCRIPT IS NOT TO BE RUN THROUGH SBATCH, USE BASH!
 ### ========================================================
-VERSION="0.0.4"
+VERSION="0.0.5"
 
 ### ========================================================
 ## pretty print
@@ -50,8 +50,8 @@ ${bold}OPTIONS:${normal}
     -S        fragment length sd for kallisto
     -t        library is s${underline}t${nounderline}randed (illumina protocol, second strand cDNA using dUTP)
     -a        library is s${underline}t${nounderline}randed (non illumina protocol e.g. first strand cDNA using dUTP)
+    -q        the SLURM partition to use
 
-    
 ${bold}STEPS:${normal}
     The steps of this script are as follows:
 
@@ -62,10 +62,15 @@ ${bold}STEPS:${normal}
     5) FastQC
     6) Bowtie
     7) Kallisto
-    
+
     Tentative extensions
     8) MultiQC
     9) Ribowaltz
+
+${bold}WARNINGS:${normal}
+    The following options are mutually exclusive
+    * -a and -t
+    * -D and -q
 
 ${bold}NOTES:${normal}
     * This script should not be run through sbatch, just use bash.
@@ -109,10 +114,14 @@ run_sbatch_usage() {
     OPTIONS
       -e  stderr (required)
       -o  stdout (required)
+      -p  partition to use
       -J  job name
       -d  dependency
       -D  debug mode
-      -m memory" 1>&2
+      -m memory
+
+    NOTE
+      -D and -p are mutually exclusive" 1>&2
     exit 1
 }
 
@@ -128,15 +137,17 @@ prepare_sbatch() {
     log_path=""
     out_path=""
     dependency=""
-	  memory=""
+    memory=""
+    partition=""
     debug=""
     time=""
 
-    while getopts "J:e:o:d:Dm:t:" opt; do
+    while getopts "J:e:o:p:d:Dm:t:" opt; do
         case "$opt" in
             J) jobname=$OPTARG ;;
             e) log_path=$OPTARG ;;
             o) out_path=$OPTARG ;;
+            p) partition="-p $OPTARG" ;;
             d) dependency=$OPTARG ;;
             D) debug="-p devel -t 1:00:00";;
 	          m) memory=$OPTARG ;;
@@ -160,11 +171,19 @@ prepare_sbatch() {
         run_sbatch_usage
 	usage
     fi
+
     # Check that the output file directories exist
     if [ ! -d `dirname $log_path` ] || [ ! -d `dirname $out_path` ]; then
         echo "ERROR: stderr and stdout paths must exist" 1>&2
         run_sbatch_usage
 	usage
+    fi
+
+    # check that only one of -D and -p are given
+    if [ ! -z $debug ] && [ ! -z $partition ]; then
+        echo "ERROR: only one of -D and -p can be given" 1>&2
+        run_sbatch_usage
+        usage
     fi
 
     # sbatch_options=
@@ -180,15 +199,15 @@ prepare_sbatch() {
     echo "sbatch -A" $proj \
 	"-J" $jobname "--mail-user" $mail \
 	"-e" $log_path "-o" $out_path \
-    $debug \
+    $debug $partition \
     ${memory:+"--mem $memory"} \
     ${dependency:+"-d" "$dependency"} \
     ${time:+"-t $time"} \
     $PIPELINE_DIR/$script $@
-    
+
 }
 
-## TODO warn about the random!!! 
+## TODO warn about the random!!!
 run_sbatch() {
     if [ $dryrun -eq 1 ]; then
 	echo $RANDOM
@@ -216,7 +235,8 @@ prepare_bash() {
     log_path=""
     out_path=""
     dependency=""
-	  memory=""
+    memory=""
+    partition=""
     debug=""
     time=""
 
@@ -226,6 +246,7 @@ prepare_bash() {
             e) log_path=$OPTARG ;;
             o) out_path=$OPTARG ;;
             d) dependency=$OPTARG ;;
+            p) partition=$OPTARG;;
             D) debug="";;
             m) memory=$OPTARG ;;
             t) time=$OPTARG ;;
@@ -266,10 +287,11 @@ kallisto_fasta=
 fragment_length_mean=
 fragment_length_sd=
 sortmerna_db=
+partition=
 
 # Parse the options
 OPTIND=1
-while getopts "ab:c:Dde:f:hk:M:m:p:r:S:s:tT:" opt; do
+while getopts "ab:c:Dde:f:hk:M:m:p:q:r:S:s:tT:" opt; do
     case "$opt" in
         h) usage;;
         a) non_ilm_stranded=1;;
@@ -283,6 +305,7 @@ while getopts "ab:c:Dde:f:hk:M:m:p:r:S:s:tT:" opt; do
         k) kallisto_index=$OPTARG ;;
 	m) mem="${OPTARG}GB";;
 	p) SNIC_TMP=$OPTARG ;;
+        q) partition="-p $OPTARG";;
 	    r) sortmerna_db="-d $OPTARG";;
 	    t) ilm_stranded=1 ;;
 	    T) trimmomatic_options=$OPTARG ;;
@@ -296,6 +319,11 @@ shift $((OPTIND - 1))
 # check for exclusive options
 if [ $ilm_stranded -eq 1 ] && [ $non_ilm_stranded -eq 1 ]; then
     echo "ERROR: the -a and -t option are mutually exclusive. Choose either or."
+    usage
+fi
+
+if [ $debug -eq 1 ] && [ ! -z $partition ]; then
+echo "ERROR: the -D and -q option are mutually exclusive. Choose either or."
     usage
 fi
 
@@ -407,7 +435,6 @@ mail=$2
 if [ ! -f $3 ]; then
     echo "ERROR: fastq is not a file: '$3'" 1>&2
     usage
-    usage
 fi
 
 ## Just to make sure we avoid path issues
@@ -496,7 +523,7 @@ JOBIDS=()
 JOBCMDS=()
 
 ## Internal field separator
-## We need to change the input field separator 
+## We need to change the input field separator
 ## to be line feed and not space for some of the
 ## array, but this might fail command execution
 SPACEIFS=$IFS
@@ -513,6 +540,7 @@ if [ $pstart -le 1 ]; then
         -e $fastqc_raw/${sname}_1_fastqc.err \
         -o $fastqc_raw/${sname}_1_fastqc.out \
         -J ${sname}.RNAseq.FastQC.raw1 \
+        $partition \
         runFastQC.sh $fastqc_raw $fastq1`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 
@@ -529,7 +557,7 @@ if [ $pstart -le 2 ] && [ $pend -ge 2 ]; then
         echo "ERROR: could not find the sortmerna data in $SORTMERNADIR" 1>&2
         usage
     fi
-    
+
     dep=
     if [ $pstart -lt 2 ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-1]}"
@@ -539,6 +567,7 @@ if [ $pstart -le 2 ] && [ $pend -ge 2 ]; then
         $debug_var \
         -e $sortmerna/${sname}_sortmerna.err \
         -o $sortmerna/${sname}_sortmerna.out \
+        $partition \
         $dep \
         -J ${sname}.RNAseq.SortMeRNA \
 	-t 2-00:00:00 \
@@ -568,6 +597,7 @@ if [ $pstart -le 3 ] && [ $pend -ge 3 ]; then
         -e $fastqc_sortmerna/${sname}_1_fastqc.err \
         -o $fastqc_sortmerna/${sname}_1_fastqc.out \
         -J ${sname}.RNAseq.FastQC.SortMeRNA1 \
+        $partition \
         $dep runFastQC.sh $fastqc_sortmerna $fastq_sort_1`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
@@ -575,7 +605,7 @@ fi
 ## Run trimmomatic. Depends on a successful run of SortMeRNA
 if [ $pstart -le 4 ] && [ $pend -ge 4 ]; then
     echo "# Preparing step 4"
-    
+
     dep=
     if [ $pstart -le 2  ] && [ "$CMD" != "bash" ]; then
         # SortMeRNA has to finish, if it was started
@@ -591,6 +621,7 @@ if [ $pstart -le 4 ] && [ $pend -ge 4 ]; then
         -e $trimmomatic/${sname}_trimmomatic.err \
         -o $trimmomatic/${sname}_trimmomatic.log \
         -J ${sname}.RNAseq.Trimmomatic \
+        $partition \
         $dep \
         runTrimmomatic.sh -t -s -c $trimmomatic_clipping $fastq_sort_1 $trimmomatic $trimmomatic_options`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
@@ -615,6 +646,7 @@ if [ $pstart -le 5 ] && [ $pend -ge 5 ]; then
         -e $fastqc_trimmomatic/${sname}_1_fastqc.err \
         -o $fastqc_trimmomatic/${sname}_1_fastqc.out \
         -J ${sname}.RNAseq.FastQC.Trimmomatic1 \
+        $partition \
         $dep runFastQC.sh $fastqc_trimmomatic $fastq_trimmed_1`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 
@@ -641,6 +673,7 @@ if [ $pstart -le 6 ] && [ $pend -ge 6 ]; then
             -J ${sname}.RNAseq.bowtie \
             ${mem:+"-m" "$mem"} \
             -t 2-00:00:00 \
+            $partition \
             $dep runBowtie2.sh -s $bowtie_index $fastq_trimmed_1 $bowtie $SNIC_TMP`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
@@ -656,22 +689,23 @@ if [ $pstart -le 7 ] && [ $pend -ge 7 ]; then
         echo >&2 "ERROR: Trimmed FASTQ-file could not be found"
         cleanup
     fi
-    
+
     kallisto_strand_option=
     if [ $ilm_stranded -eq 0 ] && [ $non_ilm_stranded -eq 0 ]; then
-	    kallisto_strand_option="-u" 
+	    kallisto_strand_option="-u"
     elif [ $ilm_stranded -eq 1 ]; then
-      kallisto_strand_option="-r"   
+      kallisto_strand_option="-r"
     elif [ $non_ilm_stranded -eq 1 ]; then
 	    kallisto_strand_option="-F"
     fi
-  
+
     single_end_option="-s -M $fragment_length_mean -S $fragment_length_sd"
     JOBCMDS+=(`prepare_$CMD \
         $debug_var \
         -e $kallisto/${sname}_kallisto.err \
         -o $kallisto/${sname}_kallisto.out \
         -J ${sname}.RNAseq.kallisto \
+        $partition \
         $dep runKallisto.sh -p $single_end_option $kallisto_strand_option $fastq_trimmed_1 $kallisto_index $kallisto_fasta $kallisto`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
@@ -681,7 +715,7 @@ echo "### ========================================
 
 ## done
 case $CMD in
-    sbatch) 
+    sbatch)
 	if [ $dryrun -eq 1 ];then
 	    echo "${JOBCMDS[*]}"
 	else
