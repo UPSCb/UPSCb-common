@@ -364,7 +364,7 @@ echo "### ========================================
 ## the toolList list all the necessary tools
 ## the toolArray (starting at 1) link the tool(s) to its respective step(s)
 ## starArray and htseqArray are there to simulate a nested array
-toolList=(fastQValidator fastqc sortmerna trimmomatic salmon kallisto samtools star htseq-count)
+toolList=(fastQValidator fastqc sortmerna trimmomatic salmon kallisto samtools STAR htseq-count)
 htseqArray=([0]=6 [1]=8)
 kallistoArray=([0]=5 [1]=6)
 toolArray=([1]=0 [2]=1 [3]=2 [4]=1 [5]=3 [6]=1 [7]=4 [8]=${kallistoArray[*]} [9]=7 [10]=${htseqArray[*]})

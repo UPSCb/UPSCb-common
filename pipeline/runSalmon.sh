@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p core -n 2
+#SBATCH -p rbx -n 2
 #SBATCH -t 1-00:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --mem=12GB
@@ -25,7 +25,7 @@ IMG=/mnt/picea/projects/singularity/salmon.simg
 USAGETXT=\
 "
     Usage: $0 [options] <index dir> <fwd fq file> <rev fq file> <out dir>
-    
+
     Options:
               b: bind directory path
               e: dump equivalence class - turn on --dumpEq
@@ -35,11 +35,11 @@ USAGETXT=\
               p: number of CPU to use (default 2)
               s: turn off sequence bias correction (on by default)
               v: turn off validateMappings (on by default), faster, less accurate
-" 
+"
 
 # Check the tool is avail
-# we use singularity
-# isExec salmon
+# we use do not use singularity and rely on kogia
+isExec salmon
 
 ## get the options
 while getopts b:ei:gl:p:sv option
@@ -100,5 +100,5 @@ if [ ! -d $outdir ]; then
 fi
 
 # run
- singularity exec --bind $BIND $IMG \
- salmon quant -p $CPU -i $1 -l $LTYPE -1 $2 -2 $3 -o $outdir $OPTIONS 
+# singularity exec --bind $BIND $IMG \
+ salmon quant -p $CPU --numBootstraps 100 -i $1 -l $LTYPE -1 $2 -2 $3 -o $outdir $OPTIONS 
