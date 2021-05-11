@@ -76,9 +76,9 @@ names(filelist) <- samples$SampleID
 #' If the species has only one transcript per gene, replace with the following
 #' counts <- suppressMessages(round(tximport(files = filelist, type = "salmon",txOut=TRUE)$counts))
 #' ```
-txi <- suppressMessages(round(tximport(files = filelist, 
-                                  type = "salmon",
-                                  tx2gene=tx2gene)))
+txi <- suppressMessages(tximport(files = filelist,
+                                 type = "salmon",
+                                 tx2gene=tx2gene))
 counts <- txi$counts
 
 #' ## Quality Control
