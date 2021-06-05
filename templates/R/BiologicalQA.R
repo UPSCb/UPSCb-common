@@ -17,7 +17,6 @@ suppressPackageStartupMessages({
   library(here)
   library(hyperSpec)
   library(parallel)
-  library(pander)
   library(plotly)
   library(pvclust)
   library(tidyverse)
@@ -154,23 +153,9 @@ save(dds,file=here("data/analysis/salmon/dds.rda"))
 #' Check the size factors (_i.e._ the sequencing library size effect)
 #' 
 dds <- estimateSizeFactors(dds)
-sizes <- sizeFactors(dds)
-pander(sizes)
-boxplot(sizes, main="Sequencing libraries size factor")
-
-#' Assess whether there might be a difference in library size linked to a
-#' given metadata
-#' ```{r echo=FALSE,eval=FALSE}
-#' # Developer: This would need to be ggplot2'ed
-#' ```
-boxplot(split(sizes,dds$CHANGEME),las=2,
-        main="Sequencing libraries size factor by Tissue")
-
-plot(sizes,log10(colSums(counts(dds))),ylab="log10 raw depth",xlab="scaling factor",
-     col=rainbow(n=nlevels(dds$CHANGEME))[as.integer(dds$CHANGEME)],pch=19)
-legend("bottomright",fill=rainbow(n=nlevels(dds$CHANGEME)),
-       legend=levels(dds$CHANGEME),cex=0.6)
-
+boxplot(normalizationFactors(dds),
+        main="Sequencing libraries size factor",
+        las=2,log="y")
 
 #' ## Variance Stabilising Transformation
 vsd <- varianceStabilizingTransformation(dds, blind=TRUE)

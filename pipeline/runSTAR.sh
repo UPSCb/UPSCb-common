@@ -14,17 +14,22 @@ set -e -x
 
 ## vars
 INTRONMAX=70000
-# Spruce_intronmax=70000
+# Spruce_intronmax=1000000
 # Aspen_intronmax=11000
 GFF=
 SINGLE=0
-PROC=16
+PROC=20
 FORMAT="gtf"
 LIMIT=10000000000
 QUANT=0
+UNSORTED=0
+BEDGRAPH=0
+CHIMERIC=0
+CRAM=1
 
 ## additional options for STAR
-OPTIONS="--outSAMstrandField intronMotif --readFilesCommand zcat --outSAMmapqUnique 254 --outFilterMultimapNmax 100 --outReadsUnmapped Fastx --chimSegmentMin 1 --outSAMtype BAM SortedByCoordinate  --outWigType bedGraph"
+OPTIONS="--readFilesCommand zcat --outSAMmapqUnique 254 --outFilterMultimapNmax 100"
+OPTIONS="$OPTIONS --twopassMode Basic"
 
 ## usage
 usage(){
@@ -34,15 +39,21 @@ echo >&2 \
     Single end: $0 [option] -s <out dir> <genome dir> <genome fasta> <fastq file> [--] [additional STAR arguments]
 
 	Options:
+	  -b produce bedgraphs
+	  -c produce chimeric files
     -f the gtf/gff3 file format (default gtf)
     -g the path to a gtf/gff3 file
-    -t quantify the transcriptome
+    -h print the usage
+    -i add intronMotif as a SAM attribute
 		-l the BAM sorting memory limit ($LIMIT)
 		-m the max intron length ($INTRONMAX)
-    -p number of threads to be used (default: 16)
-		-q set for Illumina +64 Phred score
-		-s if there is no reverse 
 		-n no default option
+		-o simple bam unsorted output
+    -p number of threads to be used (default: $PROC)
+		-q set for Illumina +64 Phred score
+		-s if there are no reverse reads (single-end mode)
+		-t quantify the transcriptome
+		-z do not bam to cram
 
 	Notes:
 		The number of arguments is only 3 when -s is set.
@@ -54,23 +65,30 @@ echo >&2 \
 }
 
 ## get the options
-while getopts f:g:l:m:np:qst option
+while getopts bcf:g:hil:m:nop:qstz option
 do
-        case "$option" in
+  case "$option" in
+      b) OPTIONS="$OPTIONS --outWigType bedGraph"
+         BEDGRAPH=1;;
+      c) OPTIONS="$OPTIONS --chimSegmentMin 1"
+         CHIMERIC=1;;
 	    f) FORMAT=$OPTARG;;
 	    g) GFF=$OPTARG;;
+	    h) usage;;
+	    i) OPTIONS="$OPTIONS --outSAMstrandField intronMotif";;
 	    l) LIMIT=$OPTARG;;
       m) INTRONMAX=$OPTARG;;
+      o) UNSORTED=1;;
       n) OPTIONS="";;
 	    p) PROC=$OPTARG;;
 	    q) OPTIONS="$OPTIONS --outQSconversionAdd -31";;
 	    s) SINGLE=1;;
 	    t) OPTIONS="$OPTIONS --quantMode TranscriptomeSAM"
-	       QUANT=1
-	    ;;
+	       QUANT=1;;
+	    z) CRAM=0;;
 	    \?) ## unknown flag
 		usage;;
-        esac
+  esac
 done
 shift `expr $OPTIND - 1`
 
@@ -79,6 +97,8 @@ shift `expr $OPTIND - 1`
 if [ "$OPTIONS" != "" ]; then
   OPTIONS="$OPTIONS --limitBAMsortRAM $LIMIT"
 fi
+OPTIONS="$OPTIONS --alignIntronMax $INTRONMAX"
+OPTIONS="$OPTIONS --runThreadN $PROC"
 
 ## check the arguments
 echo "Parsing the arguments"
@@ -163,6 +183,14 @@ case $FORMAT in
 	usage;;
 esac
 
+## output
+if [ $UNSORTED -eq 1 ]; then
+  OPTIONS="$OPTIONS --outSAMtype BAM Unsorted --outSAMattributes None"
+else
+  OPTIONS="$OPTIONS --outReadsUnmapped Fastx --outSAMtype BAM SortedByCoordinate --outSAMattributes All"
+fi
+
+
 ## do we have more arguments
 if [ $# != 0 ]; then
 	## drop the --
@@ -182,9 +210,9 @@ fnam=$outdir/$bnam
 ## start STAR
 echo "Aligning"
 if [ $SINGLE == 1 ]; then
-    STAR --genomeDir $genome --readFilesIn $fwd --runThreadN $PROC --alignIntronMax $INTRONMAX --outFileNamePrefix $fnam $OPTIONS $@
+    STAR --genomeDir $genome --readFilesIn $fwd --outFileNamePrefix $fnam $OPTIONS $@
 else
-    STAR --genomeDir $genome --readFilesIn $fwd $rev --runThreadN $PROC --alignIntronMax $INTRONMAX --outFileNamePrefix $fnam $OPTIONS $@
+    STAR --genomeDir $genome --readFilesIn $fwd $rev --outFileNamePrefix $fnam $OPTIONS $@
 fi
 
 ## save the log
@@ -195,45 +223,61 @@ mv ${fnam}Log.* ${fnam}_logs
 ## save the junctions
 mkdir -p ${fnam}_junctions
 mv ${fnam}SJ* ${fnam}_junctions
-mv ${fnam}Chimeric.out.junction ${fnam}_junctions
+[[ $CHIMERIC -eq 1 ]] && mv ${fnam}Chimeric.out.junction ${fnam}_junctions
 
 ## save the wig
-echo "Wiggling"
-mkdir -p ${fnam}_bedgraphs
-mv ${fnam}Signal.*.bg ${fnam}_bedgraphs
+if [ $BEDGRAPH -eq 1 ]; then
+  echo "Wiggling"
+  mkdir -p ${fnam}_bedgraphs
+  mv ${fnam}Signal.*.bg ${fnam}_bedgraphs
+fi
 
 ## rename the output
 echo "Renaming"
-mv ${fnam}Aligned.sortedByCoord.out.bam ${fnam}_STAR.bam
-if [ $SINGLE == 0 ]; then
+if [ $UNSORTED -eq 0 ]; then
+  mv ${fnam}Aligned.sortedByCoord.out.bam ${fnam}_STAR.bam
+  if [ $SINGLE == 0 ]; then
     mv ${fnam}Unmapped.out.mate1 ${fnam}_Unmapped_1.fq
     mv ${fnam}Unmapped.out.mate2 ${fnam}_Unmapped_2.fq
-else
+  else
     mv ${fnam}Unmapped.out.mate1 ${fnam}_Unmapped.fq
+  fi
+  ## compress files (we would only need 2 CPUS, but what if PROC is set to 1)
+  find $outdir -name "${bnam}_Unmapped*.fq" -print0 | xargs -P $PROC -0 -I {} gzip -f {}
+else
+  mv ${fnam}Aligned.out.bam ${fnam}_STAR.bam
 fi
-
-## compress files (we would only need 2 CPUS, but what if PROC is set to 1)
-find $outdir -name "${bnam}_Unmapped*.fq" -print0 | xargs -P $PROC -0 -I {} gzip -f {}
 
 ## sort the transcriptome bam and rename
 if [ $QUANT == 1 ]; then
   mv ${fnam}Aligned.toTranscriptome.out.bam ${fnam}_STAR_Transcriptome.bam
-  samtools sort -@ 16 -n ${fnam}_STAR_Transcriptome.bam -o ${fnam}_STAR_Transcriptome.sorted.bam
+  samtools sort -@ $PROC -n ${fnam}_STAR_Transcriptome.bam -o ${fnam}_STAR_Transcriptome.sorted.bam
   rm ${fnam}_STAR_Transcriptome.bam
   mv ${fnam}_STAR_Transcriptome.sorted.bam ${fnam}_STAR_Transcriptome.bam
 fi
 
 ## convert the chimeric sam to cram
-samtools view -CT $gfasta ${fnam}Chimeric.out.sam | samtools sort -@ 16 - -o ${fnam}_STAR_Chimeric.cram
+if [ $CRAM -eq 1 ]; then
+  [[ $CHIMERIC -eq 1 ]] && samtools view -CT $gfasta ${fnam}Chimeric.out.sam | samtools sort -@ $PROC - -o ${fnam}_STAR_Chimeric.cram
 
-## convert the output BAM in CRAM
-samtools view -CT $gfasta -o ${fnam}_STAR.cram ${fnam}_STAR.bam
+  ## convert the output BAM in CRAM
+  samtools view -CT $gfasta -o ${fnam}_STAR.cram ${fnam}_STAR.bam
 
-## index the CRAMs
-echo "Indexing"
-printf "%s\0%s" ${fnam}_STAR.cram ${fnam}_STAR_Chimeric.cram | xargs -P $PROC -0 -I {} samtools index {}
+  ## index the CRAMs
+  echo "Indexing"
+  printf "%s\0%s" ${fnam}_STAR.cram ${fnam}_STAR_Chimeric.cram | xargs -P $PROC -0 -I {} samtools index {}
 
-## cleanup
-echo "Cleaning"
-rm  ${fnam}Chimeric.out.sam ${fnam}_STAR.bam
+  ## cleanup
+  echo "Cleaning"
+  rm ${fnam}_STAR.bam
+else
+  [[ $CHIMERIC -eq 1 ]] && samtools view -b ${fnam}Chimeric.out.sam | samtools sort -@ $PROC - -o ${fnam}_STAR_Chimeric.bam
+  
+  echo "Indexing"
+  printf "%s\0%s" ${fnam}_STAR.bam ${fnam}_STAR_Chimeric.bam | xargs -P $PROC -0 -I {} samtools index {}
+
+  ## cleanup
+  echo "Cleaning"
+fi
+[[ $CHIMERIC -eq 1 ]] && rm ${fnam}Chimeric.out.sam a
 rm -rf ${fnam}_STARtmp/

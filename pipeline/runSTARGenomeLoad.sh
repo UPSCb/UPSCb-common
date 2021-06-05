@@ -15,9 +15,6 @@ echo >&2 \
 	exit 1
 }
 
-## load module
-module load bioinfo-tools star
-
 ## check that the genome exists
 if [ $# != 1 ]; then
     echo "This function takes one argument the STAR genome"
