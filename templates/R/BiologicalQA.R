@@ -73,7 +73,7 @@ names(filelist) <- samples$SampleID
 #' Read the expression at the gene level
 #' ```{r CHANGEME4,eval=FALSE,echo=FALSE}
 #' If the species has only one transcript per gene, replace with the following
-#' counts <- suppressMessages(round(tximport(files = filelist, type = "salmon",txOut=TRUE)$counts))
+#' txi <- suppressMessages(tximport(files = filelist, type = "salmon",txOut=TRUE))
 #' ```
 txi <- suppressMessages(tximport(files = filelist,
                                  type = "salmon",
