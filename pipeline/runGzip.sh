@@ -16,5 +16,5 @@ if [ ! -f $1 ]; then
     exit 1
 fi
 
-gzip $1
+gzip -f $1
 
