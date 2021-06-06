@@ -115,7 +115,7 @@ ggplot(data.frame(value=log10(rowMeans(counts))),aes(x=value)) +
 #' ```{r CHANGEME6,eval=FALSE,echo=FALSE}
 #' # In the following, the second mutate also needs changing, I kept it 
 #' # as an example to illustrate the first line. SampleID would be 
-#' # a column in the samples object (the metadata) that uniquely indentify
+#' # a column in the samples object (the metadata) that uniquely identify
 #' # the samples.
 #' # If you have only a single metadata, then remove the second mutate call
 #' # If you have more, add them as needed.
