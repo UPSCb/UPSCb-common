@@ -29,7 +29,7 @@ CRAM=1
 
 ## additional options for STAR
 OPTIONS="--readFilesCommand zcat --outSAMmapqUnique 254 --outFilterMultimapNmax 100"
-OPTIONS="$OPTIONS --twopassMode Basic"
+#OPTIONS="$OPTIONS --twopassMode Basic"
 
 ## usage
 usage(){
@@ -258,26 +258,31 @@ fi
 
 ## convert the chimeric sam to cram
 if [ $CRAM -eq 1 ]; then
-  [[ $CHIMERIC -eq 1 ]] && samtools view -CT $gfasta ${fnam}Chimeric.out.sam | samtools sort -@ $PROC - -o ${fnam}_STAR_Chimeric.cram
-
+  if [ $CHIMERIC -eq 1 ]; then
+    samtools view -CT $gfasta ${fnam}Chimeric.out.sam | samtools sort -@ $PROC - -o ${fnam}_STAR_Chimeric.cram
+    samtools index ${fnam}_STAR_Chimeric.cram 
+  fi
+  
   ## convert the output BAM in CRAM
   samtools view -CT $gfasta -o ${fnam}_STAR.cram ${fnam}_STAR.bam
 
   ## index the CRAMs
   echo "Indexing"
-  printf "%s\0%s" ${fnam}_STAR.cram ${fnam}_STAR_Chimeric.cram | xargs -P $PROC -0 -I {} samtools index {}
+  samtools index ${fnam}_STAR.cram
 
   ## cleanup
   echo "Cleaning"
   rm ${fnam}_STAR.bam
 else
-  [[ $CHIMERIC -eq 1 ]] && samtools view -b ${fnam}Chimeric.out.sam | samtools sort -@ $PROC - -o ${fnam}_STAR_Chimeric.bam
-  
+  if [ $CHIMERIC -eq 1 ]; then 
+    samtools view -b ${fnam}Chimeric.out.sam | samtools sort -@ $PROC - -o ${fnam}_STAR_Chimeric.bam
+    samtools index ${fnam}_STAR_Chimeric.bam
+  fi
   echo "Indexing"
-  printf "%s\0%s" ${fnam}_STAR.bam ${fnam}_STAR_Chimeric.bam | xargs -P $PROC -0 -I {} samtools index {}
+  #samtools index ${fnam}_STAR.bam
 
   ## cleanup
   echo "Cleaning"
 fi
-[[ $CHIMERIC -eq 1 ]] && rm ${fnam}Chimeric.out.sam a
+[[ $CHIMERIC -eq 1 ]] && rm ${fnam}Chimeric.out.sam
 rm -rf ${fnam}_STARtmp/
