@@ -1,21 +1,15 @@
 #!/bin/bash -l
 #SBATCH -p core
 #SBATCH -n 20
-## no mail at the time
-#SBATCH --mail-type=ALL
+#SBATCH --mail-type=FAIL
+#SBATCH -t 12:00:00
+
 
 ## stop on error, unset and be verbose
 set -eux
 
 ## load the modules
 module load bioinfo-tools diamond
-
-# check for the env var
-UPSCb=${UPSCb:-}
-if [ -z $UPSCb ]; then
-    echo "You need to set your UPSCb environment variable to your UPSCb checkout directory"
-    exit 1
-fi
 
 ## source helpers
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
