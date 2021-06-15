@@ -99,12 +99,13 @@ if [ $# -lt $ARGS ]; then
     usage
 fi
 
-if [ ! -f $1.1.bt2 ]; then
-        echo "The genome index: $1.1.bt2 does not exists"
-        usage
+bowtieIndex=$(find $1.1.bt2*)
+if [ ! -f $bowtieIndex ]; then
+      	echo "The genome index: $1.1.bt2* does not exists"
+	usage
 else
-        genome=$1
-        shift
+	bowtieIndex=$1
+	shift
 fi
 
 if [ ! -f $1 ]; then
@@ -153,7 +154,7 @@ outName=$output/`basename ${in1//$FIND/.bam}`
 
 ## start star
 if [ $SINGLE == 1 ]; then
-    gunzip -c $in1 | $BOWTIE $@ $OPT -p $PROC -x $genome -U - | samtools view -bS - | samtools sort -o $outName -
+    gunzip -c $in1 | $BOWTIE $@ $OPT -p $PROC -x $bowtieIndex -U - | samtools view -bS - | samtools sort -o $outName -
 else
     if [ ! -f $tmpDir/$in1 ]; then
 	    gunzip -c $in1 > $tmpDir/${in1//.gz/}
@@ -162,7 +163,7 @@ else
 	    gunzip -c $in2 > $tmpDir/${in2//.gz/}
     fi
 
-    $BOWTIE $@ $OPT -p $PROC $genome -1 ${in1//.gz/} -2 ${in2//.gz/} | samtools view -bS - | samtools sort - $outName
+    $BOWTIE $@ $OPT -p $PROC $bowtieIndex -1 ${in1//.gz/} -2 ${in2//.gz/} | samtools view -bS - | samtools sort - $outName
 
     rm $tmpDir/${in1//.gz/} $tmpDir/${in2//.gz/}
  
