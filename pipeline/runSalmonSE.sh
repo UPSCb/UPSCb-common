@@ -2,7 +2,7 @@
 #SBATCH -p core -n 2
 #SBATCH -t 1-00:00:00
 #SBATCH --mail-type=ALL
-#SBATCH --mem=100GB
+#SBATCH --mem=300GB
 #SBATCH -w picea
 
 # be verbose and fail on errr
