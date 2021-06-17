@@ -12,6 +12,8 @@ set -e -x
 ## load the modules
 #module load bioinfo-tools star samtools
 
+ulimit -n 8192
+
 ## vars
 INTRONMAX=70000
 # Spruce_intronmax=1000000
