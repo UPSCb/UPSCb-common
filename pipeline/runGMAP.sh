@@ -3,7 +3,7 @@
 ## for large files
 ## we don't need the proc but the mem
 ## we could give that as param
-#SBATCH -n 16
+#SBATCH -n 20
 ## time too for large files
 #SBATCH -t 12:00:00
 #SBATCH --mail-type=ALL
@@ -16,15 +16,16 @@ set -e
 set -x
 
 ## load the modules
-module load bioinfo-tools
-module load gmap-gsnap
+#module load bioinfo-tools
+#module load gmap-gsnap
 
 ## check the options if any
-PROC=16
+PROC=20
 INTRONLENGTH=11000
 FMT="gff3_gene"
 PATHS=5
 OPTIONS="-x 100 --min-identity 0.7"
+CMD="gmap"
 ## usage
 usage(){
 echo >&2 \
@@ -36,6 +37,7 @@ echo >&2 \
                 -f the output format (default to gff3_gene (or $FMT))
                 -i max intron length (-K and -w gmap parameters) (default $INTRONLENGTH)
                 -I set min identity (default 0.7)
+		-l use gmapl instead of gmap
                 -n the number of paths to show (default $PATHS)
                 -p number of threads to use (default $PROC)
 
@@ -46,11 +48,12 @@ echo >&2 \
 }
 
 ## get the options
-while getopts m:f:i:n:p:cI: option
+while getopts m:f:i:ln:p:cI: option
 do
         case "$option" in
 	    f) FMT=$OPTARG;;
 	    i) INTRONLENGTH=$OPTARG;;
+	l) CMD="gmapl";;
         n) PATHS=$OPTARG;;
 	    p) PROC=$OPTARG;;
 	    c) OPTIONS="$OPTIONS --cross-species";;
@@ -109,11 +112,11 @@ cd $4
 case "${1: -3}" in
     ".gz")
 	fnam=$3-`basename ${1//.fa*.gz/$sfx}`  
-	zcat $1 | gmap -D $2 -d $3 --intronlength $INTRONLENGTH -B 5 -w $INTRONLENGTH -t $PROC -O -f $FMT -Y -n $PATHS $OPTIONS --split-output ${fnam}
+	zcat $1 | $CMD -D $2 -d $3 --intronlength $INTRONLENGTH -B 5 -w $INTRONLENGTH -t $PROC -O -f $FMT -Y -n $PATHS $OPTIONS --split-output ${fnam}
 	;;
     *)
 	fnam=$3-`basename ${1//.fa*/$sfx}`
-	gmap -D $2 -d $3 --intronlength $INTRONLENGTH -B 5 -w $INTRONLENGTH -t $PROC -O -f $FMT -Y -n $PATHS $OPTIONS --split-output ${fnam} $1
+	$CMD -D $2 -d $3 --intronlength $INTRONLENGTH -B 5 -w $INTRONLENGTH -t $PROC -O -f $FMT -Y -n $PATHS $OPTIONS --split-output ${fnam} $1
 	;;
 esac
 
