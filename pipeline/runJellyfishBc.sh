@@ -49,5 +49,7 @@ shift `expr $OPTIND - 1`
 isExec jellyfish
 isExec samtools
 
-jellyfish bc -m $KMERSIZE -s $HASHSIZE $CANON -o $2/$(basename ${1/.bam/.bc}) <(samtools view $1 | awk '{print ">"$1"\n"$10}')
+cd $2
+
+jellyfish bc -m $KMERSIZE -s $HASHSIZE $CANON -o $(basename ${1/.bam/.bc}) -t $CPUS <(samtools view $1 | awk '{print ">"$1"\n"$10}')
 
