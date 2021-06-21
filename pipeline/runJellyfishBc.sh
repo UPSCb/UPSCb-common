@@ -49,5 +49,5 @@ shift `expr $OPTIND - 1`
 isExec jellyfish
 isExec samtools
 
-jellyfish -m $KMERSIZE -s $HASHSIZE $CANON -o $2/$(basename ${1/.bam/.bc}) <(samtools view $1 | awk '{print ">"$1"\n"$10}')
+jellyfish bc -m $KMERSIZE -s $HASHSIZE $CANON -o $2/$(basename ${1/.bam/.bc}) <(samtools view $1 | awk '{print ">"$1"\n"$10}')
 
