@@ -15,22 +15,25 @@ OPTIONS=
 KMERSIZE=25
 HASHSIZE=100G
 CPUS=12
+BC=
 
 ## usage
 USAGETXT=\
 "
 	Usage: runJellyfishBc.sh <in.bam> <out.dir>
-	
+
 	Options:
+	  -b the path to a bc file
 	  -C turn off canonical mode (on by default)
 	  -m kmer size (default $KMERSIZE)
 	  -s hash size (defaut $HASHSIZE)
 	  -t threads (default $CPUS)
 "
 
-while getopts Cm:s:t: option
+while getopts b:Cm:s:t: option
 do
         case "$option" in
+        b) BC=$OPTARG;;
         C) CANON="";;
 	      m) KMERSIZE=$OPTARG;;
         s) HASHSIZE=$OPTARG;;
@@ -46,8 +49,12 @@ shift `expr $OPTIND - 1`
 
 [[ ! -d $2 ]] && abort "The second argument needs to be an existing directory"
 
+[[ ! -z $BC ]] && [[ ! -f $BC ]] && abort "The -b argument should be an existing file"
+
+[[ ! -z $BC ]] && BC="--bc $BC"
+
 isExec jellyfish
 isExec samtools
 
-jellyfish bc -m $KMERSIZE -s $HASHSIZE $CANON -o $2/$(basename ${1/.bam/.bc}) -t $CPUS <(samtools view $1 | awk '{print ">"$1"\n"$10}')
+jellyfish bc -m $KMERSIZE -s $HASHSIZE $CANON -o $2/$(basename ${1/.bam/.bc}) -t $CPUS $BC <(samtools view $1 | awk '{print ">"$1"\n"$10}')
 
