@@ -177,18 +177,26 @@ mar <- par("mar")
         res$baseMean >= expression_cutoff
     
     if(verbose){
-        message(sprintf("There are %s genes that are DE with the following parameters: FDR <= %s, |log2FC| >= %s, base mean expression > %s",
-                        sum(sel),padj,
-                        lfc,expression_cutoff))
+      message(sprintf(paste(
+        ifelse(sum(sel)==1,
+               "There is %s gene that is DE",
+               "There are %s genes that are DE"),
+        "with the following parameters: FDR <= %s, |log2FC| >= %s, base mean expression > %s"),
+        sum(sel),padj,
+        lfc,expression_cutoff))
     }
     
     # proceed only if there are DE genes
     if(sum(sel) > 0){
-        val <- rowSums(vst[sel,sample_sel])==0
+        val <- rowSums(vst[sel,sample_sel,drop=FALSE])==0
         if (sum(val) >0){
-            warning(sprintf("There are %s DE genes that have no vst expression in the selected samples",sum(val)))
-            sel[sel][val] <- FALSE
-        }    
+          warning(sprintf(paste(
+            ifelse(sum(val)==1,
+                   "There is %s DE gene that has",
+                   "There are %s DE genes that have"),
+            "no vst expression in the selected samples"),sum(val)))
+          sel[sel][val] <- FALSE
+        } 
         
         if(export){
             if(!dir.exists(default_dir)){
@@ -197,7 +205,7 @@ mar <- par("mar")
             write.csv(res,file=file.path(default_dir,paste0(default_prefix,"results.csv")))
             write.csv(res[sel,],file.path(default_dir,paste0(default_prefix,"genes.csv")))
         }
-        if(plot){
+        if(plot & sum(sel)>1){
             heatmap.2(t(scale(t(vst[sel,sample_sel]))),
                       distfun = pearson.dist,
                       hclustfun = function(X){hclust(X,method="ward.D2")},
