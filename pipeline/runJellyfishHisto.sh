@@ -10,16 +10,13 @@ source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 # vars
 OPTARG=
 OPTIND=
-CANON="-C"
-OPTIONS=
-KMERSIZE=25
-HASHSIZE=100G
+OPTIONS="-f"
 CPUS=12
 
 ## usage
 USAGETXT=\
 "
-	Usage: runJellyfishBc.sh [options] <in.bam> <out.dir>
+	Usage: runJellyfishHisto.sh [options] <in.jf> <out.dir>
 	
 	Options:
 	  -C turn off canonical mode (on by default)
