@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # safeguards
-set -ex
+set -eux
 
 # project vars
-account=SNIC2020-5-218
+account=SNIC2021-5-200
 mail=nicolas.delhomme@slu.se
 
 # source
@@ -15,7 +15,7 @@ EXEC=/pfs/proj/nobackup/fs/projnb10/snic2019-35-44/software/seidr/build
 source $EXEC/sourcefile
 
 # Variables
-inference=(aracne clr elnet genie3 llr-ensemble mi narromi pcor pearson plsnet spearman tigress)
+inference=(aracne clr elnet genie3 llr-ensemble mi narromi pcor pearson plsnet spearman tigress tomsimilarity)
 
 # additional parameters (elnet is done iteratively, so the format is not the expected one: a matrix, rather an edge list
 arguments=([2]="-f el" [4]="-o results/llr-ensemble/llr-ensemble.sf")
@@ -42,7 +42,7 @@ if [ ! -f $1 ]; then
 fi
 
 # Create template script and submit
-jobID=
+jobID=""
 len=${#inference[@]}
 for ((i=0;i<len;i++)); do
   inf=${inference[$i]}
@@ -63,24 +63,23 @@ for ((i=0;i<len;i++)); do
       ./generate_import_script.py \
       -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
 
-      sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID\
+      sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf \
 	-e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
     else
       if [ "$jobID" != "" ]; then
-        # most likely the tsv file for elnet won't exist, so give it a chance (as there is a dep)
-	# we touch the file so the generate import script does not fail
+        # the tsv file for elnet may not exist, as the dependency above will not have completed
+	# hence, we touch the file so the generate import script does not fail
 	touch results/$inf/$inf.tsv
         ./generate_import_script.py \
         -i results/$inf/$inf.tsv -g $1 -c $CPUs ${arguments[$i]} > results/$inf/${inf}-import.sh
         sbatch -t $Time --mail-type=ALL --mail-user=$mail -A $account -J import-$inf $jobID\
 	      -e results/$inf/${inf}-import.err -o results/$inf/${inf}-import.out results/$inf/${inf}-import.sh
+	# reset the jobID (it only needs to happen once, for elnet)
+	jobID=""
       else
         echo "There is no tsv file for $inf"
       fi
     fi
-
     # ${arguments[$i]}
   fi
 done
-
-
