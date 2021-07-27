@@ -18,7 +18,23 @@ source $EXEC/sourcefile
 inference=(aracne clr elnet genie3 llr-ensemble mi narromi pcor pearson plsnet spearman tigress tomsimilarity)
 
 # additional parameters (elnet is done iteratively, so the format is not the expected one: a matrix, rather an edge list
-arguments=([2]="-f el" [4]="-o results/llr-ensemble/llr-ensemble.sf")
+declare -A arguments
+default=""
+arguments=(
+[1]=$default
+[2]="-f el"
+[3]=$default
+[4]="-o results/llr-ensemble/llr-ensemble.sf"
+[5]=$default
+[6]=$default
+[7]=$default
+[8]=$default
+[9]=$default
+[10]=$default
+[11]=$default
+[12]=$default
+[13]=$default)
+
 CPUs=28
 Time=1-00:00:00
 ShortTime=1:00:00
