@@ -14,10 +14,10 @@ set -e -x
 #module load bioinfo-tools
 #module load trinity
 
-if [ -z $UPSCb ]; then
-  echo "Set your UPSCb environment variable"
-  exit 1
-fi
+# if [ -z $UPSCb ]; then
+#   echo "Set your UPSCb environment variable"
+#   exit 1
+# fi
 
 # source functions
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh

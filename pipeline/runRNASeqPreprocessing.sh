@@ -641,7 +641,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
         -o $outdir/${dirList[$step]}/${sname}_sortmerna.out \
         $dep \
         -J ${sname}.RNAseq.SortMeRNA \
-        runSortmerna.sh $outdir/${dirList[$step]} $tmp $fastq1 $fastq2`)
+        runSortmerna.sh sortmerna_inx $outdir/${dirList[$step]} $tmp $fastq1 $fastq2`)
 
     if [ "$CMD" == "bash" ]; then
 	JOBCMDS+=("export SORTMERNADIR=$SORTMERNADIR;$sortmerna_id")
@@ -744,7 +744,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
     echo "# Preparing step $(($step+1))"
 
     dep=
-    if [ $pstart -le 5 ] && [ "$CMD" != "bash" ]; then
+    if [ $pstart -le $(($step-1)) ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-3]}"
     elif ([ ! -f $fastq_trimmed_1 ] || [ ! -f $fastq_trimmed_2 ]) && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"

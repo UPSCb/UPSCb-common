@@ -1,16 +1,15 @@
 #!/bin/bash -l
 #SBATCH -p core
 #SBATCH -t 12:00:00
-#SBATCH -n 16
-#SBATCH --mem=100G
+#SBATCH -n 20
 #SBATCH --mail-type=ALL
 
 ## stop on error and be verbose
 set -ex
 
 ## load the modules
-module load bioinfo-tools
-module load star
+#module load bioinfo-tools
+#module load star
 
 ## usage
 usage(){
@@ -22,8 +21,9 @@ echo >&2 \
             -b      the chromosome bin nbits (18)
             -f      the format: gff3 or gtf (gff3)
             -l      the mate length (100)
-            -m      maximum memory to allocate (100GB, in bytes 100000000000)
-            -p      number of threads to use (16)
+            -n      no gff
+            -m      maximum memory to allocate (120GB, in bytes 120000000000)
+            -p      number of threads to use (20)
             -s      the sparsity of the index (1)
             -t      the tag to use in the gff3 file to link exon <-> transcript (Parent)
 
@@ -36,15 +36,18 @@ echo >&2 \
 BITS=18
 FORMAT="gff3"
 MATE=100
-MEM=100000000000
-THREAD=16
+MEM=120000000000
+THREAD=20
 SPARSE=1
 TAG="Parent"
-while getopts "b:f:l:m:p:s:t:" opt; do
+NOGFF=0
+
+while getopts "b:f:l:m:np:s:t:" opt; do
     case $opt in
 	b) BITS=$OPTARG;;
 	f) FORMAT=$OPTARG;;
 	l) MATE=$OPTARG;;
+	n) NOGFF=1;;
 	m) MEM=$OPTARG;;
         p) THREAD=$OPTARG;;
 	s) SPARSE=$OPTARG;;
@@ -60,8 +63,13 @@ if [ $FORMAT == "gtf" ] && [ $TAG == "Parent" ]; then
 fi
 
 ## we get one out dir, one fasta and one gff3 file as input
-if [ $# != 3 ]; then
+if [ $# != 3 ] && [ $NOGFF -eq 0 ] ; then
     echo "This function takes one directory, one fasta and one gff3 file as arguments"
+    usage
+fi
+
+if [ $# != 2 ] && [ $NOGFF -eq 1 ] ; then
+    echo "This function takes one directory, one fasta file as arguments when -n is set"
     usage
 fi
 
@@ -75,16 +83,22 @@ if [ ! -f $2 ]; then
     usage
 fi
 
-if [ ! -f $3 ]; then
+if [ ! -f $3 ] && [ $NOGFF -eq 0 ] ; then
     echo "The third argument needs to be a gff3 file"
     usage
 fi
 
-## run GMAP
-echo Indexing
-
 ## run
-STAR --runMode genomeGenerate --genomeDir $1 --genomeFastaFiles $2 --sjdbGTFfile $3 --limitGenomeGenerateRAM $MEM --runThreadN $THREAD --genomeChrBinNbits $BITS --genomeSAsparseD $SPARSE --sjdbGTFtagExonParentTranscript $TAG --sjdbOverhang $MATE
+echo Indexing
+if [ "$NOGFF" -eq "0" ]; then
+  OPTIONS="--sjdbGTFfile $3 --sjdbGTFtagExonParentTranscript $TAG --sjdbOverhang $MATE"
+else
+  OPTIONS=
+fi
+
+STAR --runMode genomeGenerate --genomeDir $1 --genomeFastaFiles $2 \
+--limitGenomeGenerateRAM $MEM --runThreadN $THREAD --genomeChrBinNbits $BITS \
+--genomeSAsparseD $SPARSE $OPTIONS
 
 ## fix permission
 chmod -R g+w $1

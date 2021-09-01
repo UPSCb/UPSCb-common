@@ -77,7 +77,7 @@ setMethod(f="readBlast",
             }
             blf <- read.delim(file=file,
                               stringsAsFactors=FALSE,
-                              col.names=format)
+                              col.names=format,header=FALSE)
             
             ## if format is blt, check for extended format
             if(fmt=="blt"){
@@ -94,6 +94,9 @@ setMethod(f="readBlast",
                 seq1 <- readDNAStringSet(query.fasta)
                 names(seq1) <- sub(" .*","",names(seq1))
                 blf$query.length <- width(seq1)[match(blf$query.id,names(seq1))]
+              } else {
+                warning("Without a query reference, the longuest coordinates will be identified from the HSPs")
+                blf$query.length=max(blf$query.end) - min(blf$query.end) + 1
               }
               
               ## read the subject
@@ -101,7 +104,10 @@ setMethod(f="readBlast",
                 stopifnot(file.exists(subject.fasta))
                 seq2 <- readDNAStringSet(subject.fasta)
                 names(seq2) <- sub(" .*","",names(seq2))
-                blf$subject.length <- width(seq1)[match(blf$subject.id,names(seq1))]
+                blf$subject.length <- width(seq2)[match(blf$subject.id,names(seq2))]
+              } else {
+                warning("Without a subject reference, the longuest coordinates will be identified from the HSPs")
+                blf$subject.length=max(blf$subject.end) - min(blf$subject.end) + 1
               }
             }
             

@@ -10,88 +10,86 @@
 #SBATCH --mail-type=ALL
 
 ## stop on error, be verbose and expand the commands
-set -e -x
+set -eux
 
 ## load necessary modules
-module load bioinfo-tools
+#module load bioinfo-tools
 #module load bowtie
 #module load samtools
-module load trinity
+#module load trinity
 
 ## check the options if any
-PROC=16
+PROC=20
 INTRON=11000
-KMER=1
 MEM="128G"
 STSPEC=
+LONGREADS=
+NORM=
+
+# source functions
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 ## usage
-usage(){
-echo >&2 \
+USAGETXT=\
 "
-	Usage: runTrinityGenomeGuided.sh [options] <out dir> <left fq(s)> <right fq(s)> <BAM file>
+	Usage: runTrinityGenomeGuided.sh [options] <out dir> <BAM file>
 	
 	Options:
-                -k min kmer cov (default 1. Change to 2 w/o digital normalization) 
+	              -i max intron size
+                -l long reads (pac bio or other) as a fasta file
                 -m mem requirement (in GB, default 128)
+                -n no digital read normalisation
 		            -p number of threads to use (default 16)
                 -s strand specific (Illumina dUTP protocol)
-		-i max intron size
-
-        Note:
-             You need to set the TRINITY_HOME env. variable to your trinity directory.
 "
-	exit 1
-}
 
 ## get the options
-while getopts k:m:p:si: option
+while getopts l:m:np:si: option
 do
     case "$option" in
-      k) KMER=$OPTARG;;
+      i) INTRON=$OPTARG;; 
+      l) LONGREADS="$OPTARG";;
+      n) NORM="--no_normalize_reads";;
       m) MEM=$OPTARG;;
       p) PROC=$OPTARG;;
       s) STSPEC="--SS_lib_type RF";;
-      i) INTRON=$OPTARG;; 
 	 	\?) ## unknown flag
 		usage;;
   esac
 done
 shift `expr $OPTIND - 1`
 
-## we get two dir and two files as input
-if [ $# != 4 ]; then
-    echo "This function needs 4 arguments"
-    usage
+# sanity
+## we get one dir and one file
+if [ $# != 2 ]; then
+    abort "This function needs 2 arguments"
 fi
 
 if [ ! -d $1 ]; then
-    echo "The first argument (output dir) needs to be an existing directory"
-    usage
+    abort "The first argument (output dir) needs to be an existing directory"
 fi
 
-## proceed the other args
 if [ ! -f $2 ]; then
-    echo "The second argument (forward reads) needs to be an existing file"
+    echo "The second argument (alignment BAM) needs to be an existing file"
     usage
 fi
 
-if [ ! -f $3 ]; then
-    echo "The third argument (reverse reads) needs to be an existing file"
-    usage
+## check args
+if [ ! -z $LONGREADS ]; then
+	if [ ! -f $LONGREADS ]; then
+		abort "-l should point to an existing fasta file"
+	else
+		LONGREADS="--long_reads $LONGREADS"
+	fi	
 fi
 
-if [ ! -f $4 ]; then
-    echo "The forth argument (alignment BAM) needs to be an existing file"
-    usage
-fi
 
 ## run trinity
 echo Assembling
 #$TRINITY_HOME/Trinity --genome_guided_bam $5 --genome_guided_max_intron $INTRON --CPU $GGCPU --seqType fq --max_memory ${JMEM}G  --left $2 --right $3 --CPU $PROC --output $1 --min_kmer_cov $KMER $STSPEC
-$TRINITY_HOME/Trinity --genome_guided_bam $4 --genome_guided_max_intron $INTRON \
---seqType fq --max_memory $MEM --left $2 --right $3 --CPU $PROC --output $1 \
---min_kmer_cov $KMER $STSPEC
+singularity exec --bind /mnt:/mnt -e /mnt/picea/projects/singularity/trinityrnaseq.v2.13.1.simg \
+Trinity --genome_guided_bam $2 --genome_guided_max_intron $INTRON \
+--max_memory $MEM --CPU $PROC --output $1 $LONGREADS $NORM $STSPEC
 
 ##
 echo Done

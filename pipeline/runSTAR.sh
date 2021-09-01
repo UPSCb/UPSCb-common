@@ -22,9 +22,10 @@ PROC=16
 FORMAT="gtf"
 LIMIT=10000000000
 QUANT=0
+WIGGLE=0
 
 ## additional options for STAR
-OPTIONS="--outSAMstrandField intronMotif --readFilesCommand zcat --outSAMmapqUnique 254 --outFilterMultimapNmax 100 --outReadsUnmapped Fastx --chimSegmentMin 1 --outSAMtype BAM SortedByCoordinate  --outWigType bedGraph"
+OPTIONS="--outSAMstrandField intronMotif --readFilesCommand zcat --outSAMmapqUnique 254 --outFilterMultimapNmax 100 --outReadsUnmapped Fastx --chimSegmentMin 1 --outSAMtype BAM SortedByCoordinate "
 
 ## usage
 usage(){
@@ -34,15 +35,16 @@ echo >&2 \
     Single end: $0 [option] -s <out dir> <genome dir> <genome fasta> <fastq file> [--] [additional STAR arguments]
 
 	Options:
-    -f the gtf/gff3 file format (default gtf)
-    -g the path to a gtf/gff3 file
-    -t quantify the transcriptome
+		-f the gtf/gff3 file format (default gtf)
+		-g the path to a gtf/gff3 file
+		-t quantify the transcriptome
 		-l the BAM sorting memory limit ($LIMIT)
 		-m the max intron length ($INTRONMAX)
-    -p number of threads to be used (default: 16)
+		-p number of threads to be used (default: 16)
 		-q set for Illumina +64 Phred score
-		-s if there is no reverse 
+		-s if there is no reverse
 		-n no default option
+		-w create wiggle files
 
 	Notes:
 		The number of arguments is only 3 when -s is set.
@@ -54,20 +56,21 @@ echo >&2 \
 }
 
 ## get the options
-while getopts f:g:l:m:np:qst option
+while getopts f:g:l:m:np:qstw option
 do
         case "$option" in
 	    f) FORMAT=$OPTARG;;
 	    g) GFF=$OPTARG;;
 	    l) LIMIT=$OPTARG;;
-      m) INTRONMAX=$OPTARG;;
-      n) OPTIONS="";;
+	    m) INTRONMAX=$OPTARG;;
+	    n) OPTIONS="";;
 	    p) PROC=$OPTARG;;
 	    q) OPTIONS="$OPTIONS --outQSconversionAdd -31";;
 	    s) SINGLE=1;;
 	    t) OPTIONS="$OPTIONS --quantMode TranscriptomeSAM"
-	       QUANT=1
-	    ;;
+	       QUANT=1;;
+	    w) OPTION="$OPTIONS --outWigType bedGraph"
+		WIGGLE=1;;
 	    \?) ## unknown flag
 		usage;;
         esac
@@ -198,9 +201,11 @@ mv ${fnam}SJ* ${fnam}_junctions
 mv ${fnam}Chimeric.out.junction ${fnam}_junctions
 
 ## save the wig
-echo "Wiggling"
-mkdir -p ${fnam}_bedgraphs
-mv ${fnam}Signal.*.bg ${fnam}_bedgraphs
+if [ $WIGGLE -eq 1 ]; then
+	echo "Wiggling"
+	mkdir -p ${fnam}_bedgraphs
+	mv ${fnam}Signal.*.bg ${fnam}_bedgraphs
+fi
 
 ## rename the output
 echo "Renaming"

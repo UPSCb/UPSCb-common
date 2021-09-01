@@ -81,7 +81,7 @@ if [ -z $clip ]; then
     if [ $single_end -eq 0 ]; then
 	clip=ILLUMINACLIP:$TRIMMOMATIC_HOME/adapters/TruSeq3-PE-2.fa:2:30:10:2:keepBothReads
     else
-	clip=ILLUMINACLIP:$TRIMMOMATIC_HOME/adapters/TruSeq3-SE.fa:2:30:10:2:keepBothReads
+	clip=ILLUMINACLIP:$TRIMMOMATIC_HOME/adapters/TruSeq3-SE.fa:2:30:10:2
     fi
 fi
 

@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH -p core
-#SBATCH -t 12:00:00
+#SBATCH -t 24:00:00
 #SBATCH --mail-type=ALL
 ## SBATCH --mem=24G
 
@@ -8,7 +8,7 @@
 set -ex
 
 # ## load the modules
-module load bioinfo-tools gmap-gsnap
+#module load bioinfo-tools gmap-gsnap
 
 ## usage
 usage(){
