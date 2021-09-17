@@ -5,7 +5,7 @@ set -eux
 # Preprocessing script for RNA-Seq data.
 # THIS SCRIPT IS NOT TO BE RUN THROUGH SBATCH, USE BASH!
 ### ========================================================
-VERSION="0.3.2"
+VERSION="0.3.3"
 
 ### ========================================================
 ## pretty print
