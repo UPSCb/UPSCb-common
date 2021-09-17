@@ -55,6 +55,7 @@ ${bold}OPTIONS:${normal}
     -t        library is s${underline}t${nounderline}randed (currently only relevant for HTSeq, for the illumina protocol, second strand cDNA using dUTP)
     -a        library is s${underline}t${nounderline}randed (currently only relevant for HTSeq, for the non illumina protocol e.g. first strand cDNA using dUTP)
     -S        Salmon index
+    -c        clipping arguments passed to trimmomatic. Overrides defaults in runTrimmomatic.sh. Default to ILLUMINACLIP:\$TRIMMOMATIC_HOME/adapters/TruSeq3-PE-2.fa:2:30:10:2:keepBothReads
     -T        trimming arguments passed to trimmomatic. Overrides defaults in runTrimmomatic.sh
     -I        the max intron length for STAR
     -x        the sortmerna index directory
@@ -275,6 +276,7 @@ mem=
 memArg="--mem"
 bam_memory=10000000000
 phred_value=
+trimmomatic_clipping=ILLUMINACLIP:$TRIMMOMATIC_HOME/adapters/TruSeq3-PE-2.fa:2:30:10:2:keepBothReads
 trimmomatic_options=
 kallisto_index=
 kallisto_fasta=
@@ -287,9 +289,10 @@ kogia=${PIPELINE_DIR}/../kogia/scripts
 
 # Parse the options
 OPTIND=1
-while getopts "adDe:Ef:F:g:G:hH:i:I:kK:l:m:ps:S:tT:x:" opt; do
+while getopts "ac:dDe:Ef:F:g:G:hH:i:I:kK:l:m:ps:S:tT:x:" opt; do
     case "$opt" in
         a) non_ilm_stranded=1;;
+        c) trimmomatic_clipping=$OPTARG ;;
 	      d) dryrun=1;;
         D) debug=1;;
         e) pend=$OPTARG ;;
@@ -641,7 +644,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
         -o $outdir/${dirList[$step]}/${sname}_sortmerna.out \
         $dep \
         -J ${sname}.RNAseq.SortMeRNA \
-        runSortmerna.sh sortmerna_inx $outdir/${dirList[$step]} $tmp $fastq1 $fastq2`)
+        runSortmerna.sh $sortmerna_inx $outdir/${dirList[$step]} $tmp $fastq1 $fastq2`)
 
     if [ "$CMD" == "bash" ]; then
 	JOBCMDS+=("export SORTMERNADIR=$SORTMERNADIR;$sortmerna_id")
@@ -703,7 +706,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
         -o $outdir/${dirList[$step]}/${sname}_trimmomatic.log \
         -J ${sname}.RNAseq.Trimmomatic \
         $dep \
-        runTrimmomatic.sh $phred_value $fastq_sort_1 $fastq_sort_2 $outdir/${dirList[$step]} $trimmomatic_options))
+        runTrimmomatic.sh $phred_value -c $trimmomatic_clipping $fastq_sort_1 $fastq_sort_2 $outdir/${dirList[$step]} $trimmomatic_options))
     JOBIDS+=($(run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}))
 fi
 
