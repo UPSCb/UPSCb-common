@@ -29,7 +29,7 @@ Trimming options:
     Trimming defaults to 'SLIDINGWINDOW:5:20 MINLEN:50'
     If you change the default, you need to provide the COMPLETE trimming option again!!!
     e.g. to use a 30 quality threshold for the sliding window, provide: SLIDINGWINDOW:5:30 MINLEN:50.
-    Clipping defaults to 'ILLUMINACLIP:\"$TRIMMOMATIC_HOME/adapters/TruSeq3-PE-2.fa\":2:30:10:2:keepBothReads'
+    Clipping defaults to 'ILLUMINACLIP:\"$TRIMMOMATIC_HOME/adapters/TruSeq3-PE-2.fa\":2:30:10:2:TRUE'
 
 "
     exit 1
@@ -79,7 +79,7 @@ fi
 ## the clip default
 if [ -z $clip ]; then
     if [ $single_end -eq 0 ]; then
-	clip=ILLUMINACLIP:$TRIMMOMATIC_HOME/adapters/TruSeq3-PE-2.fa:2:30:10:2:keepBothReads
+	clip=ILLUMINACLIP:$TRIMMOMATIC_HOME/adapters/TruSeq3-PE-2.fa:2:30:10:2:TRUE
     else
 	clip=ILLUMINACLIP:$TRIMMOMATIC_HOME/adapters/TruSeq3-SE.fa:2:30:10:2
     fi
