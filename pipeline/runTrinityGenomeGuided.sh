@@ -33,7 +33,7 @@ source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 USAGETXT=\
 "
 	Usage: runTrinityGenomeGuided.sh [options] <out dir> <BAM file>
-	
+
 	Options:
 	              -i max intron size
                 -l long reads (pac bio or other) as a fasta file
@@ -80,14 +80,16 @@ if [ ! -z $LONGREADS ]; then
 		abort "-l should point to an existing fasta file"
 	else
 		LONGREADS="--long_reads $LONGREADS"
-	fi	
+	fi
 fi
 
 
 ## run trinity
 echo Assembling
 #$TRINITY_HOME/Trinity --genome_guided_bam $5 --genome_guided_max_intron $INTRON --CPU $GGCPU --seqType fq --max_memory ${JMEM}G  --left $2 --right $3 --CPU $PROC --output $1 --min_kmer_cov $KMER $STSPEC
-singularity exec --bind /mnt:/mnt -e /mnt/picea/projects/singularity/trinityrnaseq.v2.13.1.simg \
+
+#docker run --rm -v /mnt:/mnt trinityrnaseq/trinityrnaseq \
+singularity exec --bind /mnt:/mnt -e /mnt/picea/projects/singularity/trinity.simg \
 Trinity --genome_guided_bam $2 --genome_guided_max_intron $INTRON \
 --max_memory $MEM --CPU $PROC --output $1 $LONGREADS $NORM $STSPEC
 
