@@ -835,7 +835,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
     dep=
     if [ $pstart -lt $step ] && [ "$CMD" != "bash" ]; then
         dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-1]}"
-    elif [ ! -f $star/${sname}_sortmerna_trimmomatic_STAR.bam ] && [ "$CMD" != "bash" ]; then
+    elif [ ! -f $outdir/${dirList[$step]}/${sname}_sortmerna_trimmomatic_STAR.bam ] && [ "$CMD" != "bash" ]; then
         echo >&2 "ERROR: STAR alignment BAM file could not be found"
         cleanup
     fi
@@ -854,7 +854,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
         -e $outdir/${dirList[$step]}/${sname}_HTSeq.err \
         -o $outdir/${dirList[$step]}/${sname}_HTSeq.out \
         -J ${sname}.RNAseq.HTSeq \
-        $dep runHTSeq.sh -i $idattr $strand_arg $outdir/${dirList[$step]} $star/${sname}_sortmerna_trimmomatic_STAR.bam $htseq_gff`)
+        $dep runHTSeq.sh -i $idattr $strand_arg $outdir/${dirList[$step]} $outdir/${dirList[$step]}/${sname}_sortmerna_trimmomatic_STAR.bam $htseq_gff`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 
