@@ -104,19 +104,27 @@ if [ $SINGLE -eq 0 ]; then
 fi
 
 ## do we have file lists
-#firstLine=`head -1 $fwd`
-#LIST=""
-#if [ -f $firstLine ]; then
-#	LIST="_list"
-#	if [ $SINGLE -ne 0 ]; then
-#		echo "When using SE reads, there is no support for file lists."
-#		exit 1;
-#	fi
-#fi
+if [ $(file --mime-type "$fwd" | grep -c "gzip$") -eq 1 ]; then
+    echo "gzip formatted input"
+else
+	firstLine=$(head -1 $fwd)
+	LIST=""
+	if [ -f $firstLine ]; then
+	LIST="_list"
+	if [ $SINGLE -ne 0 ]; then
+		# we concatenate instead
+		for f in $(cat $fwd); do
+			l=${l:+$l,}$f
+		done
+		fwd=$l
+	fi
+	fi
+fi
 
 ## run trinity
 if [ $SINGLE -eq 0 ]; then
-    $TRINITY_HOME/util/insilico_read_normalization.pl --seqType fq --JM $MEM --left$LIST $fwd --right$LIST $rev --output $dir --CPU $PROC --max_cov $KMER --pairs_together $@
+	singularity exec --bind /mnt:/mnt /mnt/picea/projects/singularity/trinity-2.8.5.simg \
+	/usr/local/bin/trinityrnaseq/util/insilico_read_normalization.pl --seqType fq --JM $MEM --left$LIST $fwd --right$LIST $rev --output $dir --CPU $PROC --max_cov $KMER --pairs_together $@
 else
     $TRINITY_HOME/util/insilico_read_normalization.pl --seqType fq --JM $MEM --single $fwd --output $dir --CPU $PROC --max_cov $KMER $@
 fi
