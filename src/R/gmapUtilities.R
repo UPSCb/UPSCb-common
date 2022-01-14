@@ -98,7 +98,19 @@ setMethod(f = ".read_gmap_gff3_gene",
           ){
             return(.read(file) %>%
                      filter(Type=="gene") %>% 
-                     .select() %>% 
+                     .select_gene() %>% 
+                     .guess_type(...))
+          })
+
+setMethod(f = ".read_gmap_gff3_mrna", 
+          signature = c("character"),
+          definition = function(
+            file=character(0),
+            ...
+          ){
+            return(.read(file) %>%
+                     filter(Type=="mRNA") %>% 
+                     .select_mrna() %>% 
                      .guess_type(...))
           })
 
@@ -120,11 +132,26 @@ setMethod(f=".basic_stats",
                   show_col_types = FALSE))
 }
 
-".select" <- function(tbl){
+".select_gene" <- function(tbl){
   return(tbl %>% mutate(Chr=as.factor(Chr),
                         Strand=as.factor(Strand),
                         ID=gsub("ID=|\\.path\\d+;.*","",Attrs)) %>% 
            select(Chr,Start,End,Strand,ID))
+}
+
+".select_mrna" <- function(tbl){
+  return(tbl %>% mutate(Chr=as.factor(Chr),
+                       Strand=as.factor(Strand))
+         %>% separate(Attrs,into=c(NA,"ID",NA,"Name",NA,"Parent",
+                                   NA,"Dir",NA,"Coverage",NA,"Identity",
+                                   NA,"Matches",NA,"Mismatches",NA,"Indels",NA,NA),
+                      sep="=|;") %>%  
+           mutate(Coverage=parse_double(Coverage),
+                  Identity=parse_double(Identity),
+                  Matches=parse_integer(Matches),
+                  Mismatches=parse_integer(Mismatches),
+                  Indels=parse_integer(Indels)) %>% 
+           select(-Source,-Type,-Score,-Frame))
 }
 
 ".guess_type" <- function(tbl,guess_type){
