@@ -5,7 +5,7 @@ set -ex
 
 # project vars
 account=SNIC2020-5-218
-mail=nicolas.delhomme@umu.se
+mail=
 
 # source
 source functions.sh
@@ -13,7 +13,8 @@ source functions.sh
 # modules
 #module load bioinfo-tools seidr-devel
 #export PATH=/pfs/nobackup/home/b/bastian/seidr/build:$PATH
-EXEC=/pfs/nobackup/home/b/bastian/seidr/build
+EXEC=/pfs/proj/nobackup/fs/projnb10/snic2019-35-44/software/seidr/build
+#/pfs/nobackup/home/b/bastian/seidr-devel/build
 source $EXEC/sourcefile
 
 # Variables
@@ -21,7 +22,7 @@ resultDir=results
 
 correlationNCPUs=28
 
-inference=(aracne clr genie3 llr-ensemble narromi pcor pearson plsnet spearman tigress)
+inference=(aracne clr genie3 llr-ensemble narromi pcor pearson plsnet spearman tigress tomsimilarity)
 
 run=(
   [0]=1
@@ -33,7 +34,8 @@ run=(
   [6]=1
   [7]=1
   [8]=1
-  [9]=1)
+  [9]=1
+  [10]=1)
 
 # 28 workers on 1 nodes (kk has 28 per node) - setting -n 2 -c 14 (14 cores on 2 nodes, results in the same)
 default="-n 1 -c 28 -t 1-00:00:00"
@@ -42,13 +44,14 @@ arguments=(
   [0]=$default
   [1]=$default
   [2]="-n 2 -c 28 -t 2-00:00:00"
-  [3]=$default
+  [3]="-n 1 -c 28 -t 5-00:00:00"
   [4]=$default
   [5]="-n 1 -c $correlationNCPUs -t 12:00:00"
   [6]="-n 1 -c $correlationNCPUs -t 12:00:00"
   [7]=$default
   [8]="-n 1 -c $correlationNCPUs -t 12:00:00"
-  [9]="-n 3 -c 28 -t 3-00:00:00")
+  [9]="-n 4 -c 28 -t 7-00:00:00"
+  [10]="-n 1 -c $correlationNCPUs -t 12:00:00")
 
 parallel="-O "'$SLURM_CPUS_PER_TASK'
 command=(
@@ -56,12 +59,13 @@ command=(
   [1]="$EXEC/mi -m CLR -M $resultDir/mi/mi.tsv "$parallel
   [2]="$EXEC/genie3 "$parallel
   [3]="$EXEC/llr-ensemble "$parallel
-  [4]="$EXEC/narromi "$parallel
+  [4]="$EXEC/narromi -m interior-point "$parallel
   [5]="$EXEC/pcor"
   [6]="$EXEC/correlation -m pearson"
   [7]="$EXEC/plsnet "$parallel
   [8]="$EXEC/correlation -m spearman"
-  [9]="$EXEC/tigress "$parallel)
+  [9]="$EXEC/tigress "$parallel
+  [10]="$EXEC/tomsimilarity -m bicor")
 
 # usage
 USAGETXT=\
@@ -83,6 +87,10 @@ fi
 
 if [ ! -f $2 ]; then
   abort "The second argument needs to be the gene names tab delimited file"
+fi
+
+if [ -z "$mail"]; then
+  abort "Edit the script and add your email"
 fi
 
 if [ $(wc -l $2 | cut -d" " -f1) -ne 1 ]; then
@@ -117,7 +125,8 @@ optionB=(
   [6]=""
   [7]=$default
   [8]=""
-  [9]="-B $(expr $(expr $ngenes '/' 3) '+' 1)")
+  [9]="-B $(expr $(expr $ngenes '/' 3) '+' 1)"
+  [10]="")
 
 # Set the number of OMP threads
 # default to 1
@@ -133,7 +142,8 @@ ompThread=(
   [6]=$correlationNCPUs
   [7]=$default
   [8]=$correlationNCPUs
-  [9]=$default)
+  [9]=$default
+  [10]=$correlationNCPUs)
 
 # Set dependencies
 # Both ARACNE and CLR calculate the RAW MI
@@ -153,12 +163,16 @@ for ((i=0;i<len;i++)); do
     if [ ! -f $resultDir/$inf/$inf.tsv ]; then
       mkdir -p $resultDir/$inf
       echo "#!/bin/bash" > $resultDir/$inf/$inf.sh
-      svr="--save-resume $resultDir/$inf/$inf.json"
-      if [ -z ${ompThread[$i]} ]; then
- 	echo "unset OMP_NUM_THREADS" >> $resultDir/$inf/$inf.sh
+      if [ -f $resultDir/$inf/$inf.json ]; then
+        svr="--resume-from $resultDir/$inf/$inf.json"
       else
-    	echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
-	svr=
+        svr="--save-resume $resultDir/$inf/$inf.json"
+      fi
+      if [ -z ${ompThread[$i]} ]; then
+ 	      echo "unset OMP_NUM_THREADS" >> $resultDir/$inf/$inf.sh
+      else
+    	  echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
+	      svr=
       fi
       echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 $svr -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
 
@@ -168,7 +182,7 @@ for ((i=0;i<len;i++)); do
         dep="-d afterok:${jobIDs[${deps[$i]}]}"
       fi
 
-      dep=$(sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf $dep \
+      dep=$(sbatch --mail-type=END,FAIL --mail-user=$mail -A $account -J $inf $dep \
       -e $resultDir/$inf/$inf.err -o $resultDir/$inf/$inf.out ${arguments[$i]} $resultDir/$inf/$inf.sh)
 
       jobIDs[$i]=${dep//[^0-9]/}
