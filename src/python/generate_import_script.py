@@ -127,6 +127,16 @@ plsnet = {
   'o': 'plsnet.sf'
 }
 
+tomsimilarity = {
+  'r': True,
+  'z': True,
+  'u': True,
+  'a': True,
+  'F': 'lm',
+  'n': 'TOMSIMILARITY',
+  'o': 'tomsimilarity.sf'
+}
+
 tigress = {
   'r': True,
   'z': True,
@@ -249,7 +259,7 @@ class scriptGenerator(object):
     print('\n##############################################################')
     print('########## MAIN IMPORT CMD ###################################')
     print('##############################################################\n')
- 
+
     if args.algorithm == 'auto':
       if re.search('aracne', args.input, flags=re.IGNORECASE):
         gen = cmdGenerator(args, aracne)
@@ -270,15 +280,19 @@ class scriptGenerator(object):
       elif re.search('llr', args.input, flags=re.IGNORECASE):
         gen = cmdGenerator(args, llr)
         for arg in gen.get():
-          self.cmd.append(arg)          
+          self.cmd.append(arg)
       elif re.search('narromi', args.input, flags=re.IGNORECASE):
         gen = cmdGenerator(args, narromi)
+        for arg in gen.get():
+          self.cmd.append(arg)
+      elif re.search('tomsimilarity', args.input, flags=re.IGNORECASE):
+        gen = cmdGenerator(args, tomsimilarity)
         for arg in gen.get():
           self.cmd.append(arg)
       elif re.search('mi', args.input, flags=re.IGNORECASE):
         gen = cmdGenerator(args, mi)
         for arg in gen.get():
-          self.cmd.append(arg)    
+          self.cmd.append(arg)
       elif re.search('svm', args.input, flags=re.IGNORECASE):
         gen = cmdGenerator(args, svm)
         for arg in gen.get():
@@ -307,7 +321,7 @@ class scriptGenerator(object):
         raise ValueError("Couldn't autodetect algorithm. Rerun with --algorithm.")
     else:
       ct = ['aracne', 'clr', 'elnet', 'genie3', 'llr', 'mi', 'narromi', 'svm',
-            'pearson', 'spearman', 'pcor', 'plsnet', 'tigress']
+            'pearson', 'spearman', 'pcor', 'plsnet', 'tigress', 'tomsimilarity']
       if not args.algorithm in ct:
         raise ValueError("Only the following arguments are supported with --algorithm: " +
                          ",".join(ct))
@@ -331,10 +345,14 @@ class scriptGenerator(object):
         gen = cmdGenerator(args, llr)
         for arg in gen.get():
           self.cmd.append(arg)
+      if args.algorithm == 'tomsimilarity':
+        gen = cmdGenerator(args, tomsimilarity)
+        for arg in gen.get():
+          self.cmd.append(arg)
       if args.algorithm == 'mi':
         gen = cmdGenerator(args, mi)
         for arg in gen.get():
-          self.cmd.append(arg)    
+          self.cmd.append(arg)
       if args.algorithm == 'narromi':
         gen = cmdGenerator(args, narromi)
         for arg in gen.get():
@@ -373,7 +391,7 @@ class scriptGenerator(object):
     self.cmd.append('-O')
     self.cmd.append(str(args.ncpus))
 
-    print(' '.join(self.cmd))    
+    print(' '.join(self.cmd))
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
@@ -382,52 +400,52 @@ if __name__ == "__main__":
   groupZ = parser.add_mutually_exclusive_group()
   groupU = parser.add_mutually_exclusive_group()
   groupA = parser.add_mutually_exclusive_group()
-  
-  groupR.add_argument("-r", "--reverse", action="store_true", 
+
+  groupR.add_argument("-r", "--reverse", action="store_true",
                       help="Force 'reverse' argument")
-  groupZ.add_argument("-z", "--drop-zero", action="store_true", 
+  groupZ.add_argument("-z", "--drop-zero", action="store_true",
                       help="Force 'drop-zero' argument")
-  groupU.add_argument("-u", "--undirected", action="store_true", 
+  groupU.add_argument("-u", "--undirected", action="store_true",
                       help="Force 'undirected' argument")
-  groupA.add_argument("-a", "--absolute", action="store_true", 
+  groupA.add_argument("-a", "--absolute", action="store_true",
                       help="Force 'absolute' argument")
 
-  groupR.add_argument("-R", "--no-reverse", action="store_true", 
+  groupR.add_argument("-R", "--no-reverse", action="store_true",
                       help="Force disable 'reverse' argument")
-  groupZ.add_argument("-Z", "--no-drop-zero", action="store_true", 
+  groupZ.add_argument("-Z", "--no-drop-zero", action="store_true",
                       help="Force disable 'drop-zero' argument")
-  groupU.add_argument("-U", "--no-undirected", action="store_true", 
+  groupU.add_argument("-U", "--no-undirected", action="store_true",
                       help="Force disable 'undirected' argument")
-  groupA.add_argument("-A", "--no-absolute", action="store_true", 
+  groupA.add_argument("-A", "--no-absolute", action="store_true",
                       help="Force disable 'absolute' argument")
 
-  parser.add_argument("-n", "--name", type=str, 
+  parser.add_argument("-n", "--name", type=str,
                       help="Override name argument")
-  parser.add_argument("-f", "--format", type=str, 
+  parser.add_argument("-f", "--format", type=str,
                       help="Override format argument")
 
-  parser.add_argument('-t', '--exec', type=str, help='Seidr executable', 
+  parser.add_argument('-t', '--exec', type=str, help='Seidr executable',
                       default=shutil.which('seidr'))
 
-  parser.add_argument('-m', '--algorithm', type=str, help='Algorithm set to use', 
+  parser.add_argument('-m', '--algorithm', type=str, help='Algorithm set to use',
                       default='auto')
 
-  parser.add_argument('-c', '--ncpus', type=int, help='Number of sorting threads', 
+  parser.add_argument('-c', '--ncpus', type=int, help='Number of sorting threads',
                       default=1)
 
-  parser.add_argument('-p', '--pre', type=str, 
+  parser.add_argument('-p', '--pre', type=str,
                       help='Lines to add before the import command',
                       nargs='*', action='append')
 
   parser.add_argument('-s', '--shebang', type=str, help='Shebang string',
                       default='#!/bin/bash -l')
 
-  parser.add_argument("-i", "--input", type=str, help="Input file", 
+  parser.add_argument("-i", "--input", type=str, help="Input file",
                       required=True)
-  parser.add_argument("-g", "--genes", type=str, help="Input gene list", 
+  parser.add_argument("-g", "--genes", type=str, help="Input gene list",
                       required=True)
 
-  parser.add_argument('-o', '--output', type=str, 
+  parser.add_argument('-o', '--output', type=str,
                       help='Override output file name')
 
   parser.add_argument("slurmctl", nargs="*", type=str, action='append',

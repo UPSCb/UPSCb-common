@@ -17,7 +17,6 @@ suppressPackageStartupMessages({
   library(here)
   library(hyperSpec)
   library(parallel)
-  library(pander)
   library(plotly)
   library(pvclust)
   library(tidyverse)
@@ -39,14 +38,7 @@ hpal <- colorRampPalette(c("blue","white","red"))(100)
 #' # as columns, e.g. the SamplingTime for a time series experiment
 #'  ```
 samples <- read_csv(here("doc/CHANGE-ME.csv"),
-                      col_types=cols(
-                        col_factor(),
-                        col_integer(),
-                        col_factor(),
-                        col_factor(),
-                        col_factor(),
-                        col_factor()
-                      ))
+                      col_types=cols(.default=col_factor()))
 
 #' tx2gene translation table
 #' ```{r CHANGEME2,eval=FALSE,echo=FALSE}
@@ -81,11 +73,12 @@ names(filelist) <- samples$SampleID
 #' Read the expression at the gene level
 #' ```{r CHANGEME4,eval=FALSE,echo=FALSE}
 #' If the species has only one transcript per gene, replace with the following
-#' counts <- suppressMessages(round(tximport(files = filelist, type = "salmon",txOut=TRUE)$counts))
+#' txi <- suppressMessages(tximport(files = filelist, type = "salmon",txOut=TRUE))
 #' ```
-counts <- suppressMessages(round(tximport(files = filelist, 
-                                  type = "salmon",
-                                  tx2gene=tx2gene)$counts))
+txi <- suppressMessages(tximport(files = filelist,
+                                 type = "salmon",
+                                 tx2gene=tx2gene))
+counts <- txi$counts
 
 #' ## Quality Control
 #' * Check how many genes are never expressed
@@ -122,7 +115,7 @@ ggplot(data.frame(value=log10(rowMeans(counts))),aes(x=value)) +
 #' ```{r CHANGEME6,eval=FALSE,echo=FALSE}
 #' # In the following, the second mutate also needs changing, I kept it 
 #' # as an example to illustrate the first line. SampleID would be 
-#' # a column in the samples object (the metadata) that uniquely indentify
+#' # a column in the samples object (the metadata) that uniquely identify
 #' # the samples.
 #' # If you have only a single metadata, then remove the second mutate call
 #' # If you have more, add them as needed.
@@ -150,8 +143,8 @@ write.csv(counts,file=here("data/analysis/salmon/raw-unormalised-gene-expression
 #'  # It is technically irrelevant here, as we are only doing the quality assessment of the data, 
 #'  # but it does not harm setting it correctly for the differential expression analyses that may follow.
 #'  ```
-dds <- DESeqDataSetFromMatrix(
-  countData = counts,
+dds <- DESeqDataSetFromTximport(
+  txi=txi,
   colData = samples,
   design = ~ CHANGEME)
 
@@ -160,23 +153,9 @@ save(dds,file=here("data/analysis/salmon/dds.rda"))
 #' Check the size factors (_i.e._ the sequencing library size effect)
 #' 
 dds <- estimateSizeFactors(dds)
-sizes <- sizeFactors(dds)
-pander(sizes)
-boxplot(sizes, main="Sequencing libraries size factor")
-
-#' Assess whether there might be a difference in library size linked to a
-#' given metadata
-#' ```{r echo=FALSE,eval=FALSE}
-#' # Developer: This would need to be ggplot2'ed
-#' ```
-boxplot(split(sizes,dds$CHANGEME),las=2,
-        main="Sequencing libraries size factor by Tissue")
-
-plot(sizes,log10(colSums(counts(dds))),ylab="log10 raw depth",xlab="scaling factor",
-     col=rainbow(n=nlevels(dds$CHANGEME))[as.integer(dds$CHANGEME)],pch=19)
-legend("bottomright",fill=rainbow(n=nlevels(dds$CHANGEME)),
-       legend=levels(dds$CHANGEME),cex=0.6)
-
+boxplot(normalizationFactors(dds),
+        main="Sequencing libraries size factor",
+        las=2,log="y")
 
 #' ## Variance Stabilising Transformation
 vsd <- varianceStabilizingTransformation(dds, blind=TRUE)

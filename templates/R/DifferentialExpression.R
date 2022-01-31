@@ -24,6 +24,7 @@ suppressPackageStartupMessages({
 
 #' * Helper files
 suppressMessages({
+    source(here("UPSCb-common/Rtoolbox/src/plotEnrichedTreemap.R"))
     source(here("UPSCb-common/src/R/featureSelection.R"))
     source(here("UPSCb-common/src/R/volcanoPlot.R"))
     source(here("UPSCb-common/src/R/gopher.R"))
@@ -71,13 +72,19 @@ mar <- par("mar")
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
                               expression_cutoff=0,
-                              debug=FALSE,...){
+                              debug=FALSE,filter=c("median",NULL),...){
+    
+    # get the filter
+    if(!is.null(match.arg(filter))){
+        filter <- rowMedians(counts(dds,normalized=TRUE))
+        message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
+    }
     
     # validation
     if(length(contrast)==1){
-        res <- results(dds,name=contrast)
+        res <- results(dds,name=contrast,filter = filter,lfcThreshold=lfc,alpha=padj)
     } else {
-        res <- results(dds,contrast=contrast)
+        res <- results(dds,contrast=contrast,filter = filter,lfcThreshold=lfc,alpha=padj)
     }
     
     stopifnot(length(sample_sel)==ncol(vst))
@@ -170,18 +177,26 @@ mar <- par("mar")
         res$baseMean >= expression_cutoff
     
     if(verbose){
-        message(sprintf("There are %s genes that are DE with the following parameters: FDR <= %s, |log2FC| >= %s, base mean expression > %s",
-                        sum(sel),padj,
-                        lfc,expression_cutoff))
+      message(sprintf(paste(
+        ifelse(sum(sel)==1,
+               "There is %s gene that is DE",
+               "There are %s genes that are DE"),
+        "with the following parameters: FDR <= %s, |log2FC| >= %s, base mean expression > %s"),
+        sum(sel),padj,
+        lfc,expression_cutoff))
     }
     
     # proceed only if there are DE genes
     if(sum(sel) > 0){
-        val <- rowSums(vst[sel,sample_sel])==0
+        val <- rowSums(vst[sel,sample_sel,drop=FALSE])==0
         if (sum(val) >0){
-            warning(sprintf("There are %s DE genes that have no vst expression in the selected samples",sum(val)))
-            sel[sel][val] <- FALSE
-        }    
+          warning(sprintf(paste(
+            ifelse(sum(val)==1,
+                   "There is %s DE gene that has",
+                   "There are %s DE genes that have"),
+            "no vst expression in the selected samples"),sum(val)))
+          sel[sel][val] <- FALSE
+        } 
         
         if(export){
             if(!dir.exists(default_dir)){
@@ -190,7 +205,7 @@ mar <- par("mar")
             write.csv(res,file=file.path(default_dir,paste0(default_prefix,"results.csv")))
             write.csv(res[sel,],file.path(default_dir,paste0(default_prefix,"genes.csv")))
         }
-        if(plot){
+        if(plot & sum(sel)>1){
             heatmap.2(t(scale(t(vst[sel,sample_sel]))),
                       distfun = pearson.dist,
                       hclustfun = function(X){hclust(X,method="ward.D2")},
@@ -214,36 +229,42 @@ extractEnrichmentResults <- function(enrichment,task="go",
                                      url="athaliana"){
     # process args
     diff.exp <- match.arg(diff.exp)
-    de <- ifelse(diff.exp=="all","none",diff.exp)
-    
-    # write out
-    if(export){
-        write_tsv(enrichment[[task]],
-                  path=here(default_dir,
-                            paste0(default_prefix,"-genes_GO-enrichment.tsv")))
-        if(!is.null(genes)){
-            write_tsv(
-                enrichedTermToGenes(genes=genes,terms=enrichment[[task]]$id,url=url,mc.cores=16L),
-                path=here(default_dir,
-                          paste0(default_prefix,"-enriched-term-to-genes.tsv"))
-            )
+    de <- ifelse(diff.exp=="all","none",
+                 ifelse(diff.exp=="dn","down",diff.exp))
+    # sanity
+    if( is.null(enrichment[[task]]) | length(enrichment[[task]]) == 0){
+        message(paste("No enrichment for",task))
+    } else {
+        
+        # write out
+        if(export){
+            write_tsv(enrichment[[task]],
+                      file=here(default_dir,
+                                paste0(default_prefix,"-genes_GO-enrichment.tsv")))
+            if(!is.null(genes)){
+                write_tsv(
+                    enrichedTermToGenes(genes=genes,terms=enrichment[[task]]$id,url=url,mc.cores=16L),
+                    file=here(default_dir,
+                              paste0(default_prefix,"-enriched-term-to-genes.tsv"))
+                )
+            }
         }
-    }
-    
-    if(plot){
-        sapply(go.namespace,function(ns){
-            titles <- c(BP="Biological Process",
-                        CC="Cellular Component",
-                        MF="Molecular Function")
-            suppressWarnings(tryCatch({plotEnrichedTreemap(enrichment,enrichment=task,
-                                                           namespace=ns,
-                                                           de=de,title=titles[ns])},
-                                      error = function(e) {
-                                          message(paste("Treemap plot failed for",ns, 
-                                                        "because of:",e))
-                                          return(NULL)
-                                      }))
-        })
+        
+        if(plot){
+            sapply(go.namespace,function(ns){
+                titles <- c(BP="Biological Process",
+                            CC="Cellular Component",
+                            MF="Molecular Function")
+                suppressWarnings(tryCatch({plotEnrichedTreemap(enrichment,enrichment=task,
+                                                               namespace=ns,
+                                                               de=de,title=paste(default_prefix,titles[ns]))},
+                                          error = function(e) {
+                                              message(paste("Treemap plot failed for",ns, 
+                                                            "because of:",e))
+                                              return(NULL)
+                                          }))
+            })
+        }
     }
 }
 
@@ -365,7 +386,10 @@ resultsNames(dds)
 #' 
 #' In addition we now also export the list of genes that most likely resulted in
 #' the corresponding go enrichment.
+#' 
+#' Make sure to change the url to match your organism
 #' ```
+#' TODO USE THE independent filtering to decide on the background. Think about it
 background <- rownames(vst)[featureSelect(vst,dds$MGenotype,exp=CHANGEME)]
 
 enr.list <- lapply(res.list,function(r){
@@ -377,7 +401,8 @@ dev.null <- lapply(names(enr.list),function(n){
         extractEnrichmentResults(enr.list[[n]][[de]],
                                  diff.exp=de,
                                  genes=res.list[[n]][[de]],
-                                 default_prefix=paste(n,de,sep="-"))
+                                 default_prefix=paste(n,de,sep="-"),
+                                 url="athaliana")
     })
 })
 

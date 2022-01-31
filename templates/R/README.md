@@ -8,7 +8,7 @@ This directory contains code templates:
 
 The templates contain `CHANGEME` tokens, where changes need to be made to adjust to your project. The `R` templates are written using the `#'` comments that allow for the knitting of `Rmd` files and `html` reports.
 
-Some of the `CHANGEME` tokens are within markdown code block. These are meant to be invisible when knitting (`eval=FALSE, echo=FALSE`), so you need *NOT* changinh them, just follow the instructions they contain to edit the subsequent code.
+Some of the `CHANGEME` tokens are within markdown code block. These are meant to be invisible when knitting (`eval=FALSE, echo=FALSE`), so you need *NOT* changing them, just follow the instructions they contain to edit the subsequent code.
 
 The templates are not completely self-explanatory and as such the report generated from them will not be. Spend time to comment and interpret the results you observe using `#'` comments. These will be turned into text when knitting.
 

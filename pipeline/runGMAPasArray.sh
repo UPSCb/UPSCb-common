@@ -7,6 +7,8 @@
 ## time too for large files
 #SBATCH -t 12:00:00
 #SBATCH --mail-type=ALL
+#SBACTH -e gmap.SLURM_ARRAY_TASK_ID.err
+#SBACTH -o gmap.SLURM_ARRAY_TASK_ID.out
 ## mail-user and A have to be set in the submit script
 
 ## stop on error
@@ -26,6 +28,10 @@ FMT="gff3_gene"
 PATHS=5
 OPTIONS="-x 100 --min-identity 0.7"
 CMD="gmap"
+
+## ARRAY number
+ARRAYID=$(printf "%04d" $SLURM_ARRAY_TASK_ID)
+
 ## usage
 usage(){
 echo >&2 \
@@ -70,7 +76,7 @@ if [ $# != 4 ]; then
     usage
 fi
 
-if [ ! -f $1 ]; then
+if [ ! -f $1.$ARRAYID ]; then
     echo "The first argument needs to be a fasta file"
     usage
 fi
@@ -109,16 +115,17 @@ esac
 
 ## check if the file is zipped
 cd $4
-case "${1: -3}" in
-    ".gz")
-	fnam=$3-`basename ${1//.fa*.gz/$sfx}`  
-	zcat $1 | $CMD -D $2 -d $3 --intronlength $INTRONLENGTH -B 5 -w $INTRONLENGTH -t $PROC -O -f $FMT -Y -n $PATHS $OPTIONS --split-output ${fnam}
-	;;
-    *)
-	fnam=$3-`basename ${1//.fa*/$sfx}`
-	$CMD -D $2 -d $3 --intronlength $INTRONLENGTH -B 5 -w $INTRONLENGTH -t $PROC -O -f $FMT -Y -n $PATHS $OPTIONS --split-output ${fnam} $1
-	;;
-esac
+#case "${1: -3}" in
+#    ".gz")
+#	fnam=$3-`basename ${1//.fa*.gz/$sfx}`  
+#	zcat $1 | $CMD -D $2 -d $3 --intronlength $INTRONLENGTH -B 5 -w $INTRONLENGTH -t $PROC -O -f $FMT -Y -n $PATHS $OPTIONS --split-output ${fnam}
+#	;;
+#    *)
+	fnam=$3-$(basename $1.$ARRAYID)
+	$CMD -D $2 -d $3 --intronlength $INTRONLENGTH -B 5 -w $INTRONLENGTH -t $PROC -O -f $FMT \
+	-Y -n $PATHS $OPTIONS --split-output ${fnam} --use-shared-memory=1 $1.$ARRAYID
+#	;;
+#esac
 
 ##
 echo Done

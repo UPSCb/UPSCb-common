@@ -90,8 +90,14 @@ else
   control=
 fi
 
+## w. cutoff analysis
+#singularity exec --bind /mnt:/mnt /mnt/picea/projects/singularity/macs2.sif \
+#macs2 callpeak -t $treatment $control -g $GENOME --cutoff-analysis --keep-dup auto --outdir \
+#$out $NAME -B --SPMR $MODE $@
+
+## w.o. cutoff analysis
 singularity exec --bind /mnt:/mnt /mnt/picea/projects/singularity/macs2.sif \
-macs2 callpeak -t $treatment $control -g $GENOME --keep-dup auto --outdir \
+macs2 callpeak -t $treatment $control -g $GENOME --keep-dup auto -p 0.0316227766016838 --outdir \
 $out $NAME -B --SPMR $MODE $@
 
 

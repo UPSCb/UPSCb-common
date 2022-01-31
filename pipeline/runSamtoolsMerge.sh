@@ -24,14 +24,10 @@ if [ ! -d $(dirname $1)]; then
     abort "The output directory does not exist."
 fi
 
-if [ ! -f $2 ]; then
-    abort "The first input file does not exist."
-fi
-
-if [ ! -f $3 ]; then
-    abort "The second input file does not exist."
-fi
+out=$1
+shift
 
 #run samtools merge
-samtools merge $1 $2 $3
+samtools merge $out $@
 
+samtools index $out

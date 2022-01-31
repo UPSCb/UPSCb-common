@@ -6,6 +6,7 @@
 #'  html_document:
 #'    toc: true
 #'    number_sections: true
+#'    code_folding: hide
 #' ---
 #' # Setup
 #' * Libraries
@@ -14,7 +15,6 @@ suppressPackageStartupMessages({
   library(here)
   library(matrixStats)
   library(pander)
-  library(pracma)
   library(tidyverse)
 })
 
@@ -39,12 +39,14 @@ plotRoc <- function(f){
          AUPR=as.double(sub(".* ","",sapply(strsplit(vals[lvals + seq(2,length.out=lvals,by=2)],"\t"),"[",1))),
          )
   
-  
-  aucs <- dat %>% group_by(ALGORITHM) %>% 
-    group_map(.,function(x,...){data.frame(ALGORITHM=unique(x$ALGORITHM),
-                                           AUC=round(trapz(x$FP,x$TP),digits=3))},
-              .keep=TRUE) %>% bind_rows()
-  
+  # we used to calc the AUC before seidr did it, so that's left in as 
+  # an example how to use trapz
+  # require(pracma)
+  # aucs <- dat %>% group_by(ALGORITHM) %>% 
+  #   group_map(.,function(x,...){data.frame(ALGORITHM=unique(x$ALGORITHM),
+  #                                          AUC=round(trapz(x$FP,x$TP),digits=3))},
+  #             .keep=TRUE) %>% bind_rows()
+  # 
   p <- ggplot(dat,aes(x=FP,y=TP,col=ALGORITHM,group=ALGORITHM)) +
     geom_line() + 
     scale_x_continuous(name="1-specificity (FPR)") + 
@@ -53,7 +55,7 @@ plotRoc <- function(f){
   
   suppressMessages(suppressWarnings(plot(p)))
   
-  return(list(stats=tabs,auc=aucs))
+  return(tabs)
   
 }
 
@@ -65,7 +67,7 @@ plotRoc <- function(f){
 res <- plotRoc(here("data/seidr/roc/aggregated_roc.tsv"))
 
 #' ### Stats of the gold standard analysis
-pander(res$stats)
+pander(res)
 
 #' ## Backbone
 #' ```{R CHANGEME1, echo=FALSE, eval=FALSE}
@@ -78,22 +80,23 @@ files <- files[order(as.integer(sub("-percent","",names(files))))]
 resb <- lapply(files,plotRoc)
 
 #' ### Stats of the gold standard (GS) analysis
-sts <- lapply(names(files),function(n,resb){
-  resb[[n]]$stats
-},resb)
-
-names(sts) <- names(files)
-
-pander(sts)
+pander(resb)
 
 #' # Summary
 #' Report all AUCs
-aucs <- cbind(sapply(resb,"[[","auc"),aggregated=res$auc)
+aucs <- c(lapply(resb,select,c("ALGO","AUC")),aggregated=list(select(res,c("ALGO","AUC")))) %>% 
+  enframe %>% unnest(cols=c("value")) %>% pivot_wider(names_from=name,values_from=AUC) %>% 
+  column_to_rownames("ALGO") %>% as.matrix()
 
 pander(aucs)
 
 #' ## Heatmaps
 #' ### AUCs
+#' **NOTE** In the heatmap below, the only fair comparisons are to look
+#' across the `aggregated` column or the `irp` row. Any other comparisons,
+#' albeit possibly informative will be biased by the selection of a subset 
+#' of edges for a given algorithm, making them theoretically incomparable.
+#'
 heatmap.2(aucs,trace="none",col=hpal,margins=c(7.1,7.1))
 
 heatmap.2(aucs,trace="none",col=hpal,margins=c(7.1,7.1),Colv=FALSE,dendrogram="row")
@@ -103,7 +106,11 @@ heatmap.2(aucs,trace="none",col=hpal,margins=c(7.1,7.1),Colv=FALSE,dendrogram="r
 #' AUC calculation
 resb$aggregated=res
 
-gsNum <- sapply(lapply(lapply(resb,"[[","stats"),"[",2:3),rowSums)
+gsNum <- lapply(resb,select,c("ALGO","TP","FP")) %>%
+  enframe %>% unnest(cols=c("value")) %>% 
+  mutate(TOTAL=TP+FP) %>% select(-c("TP","FP")) %>% 
+  pivot_wider(names_from=name,values_from=TOTAL) %>% 
+  column_to_rownames("ALGO") %>% as.matrix()
 
 paucs <- aucs * t(t(gsNum) / colMaxs(gsNum))
 
