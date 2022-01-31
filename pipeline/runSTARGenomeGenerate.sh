@@ -25,6 +25,7 @@ echo >&2 \
             -m      maximum memory to allocate (120GB, in bytes 120000000000)
             -p      number of threads to use (20)
             -s      the sparsity of the index (1)
+            -S      the SA index Nbases (14)
             -t      the tag to use in the gff3 file to link exon <-> transcript (Parent)
 
        Note: if the gtf format is selected, the t option default is switched to 'transcript_id'
@@ -38,11 +39,12 @@ FORMAT="gff3"
 MATE=100
 MEM=120000000000
 THREAD=20
+SAINX=14
 SPARSE=1
 TAG="Parent"
 NOGFF=0
 
-while getopts "b:f:l:m:np:s:t:" opt; do
+while getopts "b:f:l:m:np:sS:t:" opt; do
     case $opt in
 	b) BITS=$OPTARG;;
 	f) FORMAT=$OPTARG;;
@@ -51,6 +53,7 @@ while getopts "b:f:l:m:np:s:t:" opt; do
 	m) MEM=$OPTARG;;
         p) THREAD=$OPTARG;;
 	s) SPARSE=$OPTARG;;
+	S) SAINX=$OPTARG;;
 	t) TAG=$OPTARG;;
         \?) usage;;
     esac
@@ -98,7 +101,7 @@ fi
 
 STAR --runMode genomeGenerate --genomeDir $1 --genomeFastaFiles $2 \
 --limitGenomeGenerateRAM $MEM --runThreadN $THREAD --genomeChrBinNbits $BITS \
---genomeSAsparseD $SPARSE $OPTIONS
+--genomeSAsparseD $SPARSE --genomeSAindexNbases $SAINX $OPTIONS
 
 ## fix permission
 chmod -R g+w $1
