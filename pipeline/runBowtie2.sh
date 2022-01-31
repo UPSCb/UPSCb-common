@@ -156,16 +156,15 @@ if [ $SINGLE == 1 ]; then
     gunzip -c $in1 | $BOWTIE $@ $OPT -p $PROC -x $genome -U - | samtools view -bS - | samtools sort -o $outName -
 else
     if [ ! -f $tmpDir/$in1 ]; then
-	    gunzip -c $in1 > $tmpDir/${in1//.gz/}
+	    gunzip -c $in1 > $tmpDir/$(basename ${in1//.gz/})
     fi
     if [ ! -f $tmpDir/$in2 ]; then
-	    gunzip -c $in2 > $tmpDir/${in2//.gz/}
+	    gunzip -c $in2 > $tmpDir/$(basename ${in2//.gz/})
     fi
 
-    $BOWTIE $@ $OPT -p $PROC $genome -1 ${in1//.gz/} -2 ${in2//.gz/} | samtools view -bS - | samtools sort - $outName
+    $BOWTIE $@ $OPT -p $PROC -x $genome -1 $tmpDir/$(basename ${in1//.gz/}) -2 $tmpDir/$(basename ${in2//.gz/}) | samtools view -bS - | samtools sort -o $outName -
 
     rm $tmpDir/${in1//.gz/} $tmpDir/${in2//.gz/}
- 
 fi
 
 ## index
