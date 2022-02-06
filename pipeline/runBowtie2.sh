@@ -164,7 +164,7 @@ else
 
     $BOWTIE $@ $OPT -p $PROC -x $genome -1 $tmpDir/$(basename ${in1//.gz/}) -2 $tmpDir/$(basename ${in2//.gz/}) | samtools view -bS - | samtools sort -o $outName -
 
-    rm $tmpDir/${in1//.gz/} $tmpDir/${in2//.gz/}
+    rm $tmpDir/$(basename ${in1//.gz/}) $(basename $tmpDir/${in2//.gz/})
 fi
 
 ## index
