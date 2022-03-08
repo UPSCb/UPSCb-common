@@ -4,13 +4,11 @@
 #SBATCH -t 0-12:00:00
 #SBATCH --mail-type=ALL
 
-# -p node is needed to accept the -C memory configuration
+# stop on error and undefined vars
+set -eu
 
-## stop on error and be verbose in the output
-set -e -x
-
-## load the modules
-#module load bioinfo-tools star samtools
+# source helpers
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 ## vars
 INTRONMAX=70000
@@ -18,21 +16,22 @@ INTRONMAX=70000
 # Aspen_intronmax=11000
 GFF=
 SINGLE=0
-PROC=16
+PROC=20
 FORMAT="gtf"
 LIMIT=10000000000
 QUANT=0
 WIGGLE=0
+NoGZ="--readFilesCommand zcat"
 
 ## additional options for STAR
-OPTIONS="--outSAMstrandField intronMotif --readFilesCommand zcat --outSAMmapqUnique 254 --outFilterMultimapNmax 100 --outReadsUnmapped Fastx --chimSegmentMin 1 --outSAMtype BAM SortedByCoordinate "
+OPTIONS="--outSAMstrandField intronMotif --outSAMmapqUnique 254 --outFilterMultimapNmax 100 \
+--outReadsUnmapped Fastx --chimSegmentMin 1 --outSAMtype BAM SortedByCoordinate"
 
 ## usage
-usage(){
-echo >&2 \
+USAGETXT=\
 "Usage:
-    Paired end: $0 [option] <out dir> <genome dir> <genome fasta> <fwd file> <rv file> [--] [additional STAR arguments]
-    Single end: $0 [option] -s <out dir> <genome dir> <genome fasta> <fastq file> [--] [additional STAR arguments]
+    Paired end: $0 [option] <star singularity container> <samtools singularity container> <out dir> <genome dir> <genome fasta> <fwd file> <rv file> [--] [additional STAR arguments]
+    Single end: $0 [option] -s <star singularity container> <samtools singularity container> <out dir> <genome dir> <genome fasta> <fastq file> [--] [additional STAR arguments]
 
 	Options:
 		-f the gtf/gff3 file format (default gtf)
@@ -45,6 +44,7 @@ echo >&2 \
 		-s if there is no reverse
 		-n no default option
 		-w create wiggle files
+		-z input is not compressed (default is compressed)
 
 	Notes:
 		The number of arguments is only 3 when -s is set.
@@ -52,13 +52,11 @@ echo >&2 \
 		It is necessary if you want to precised additional - non-default - STAR arguments.
 		When the format is gff3, the exon-transcript relationship assumes a 'Parent' keylink.
 "
-	exit 1
-}
 
 ## get the options
-while getopts f:g:l:m:np:qstw option
+while getopts f:g:l:m:np:qstwz option
 do
-        case "$option" in
+  case "$option" in
 	    f) FORMAT=$OPTARG;;
 	    g) GFF=$OPTARG;;
 	    l) LIMIT=$OPTARG;;
@@ -70,14 +68,17 @@ do
 	    t) OPTIONS="$OPTIONS --quantMode TranscriptomeSAM"
 	       QUANT=1;;
 	    w) OPTION="$OPTIONS --outWigType bedGraph"
-		WIGGLE=1;;
+		     WIGGLE=1;;
+		  z) NoGZ="";;
 	    \?) ## unknown flag
 		usage;;
-        esac
+  esac
 done
 shift `expr $OPTIND - 1`
 
 ## update the options
+OPTIONS="$OPTIONS $NoGZ"
+
 ## dirty if loop to accomodate for v2.3.*
 if [ "$OPTIONS" != "" ]; then
   OPTIONS="$OPTIONS --limitBAMsortRAM $LIMIT"
@@ -85,7 +86,7 @@ fi
 
 ## check the arguments
 echo "Parsing the arguments"
-ARGS=5
+ARGS=7
 if [ $SINGLE == 1 ]; then
     let "ARGS = $ARGS - 1"
     FIND=".f*.gz"
@@ -93,63 +94,45 @@ else
     FIND="_[1,2].f*q.gz"
 fi
 
-## checkthe number of args
-if [ $# -lt $ARGS ]; then
-    echo "This script needs 4 or 5 arguments for SE or PE data, respectively."
-    usage
-fi
+## check the number of args
+[[ $# -lt $ARGS ]] && abort "This script needs 6 or 7 arguments for SE or PE data, respectively."
+
+## get the containers
+star=$1
+shift
+[[ ! -f $star ]] && "The first argument needs to be an existing STAR singularity container"
+
+samtools=$1
+shift
+[[ ! -f $samtools ]] && "The first argument needs to be an existing samtools singularity container"
 
 ## get the out dir
 outdir=$1
 shift
+[[ ! -d $outdir ]] && abort "The output directory: $outdir does not exist"
 
-## check the genome dir
-if [ ! -d $1 ]; then
-        echo "The genome directory: $1 does not exist"
-        usage
-else
-    genome=$1
-    shift
-fi
+## get the index
+genome=$1
+shift
+[[ ! -d $genome ]] && abort "The genome directory: $genome does not exist"
 
 ## get the genome fasta file
-if [ ! -f $1 ]; then
-  echo "The genome fasta file: $1 does not exist"
-	usage
-else
-  gfasta=$1
-  shift
-fi
+gfasta=$1
+shift
+[[ ! -f $gfasta ]] && abort "The genome fasta file: $gfasta does not exist"
 
 ## Check if the first file exists
-if [ ! -f $1 ]; then
-	echo "The forward fastq file: $1 does not exist"
-	usage
-else
-    fwd=$1
-    shift
-fi
+fwd=$1
+shift
+[[ ! -f $fwd ]] && "The forward fastq file: $fwd does not exist"
 
 ## Check if the second file exists
-if [ $SINGLE == 0 ]; then
-    if [ ! -f $1 ]; then
-        echo "The reverse fastq file: $1 does not exist"
-        usage
-    else
-	rev=$1
-	shift
-    fi
-fi
+[[ $SINGLE == 0 ]] && [[ ! -f $1 ]] && abort "The reverse fastq file: $1 does not exist"
+[[ $SINGLE == 0 ]] && rev=$1 && shift
 
 ## if gff is set check if it exists
-if [ ! -z $GFF ] && [ ! -f $GFF ] ; then
-    echo "The gene model gtf/gff3 file: $GFF does not exists"
-    usage
-else
-  if [ ! -z $GFF ]; then
-    OPTIONS="--sjdbGTFfile $GFF $OPTIONS"
-  fi
-fi
+[[ ! -z $GFF ]] && [[ ! -f $GFF ]] && abort "The gene model gtf/gff3 file: $GFF does not exists"
+[[ ! -z $GFF ]] && OPTIONS="--sjdbGTFfile $GFF $OPTIONS"
 
 ## if format is set
 case $FORMAT in
@@ -162,32 +145,24 @@ case $FORMAT in
     gtf);;
     #nothing to do
     *)
-	echo "There are only 2 supported format, gtf or gff3"
-	usage;;
+	abort "There are only 2 supported format, gtf or gff3"
 esac
 
-## do we have more arguments
-if [ $# != 0 ]; then
-	## drop the --
-	shift
-fi
-
-## create the output dir
-echo "Processing"
-if [ ! -d $outdir ]; then
-    mkdir -p $outdir
-fi
+## do we have more arguments? drop the --
+[[ $# != 0 ]] && shift
 
 ## output prefix
-bnam=`basename ${fwd//$FIND/}`
+bnam=$(basename ${fwd//$FIND/})
 fnam=$outdir/$bnam
 
 ## start STAR
 echo "Aligning"
 if [ $SINGLE == 1 ]; then
-    STAR --genomeDir $genome --readFilesIn $fwd --runThreadN $PROC --alignIntronMax $INTRONMAX --outFileNamePrefix $fnam $OPTIONS $@
+    singularity exec $star STAR --genomeDir $genome --readFilesIn $fwd --runThreadN $PROC \
+    --alignIntronMax $INTRONMAX --outFileNamePrefix $fnam $OPTIONS $@
 else
-    STAR --genomeDir $genome --readFilesIn $fwd $rev --runThreadN $PROC --alignIntronMax $INTRONMAX --outFileNamePrefix $fnam $OPTIONS $@
+    singularity exec $star STAR --genomeDir $genome --readFilesIn $fwd $rev --runThreadN $PROC \
+    --alignIntronMax $INTRONMAX --outFileNamePrefix $fnam $OPTIONS $@
 fi
 
 ## save the log
@@ -223,20 +198,22 @@ find $outdir -name "${bnam}_Unmapped*.fq" -print0 | xargs -P $PROC -0 -I {} gzip
 ## sort the transcriptome bam and rename
 if [ $QUANT == 1 ]; then
   mv ${fnam}Aligned.toTranscriptome.out.bam ${fnam}_STAR_Transcriptome.bam
-  samtools sort -@ 16 -n ${fnam}_STAR_Transcriptome.bam -o ${fnam}_STAR_Transcriptome.sorted.bam
+  singularity exec $samtools samtools sort -@ 16 -n ${fnam}_STAR_Transcriptome.bam -o ${fnam}_STAR_Transcriptome.sorted.bam
   rm ${fnam}_STAR_Transcriptome.bam
   mv ${fnam}_STAR_Transcriptome.sorted.bam ${fnam}_STAR_Transcriptome.bam
 fi
 
 ## convert the chimeric sam to cram
-samtools view -CT $gfasta ${fnam}Chimeric.out.sam | samtools sort -@ 16 - -o ${fnam}_STAR_Chimeric.cram
+singularity exec $samtools samtools view -CT $gfasta ${fnam}Chimeric.out.sam | \
+singularity exec $samtools samtools sort -@ 16 - -o ${fnam}_STAR_Chimeric.cram
 
 ## convert the output BAM in CRAM
-samtools view -CT $gfasta -o ${fnam}_STAR.cram ${fnam}_STAR.bam
+singularity exec $samtools samtools view -CT $gfasta -o ${fnam}_STAR.cram ${fnam}_STAR.bam
 
 ## index the CRAMs
 echo "Indexing"
-printf "%s\0%s" ${fnam}_STAR.cram ${fnam}_STAR_Chimeric.cram | xargs -P $PROC -0 -I {} samtools index {}
+printf "%s\0%s" ${fnam}_STAR.cram ${fnam}_STAR_Chimeric.cram | \
+xargs -P $PROC -0 -I {} singularity exec $samtools samtools index {}
 
 ## cleanup
 echo "Cleaning"

@@ -86,11 +86,17 @@ if [ $SINGLE -eq 0 ]; then
 fi
 
 ## do we have file lists
+LIST=""
 if [ $(file --mime-type "$fwd" | grep -c "gzip$") -eq 1 ]; then
     echo "gzip formatted input"
 else
 	firstLine=$(head -1 $fwd)
-	LIST=""
+	
+	# TODO check for file separators :
+	# if not check all files
+	# if yes split and check all files
+	# list and single, just concatenate
+	
 	if [ -f $firstLine ]; then
 	  LIST="_list"
 	  if [ $SINGLE -ne 0 ]; then

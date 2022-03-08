@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p core -n 8
+#SBATCH -p small -n 8
 #SBATCH -t 12:00:00
 #SBATCH --mail-type ALL
 
@@ -8,7 +8,6 @@ set -eux
 
 # load helpers
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
-KOGIA=${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/kogia/scripts
 
 CPU=8
 OPTIONS=
@@ -17,18 +16,17 @@ DECOY=
 # usage
 USAGETXT=\
 "
-  $0 [options] <transcript file> <output file>
+  $0 [options] <singularity image> <transcript file> <output dir>
 
   Options:
   -d the genome file to use to build the decoy sequences
-  -i the salmon image to use, defaults to salmon.simg
   -t number of threads (default 8)
   -p triggers --perfectHash
 "
 
 # process the arguments
 ## get the options
-while getopts d:i:t:p option
+while getopts d:t:p option
 do
   case "$option" in
       d) DECOY=$OPTARG
@@ -36,7 +34,6 @@ do
           abort "The genome file to extract the decoys from does not exist"
         fi
         ;;
-      i) IMG=$OPTARG;;
 	    t) CPU=$OPTARG;;
 	    p) OPTIONS="--perfectHash $OPTIONS";;
 		  \?) ## unknown flag
@@ -46,12 +43,18 @@ done
 shift `expr $OPTIND - 1`
 
 # test
-if [ "$#" -ne "2" ]; then
-  abort "This script expects 2 arguments"
+if [ "$#" -ne "3" ]; then
+  abort "This script expects 3 arguments"
 fi
 
 if [ ! -f $1 ]; then
-  abort "The first argument should be a fasta file"
+  abort "The first argument should be a singularity file"
+fi
+IMG=$1
+shift
+
+if [ ! -f $1 ]; then
+  abort "The second argument should be a fasta file"
 fi
 tx=$1
 shift
@@ -62,12 +65,13 @@ fi
 out=$1
 shift
 
-if [ $DECOY != "" ]; then
-  grep "^>" $DECOY | cut -d " " -f 1 | tr -d '>' > $out/decoys.txt
-  cat $tx $DECOY | gzip -c > $out/gentrome.fa.gz
-  OPTIONS="-d $out/decoys.txt $OPTIONS"
-  tx=$out/gentrome.fa.gz
+cd $out
+if [ ! -z $DECOY ]; then
+  gunzip -c $DECOY | grep "^>" | cut -d " " -f 1 | tr -d '>' > decoys.txt
+  cat $tx $DECOY > gentrome.fa.gz
+  OPTIONS="-d decoys.txt $OPTIONS"
+  tx=gentrome.fa.gz
 fi
 
 # exec
-$KOGIA/salmon index -t $tx -i $out -p $CPU $OPTIONS
+singularity exec $IMG salmon index -t $tx -i . -p $CPU $OPTIONS

@@ -1,7 +1,8 @@
 #!/bin/bash -l
-#SBATCH -p rbx -n 2
+#SBATCH -p small -n 2
+##SBATCH -p core -n 2
 #SBATCH -t 1-00:00:00
-#SBATCH --mail-type=ALL
+#SBATCH --mail-type=END,FAIL
 #SBATCH --mem=12GB
 
 # be verbose and fail on errr
@@ -12,47 +13,38 @@ source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # defaults
 CPU=2
-ECLASS=
+ECLASS="--dumpEq --numGibbsSamples 100"
 GC="--gcBias"
-SEQ="--seqBias"
-VAL="--validateMappings"
 LTYPE="A"
-BIND=/mnt:/mnt 
-IMG=/mnt/picea/projects/singularity/salmon.simg
+POS="--posBias"
+SEQ="--seqBias"
+
 
 # USAGE
 ## a usage function
 USAGETXT=\
 "
-    Usage: $0 [options] <index dir> <fwd fq file> <rev fq file> <out dir>
+    Usage: $0 [options] <singularity container> <index dir> <fwd fq file> <rev fq file> <out dir>
 
     Options:
-              b: bind directory path
-              e: dump equivalence class - turn on --dumpEq
-              i: path to the singularity image
+              e: turn off dump equivalence class and perform gibbs sampling (on by default)
               g: turn off GC bias correction (on by default)
               l: the library type, defaults to A (automatic) - see https://salmon.readthedocs.io/en/latest/library_type.html#fraglibtype 
-              p: number of CPU to use (default 2)
+              p: turn off position bias correction (on by default)
               s: turn off sequence bias correction (on by default)
-              v: turn off validateMappings (on by default), faster, less accurate
+              t: number of CPU to use (default 2)
 "
 
-# Check the tool is avail
-# we use do not use singularity and rely on kogia
-isExec salmon
-
 ## get the options
-while getopts b:ei:gl:p:sv option
+while getopts egl:pst: option
 do
     case "$option" in
-    b) BIND="$OPTARG";;
-    e) ECLASS="--dumpEq";;
-    i) IMG="$OPTARG";;
+    e) ECLASS="";;
     g) GC="";;
     l) LTYPE="";;
-	  p) CPU="$OPTARG";;
+	  p) POS="";;
 	  s) SEQ="";;
-	  v) VAL="";;
+	  t) CPU="$OPTARG";;
 	  \?) ## unknown flag
 	    usage;;
   esac
@@ -60,45 +52,24 @@ done
 shift `expr $OPTIND - 1`
 
 # set the options
-OPTIONS="$GC $SEQ $VAL $ECLASS"
+OPTIONS="$GC $SEQ $POS $ECLASS"
 
-## we get 3 files and 1 dir as input 
-if [ $# != 4 ]; then
-   abort "This function has 4 arguments"
-fi
+# checks
+[[ $# != 5 ]] && abort "This function expects 5 arguments"
 
-if [ ! -d $1 ]; then
-   abort "The first argument needs to be an existing index directory"
-fi
+[[ ! -f $1 ]] && abort "The first argument needs to be the salmon singularity container file"
 
-if [ ! -f $2 ]; then
-   abort "The second argument needs to be an existing fq file"
-fi
+[[ ! -d $2 ]] && abort "The second argument needs to be an existing index directory"
 
-if [ ! -f $3 ]; then
-   abort "The third argument needs to be an existing fq file"
-fi
+[[ ! -f $3 ]] && abort "The third argument needs to be an existing fq file"
 
-if [ ! -d $4 ]; then
-   abort "The fourth argument needs to be an existing directory"
-fi
+[[ ! -f $4 ]] && abort "The fourth argument needs to be an existing fq file"
 
-bindDir=$(echo $BIND | cut -d: -f1)
-if [ ! -d $bindDir ]; then
-   abort "The bind dir needs to be an existing directory"
-fi
-
-if [ ! -f $IMG ]; then
-  abort "The singularity image needs to be an existing file"
-fi
+[[ ! -d $5 ]] && abort "The fifth argument needs to be an existing directory"
 
 # create an output dir based on the sample name
-outdir=$4/$(basename ${2/_1.f*q.gz/})
-
-if [ ! -d $outdir ]; then
-  mkdir $outdir
-fi
+outdir=$5/$(basename ${3/_1.f*q.gz/})
+[[ ! -d $outdir ]] && mkdir -p $outdir
 
 # run
-# singularity exec --bind $BIND $IMG \
- salmon quant -p $CPU --numBootstraps 100 -i $1 -l $LTYPE -1 $2 -2 $3 -o $outdir $OPTIONS 
+singularity exec $1 salmon quant -p $CPU -i $2 -l $LTYPE -1 $3 -2 $4 -o $outdir $OPTIONS 
