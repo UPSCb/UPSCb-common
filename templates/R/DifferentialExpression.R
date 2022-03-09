@@ -197,7 +197,7 @@ mar <- par("mar")
             "no vst expression in the selected samples"),sum(val)))
           sel[sel][val] <- FALSE
         } 
-        
+
         if(export){
             if(!dir.exists(default_dir)){
                 dir.create(default_dir,showWarnings=FALSE,recursive=TRUE,mode="0771")
@@ -231,11 +231,12 @@ extractEnrichmentResults <- function(enrichment,task="go",
     diff.exp <- match.arg(diff.exp)
     de <- ifelse(diff.exp=="all","none",
                  ifelse(diff.exp=="dn","down",diff.exp))
+
     # sanity
     if( is.null(enrichment[[task]]) | length(enrichment[[task]]) == 0){
         message(paste("No enrichment for",task))
     } else {
-        
+
         # write out
         if(export){
             write_tsv(enrichment[[task]],
@@ -387,7 +388,8 @@ resultsNames(dds)
 #' In addition we now also export the list of genes that most likely resulted in
 #' the corresponding go enrichment.
 #' 
-#' Make sure to change the url to match your organism
+#' Make sure to change the `url` to match your species
+#' 
 #' ```
 #' TODO USE THE independent filtering to decide on the background. Think about it
 background <- rownames(vst)[featureSelect(vst,dds$MGenotype,exp=CHANGEME)]

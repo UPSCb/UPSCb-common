@@ -56,7 +56,11 @@ shift `expr $OPTIND - 1`
 
 [[ ! -z $BC ]] && BC="--bc $BC"
 
+<<<<<<< HEAD
 [[ $OUTCL -ne 1 ]] || [[ $OUTCL -ne 2 ]] || [[ $OUTCL -ne 4 ]] && abort "-l must be a value among 1,2 or 4"
+=======
+#[[ $OUTCL -ne 1 ]] || [[ $OUTCL -ne 2 ]] || [[ $OUTCL -ne 4 ]] && abort "-l must be a value among 1,2 or 4"
+>>>>>>> kogia
 
 isExec jellyfish
 isExec samtools

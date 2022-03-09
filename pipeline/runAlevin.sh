@@ -2,8 +2,7 @@
 #SBATCH -p core -n 2
 #SBATCH -t 1-00:00:00
 #SBATCH --mail-type=ALL
-#SBATCH --mem=300GB
-#SBATCH -w picea
+#SBATCH --mem=12GB
 
 # be verbose and fail on errr
 set -ex
@@ -13,10 +12,9 @@ source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
 # defaults
 CPU=2
-GC="--gcBias"
-SEQ="--seqBias"
-VAL="--validateMappings"
-LTYPE="A"
+ECLASS="--dumpFeatures"
+STYPE="--chromiumV3"
+LTYPE="ISR"
 BIND=/mnt:/mnt 
 IMG=/mnt/picea/projects/singularity/salmon.simg
 
@@ -24,16 +22,14 @@ IMG=/mnt/picea/projects/singularity/salmon.simg
 ## a usage function
 USAGETXT=\
 "
-    Usage: $0 [options] <index dir> <fq file> <out dir> <fragment length mean> <fragment length sd>
+    Usage: $0 [options] <index dir> <fwd fq file> <rev fq file> <out dir> <transcript_map>
     
     Options:
               b: bind directory path
+              e: dump equivalence class - turn on --dumpFeatures
               i: path to the singularity image
-              g: turn off GC bias correction (on by default)
-              l: the library type, defaults to A (automatic) - see https://salmon.readthedocs.io/en/latest/library_type.html#fraglibtype 
+              l: the library type, defaults to ISR- see https://salmon.readthedocs.io/en/latest/library_type.html#fraglibtype 
               p: number of CPU to use (default 2)
-              s: turn off sequence bias correction (on by default)
-              v: turn off validateMappings (on by default), faster, less accurate
 " 
 
 # Check the tool is avail
@@ -41,23 +37,24 @@ USAGETXT=\
 # isExec salmon
 
 ## get the options
-while getopts b:i:gl:p:sv option
+while getopts b:e:i:l:p: option
 do
     case "$option" in
     b) BIND="$OPTARG";;
+    e) ECLASS="--dumpFeatures";;
     i) IMG="$OPTARG";;
-    g) GC="";;
-    l) LTYPE="";;
+    l) LTYPE="$OPTARG";;
 	  p) CPU="$OPTARG";;
-	  s) SEQ="";;
-	  v) VAL="";;
 	  \?) ## unknown flag
 	    usage;;
   esac
 done
 shift `expr $OPTIND - 1`
 
-## we get 2 files, 1 dir and 2 numbers as input 
+# set the options
+OPTIONS="$STYPE $ECLASS"
+
+## we get 4 files and 1 dir as input 
 if [ $# != 5 ]; then
    abort "This function has 5 arguments"
 fi
@@ -70,18 +67,17 @@ if [ ! -f $2 ]; then
    abort "The second argument needs to be an existing fq file"
 fi
 
-if [ ! -d $3 ]; then
-   abort "The third argument needs to be an existing directory"
+if [ ! -f $3 ]; then
+   abort "The third argument needs to be an existing fq file"
 fi
 
-if [ $4 -lt 1 ]; then
-   abort "The forth argument needs to be a positive number"
+if [ ! -d $4 ]; then
+   abort "The fourth argument needs to be an existing directory"
 fi
 
-if [ $5 -lt 1 ]; then
-   abort "The fifth argument needs to be a positive number"
+if [ ! -f $5 ]; then
+   abort "The fifth argument needs to be an existing transcript map file"
 fi
-
 
 bindDir=$(echo $BIND | cut -d: -f1)
 if [ ! -d $bindDir ]; then
@@ -93,15 +89,12 @@ if [ ! -f $IMG ]; then
 fi
 
 # create an output dir based on the sample name
-outdir=$3/$(basename ${2/.f*q.gz/})
+outdir=$4/$(basename ${2/_1.f*q.gz/})
 
 if [ ! -d $outdir ]; then
   mkdir $outdir
 fi
 
-# set the options
-OPTIONS="$GC $SEQ $VAL --fldMean $4 --fldSD $5"
-
 # run
  singularity exec --bind $BIND $IMG \
- salmon quant -p $CPU -i $1 -l $LTYPE -r $2 -o $outdir $OPTIONS 
+ salmon alevin -p $CPU -i $1 -l $LTYPE -1 $2 -2 $3 -o $outdir $OPTIONS --tgMap $5

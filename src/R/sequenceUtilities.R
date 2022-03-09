@@ -28,6 +28,7 @@
 #' libraries.
 stopifnot(suppressPackageStartupMessages(require(Biostrings)))
 stopifnot(suppressPackageStartupMessages(require(genomeIntervals)))
+stopifnot(suppressPackageStartupMessages(require(parallel)))
 
 #' 
 #' # Generics

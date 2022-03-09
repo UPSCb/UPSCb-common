@@ -44,6 +44,7 @@ ${bold}OPTIONS:${normal}
     -r        the reference databases for sortmerna
     -c        clipping arguments paased to trimmomatic. Overrides defaults in runTrimmomatic.sh. Default in this script: ILLUMINACLIP:\"$TRIMMOMATIC_HOME/adapters/NEB-universal-adapter.fa\":1:15:10
     -T        trimming arguments passed to trimmomatic. Overrides defaults in runTrimmomatic.sh. Default in this script (we do not trim based on quality) : MINLEN:16
+    -L        The salmon index, (L for Lax)
     -f fasta  the transcript fasta sequence file for kallisto
     -k inx    the Kallisto index file (use the index that has a kmer size of 15)
     -M        fragment length mean for kallisto
@@ -62,6 +63,7 @@ ${bold}STEPS:${normal}
     5) FastQC
     6) Bowtie
     7) Kallisto
+    8) Salmon
 
     Tentative extensions
     8) MultiQC
@@ -282,6 +284,7 @@ trimmomatic_options="MINLEN:16"
 bowtie_index=
 ilm_stranded=0
 non_ilm_stranded=0
+salmon_index=
 kallisto_index=
 kallisto_fasta=
 fragment_length_mean=
@@ -291,7 +294,11 @@ partition=
 
 # Parse the options
 OPTIND=1
+<<<<<<< HEAD
 while getopts "ab:c:Dde:f:hk:M:m:p:q:r:S:s:tT:" opt; do
+=======
+while getopts "ab:c:Dde:f:hk:L:M:m:p:r:S:s:tT:" opt; do
+>>>>>>> kogia
     case "$opt" in
         h) usage;;
         a) non_ilm_stranded=1;;
@@ -302,7 +309,8 @@ while getopts "ab:c:Dde:f:hk:M:m:p:q:r:S:s:tT:" opt; do
         s) pstart=$OPTARG ;;
         e) pend=$OPTARG ;;
         f) kallisto_fasta=$OPTARG ;;
-        k) kallisto_index=$OPTARG ;;
+       	k) kallisto_index=$OPTARG ;;
+        L) salmon_index=$OPTARG ;;
 	m) mem="${OPTARG}GB";;
 	p) SNIC_TMP=$OPTARG ;;
         q) partition="-p $OPTARG";;
@@ -482,6 +490,10 @@ bowtie="$outdir/bowtie2"
 ## Kallisto
 kallisto="$outdir/kallisto"
 [[ ! -d $kallisto ]] && mkdir $kallisto
+
+## Salmon
+salmon="$outdir/salmon"
+[[ ! -d $salmon ]] && mkdir $salmon
 
 ## Export some variables
 : "${UPSCb:=$PIPELINE_DIR/..}"
@@ -708,6 +720,27 @@ if [ $pstart -le 7 ] && [ $pend -ge 7 ]; then
         $partition \
         $dep runKallisto.sh -p $single_end_option $kallisto_strand_option $fastq_trimmed_1 $kallisto_index $kallisto_fasta $kallisto`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
+fi
+
+# Run Salmon. Depends on a successful run of trimmomatic
+if [ $pstart -le 8 ] && [ $pend -ge 8 ]; then
+    echo "# Preparing step 8"
+
+    dep=
+    if [ $pstart -le 4 ] && [ "$CMD" != "bash" ]; then
+        dep="-d afterok:${JOBIDS[${#JOBIDS[@]}-3]}"
+    elif ([ ! -f $fastq_trimmed_1 ]) && [ "$CMD" != "bash" ]; then
+        echo >&2 "ERROR: rRNA-filtered FASTQ-files could not be found"
+        cleanup
+    fi
+
+    JOBCMDS+=(`prepare_$CMD \
+        $debug_var \
+        -e $salmon/${sname}_salmon.err \
+        -o $salmon/${sname}_salmon.out \
+        -J ${sname}.RNAseq.salmon \
+        $dep runSalmonSE.sh $salmon_index $fastq_trimmed_1 $salmon $fragment_length_mean $fragment_length_sd`)
+        JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 
 echo "### ========================================

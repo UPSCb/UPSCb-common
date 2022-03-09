@@ -2,58 +2,58 @@
 #SBATCH -p core
 #SBATCH -t 12:00:00
 #SBATCH -n 20
-#SBATCH --mail-type=ALL
+#SBATCH --mail-type=END,FAIL
 
-## stop on error and be verbose
-set -ex
+# stop on error and undefined vars
+set -eu
 
-## load the modules
-#module load bioinfo-tools
-#module load star
+# source helpers
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
-## usage
-usage(){
-echo >&2 \
-"
-	Usage: $0 <index dir> <fasta file> <gff3 file>
-
-        Options:
-            -b      the chromosome bin nbits (18)
-            -f      the format: gff3 or gtf (gff3)
-            -l      the mate length (100)
-            -n      no gff
-            -m      maximum memory to allocate (120GB, in bytes 120000000000)
-            -p      number of threads to use (20)
-            -s      the sparsity of the index (1)
-            -t      the tag to use in the gff3 file to link exon <-> transcript (Parent)
-
-       Note: if the gtf format is selected, the t option default is switched to 'transcript_id'
-"
-	exit 1
-}
-
-## process the options
+# options 
 BITS=18
 FORMAT="gff3"
 MATE=100
 MEM=120000000000
 THREAD=20
+SAINX=14
 SPARSE=1
 TAG="Parent"
 NOGFF=0
 
-while getopts "b:f:l:m:np:s:t:" opt; do
-    case $opt in
+
+# USAGE
+USAGETXT=\
+"
+	Usage: $0 <singularity> <index dir> <fasta file> <gff3 file>
+
+        Options:
+            -b      the chromosome bin nbits ($BITS)
+            -f      the format: gff3 or gtf ($FORMAT)
+            -l      the mate length ($MATE)
+            -n      no gff
+            -m      maximum memory to allocate (in bytes $MEM)
+            -p      number of threads to use ($THREAD)
+            -s      the sparsity of the index ($SPARSE)
+            -S      the SA index Nbases ($SAINX)
+            -t      the tag to use in the gff3 file to link exon <-> transcript ($TAG)
+
+       Note: if the gtf format is selected, the t option default is switched to 'transcript_id'
+"
+## process the options
+while getopts "b:f:l:m:np:s:S:t:" opt; do
+  case "$opt" in
 	b) BITS=$OPTARG;;
 	f) FORMAT=$OPTARG;;
 	l) MATE=$OPTARG;;
 	n) NOGFF=1;;
 	m) MEM=$OPTARG;;
-        p) THREAD=$OPTARG;;
+  p) THREAD=$OPTARG;;
 	s) SPARSE=$OPTARG;;
+	S) SAINX=$OPTARG;;
 	t) TAG=$OPTARG;;
-        \?) usage;;
-    esac
+  \?) usage;;
+  esac
 done
 shift `expr $OPTIND - 1`
 
@@ -63,42 +63,33 @@ if [ $FORMAT == "gtf" ] && [ $TAG == "Parent" ]; then
 fi
 
 ## we get one out dir, one fasta and one gff3 file as input
-if [ $# != 3 ] && [ $NOGFF -eq 0 ] ; then
-    echo "This function takes one directory, one fasta and one gff3 file as arguments"
-    usage
+if [ $# != 4 ] && [ $NOGFF -eq 0 ] ; then
+    abort "This function takes one directory, one fasta and one gff3 file as arguments"
 fi
 
-if [ $# != 2 ] && [ $NOGFF -eq 1 ] ; then
-    echo "This function takes one directory, one fasta file as arguments when -n is set"
-    usage
+if [ $# != 3 ] && [ $NOGFF -eq 1 ] ; then
+    abort "This function takes one directory, one fasta file as arguments when -n is set"
 fi
 
-if [ ! -d $1 ]; then
-    echo "The first argument needs to be the STAR index directory"
-    usage
-fi
+[[ ! -f $1 ]] && abort "The first argument needs to be an existing singularity container"
 
-if [ ! -f $2 ]; then
-    echo "The second argument needs to be a fasta file"
-    usage
-fi
+[[ ! -d $2 ]] && abort "The second argument needs to be the STAR index directory"
 
-if [ ! -f $3 ] && [ $NOGFF -eq 0 ] ; then
-    echo "The third argument needs to be a gff3 file"
-    usage
-fi
+[[ ! -f $3 ]] && abort "The third argument needs to be a fasta file"
+
+[[ ! -f $4 ]] && [[ $NOGFF -eq 0 ]] && abort "The fourth argument needs to be a gff3 file"
 
 ## run
 echo Indexing
 if [ "$NOGFF" -eq "0" ]; then
-  OPTIONS="--sjdbGTFfile $3 --sjdbGTFtagExonParentTranscript $TAG --sjdbOverhang $MATE"
+  OPTIONS="--sjdbGTFfile $4 --sjdbGTFtagExonParentTranscript $TAG --sjdbOverhang $MATE"
 else
   OPTIONS=
 fi
 
-STAR --runMode genomeGenerate --genomeDir $1 --genomeFastaFiles $2 \
+singularity exec $1 STAR --runMode genomeGenerate --genomeDir $2 --genomeFastaFiles $3 \
 --limitGenomeGenerateRAM $MEM --runThreadN $THREAD --genomeChrBinNbits $BITS \
---genomeSAsparseD $SPARSE $OPTIONS
+--genomeSAsparseD $SPARSE --genomeSAindexNbases $SAINX $OPTIONS
 
 ## fix permission
 chmod -R g+w $1

@@ -1,62 +1,34 @@
 #!/bin/bash -l
-#SBATCH -p core
+##SBATCH -p core
+#SBATCH -p small
 #SBATCH -n 1
 #SBATCH -t 3:00:00
-#SBATCH --mail-type=ALL
+#SBATCH --mail-type=END,FAIL
 
-## stop on error but be verbose
-set -ex
+# fail on ERROR
+set -eux
 
-##
-#  Run fastQC 
-usage(){
-  echo >&2 \
-  "Usage: $(basename $0) <outputFolder> <file> [file] ..."
-  exit 1
-}
+# load helpers
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
+# vars
+OPTIONS="--noextract"
+CPU=1
 
-## sanity checks
-## executable
-## are we on UPPMAX
-if [ ! -z $SLURM_SUBMIT_DIR ]; then
-	module load bioinfo-tools FastQC
-##	echo "Running on UPPMAX"
-else
-##	echo "Running locally"
-	fastqc=`which fastqc`
-	if [ "$?" == "1" ]; then
-		echo "please install fastqc before running this script or add it to your PATH"
-		usage
-	fi
-
-	if [ ! -f $fastqc -a ! -x $fastqc ]; then
-		echo "your fastQC does not appear to be an executable file"
-		usage
-	fi
-fi
+# usage
+USAGETXT=\
+"
+ $0 <singularity image> <outputFolder> <fastq file>
+"
 
 ## arguments
-if [ $# -lt 2 ]; then
-   echo "This script takes two arguments"
-   usage
-fi
+[[ $# -ne 3 ]] && abort "This script takes two arguments"
 
-## input file
-if [ ! -d $1 ]; then
-	echo "The first argument needs to be an existing output directory."
-	usage
-fi
-out=$1
-shift
+[[ ! -f $1 ]] && abort "The first argument needs to be an existing singularity fastqc container file"
+	
+[[ ! -d $2 ]] && abort "The second argument needs to be an existing directory"
 
-## output dir
-for f in $@; do
-  if [ ! -f $f ]; then
-	echo "The second (and successive) arguments needs to be an existing fastq (optionally gz) file"
-	usage
-  fi
-done
+[[ ! -f $3 ]] && abort "The third argument needs to be an fastq file"
 
 ## start
-fastqc --noextract --outdir $out $@ -t $SLURM_CPUS_ON_NODE
+singularity exec $1 fastqc --outdir $2 -t $CPU $OPTIONS $3

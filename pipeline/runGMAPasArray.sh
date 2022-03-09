@@ -7,8 +7,13 @@
 ## time too for large files
 #SBATCH -t 12:00:00
 #SBATCH --mail-type=ALL
+<<<<<<< HEAD
 #SBACTH -e gmap.SLURM_ARRAY_TASK_ID.err
 #SBACTH -o gmap.SLURM_ARRAY_TASK_ID.out
+=======
+#SBATCH -e gmap.%a.err
+#SBATCH -o gmap.%a.out
+>>>>>>> kogia
 ## mail-user and A have to be set in the submit script
 
 ## stop on error

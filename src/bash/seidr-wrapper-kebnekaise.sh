@@ -169,10 +169,10 @@ for ((i=0;i<len;i++)); do
         svr="--save-resume $resultDir/$inf/$inf.json"
       fi
       if [ -z ${ompThread[$i]} ]; then
- 	echo "unset OMP_NUM_THREADS" >> $resultDir/$inf/$inf.sh
+ 	      echo "unset OMP_NUM_THREADS" >> $resultDir/$inf/$inf.sh
       else
-    	echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
-	svr=
+    	  echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
+	      svr=
       fi
       echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 $svr -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
 
@@ -182,7 +182,7 @@ for ((i=0;i<len;i++)); do
         dep="-d afterok:${jobIDs[${deps[$i]}]}"
       fi
 
-      dep=$(sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf $dep \
+      dep=$(sbatch --mail-type=END,FAIL --mail-user=$mail -A $account -J $inf $dep \
       -e $resultDir/$inf/$inf.err -o $resultDir/$inf/$inf.out ${arguments[$i]} $resultDir/$inf/$inf.sh)
 
       jobIDs[$i]=${dep//[^0-9]/}

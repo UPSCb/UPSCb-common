@@ -157,6 +157,20 @@ boxplot(normalizationFactors(dds),
         main="Sequencing libraries size factor",
         las=2,log="y")
 
+#' Assess whether there might be a difference in library size linked to a
+#' given metadata
+#' ```{r echo=FALSE,eval=FALSE}
+#' # Developer: This would need to be ggplot2'ed
+#' ```
+boxplot(split(sizes,dds$CHANGEME),las=2,
+        main="Sequencing libraries size factor by Tissue")
+
+plot(sizes,log10(colSums(counts(dds))),ylab="log10 raw depth",xlab="scaling factor",
+     col=rainbow(n=nlevels(dds$CHANGEME))[as.integer(dds$CHANGEME)],pch=19)
+legend("bottomright",fill=rainbow(n=nlevels(dds$CHANGEME)),
+       legend=levels(dds$CHANGEME),cex=0.6)
+
+
 #' ## Variance Stabilising Transformation
 vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
 vst <- assay(vsd)

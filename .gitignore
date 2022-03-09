@@ -36,9 +36,13 @@ vignettes/*.pdf
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
 
-## data, etc.
+# data, etc.
 data
 data/
 analysis
 analysis/
+reference
+reference/
+singularity
+singularity/
 

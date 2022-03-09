@@ -5,7 +5,7 @@ set -ex
 
 # project vars
 account=facility
-mail=nicolas.delhomme@umu.se
+mail=
 
 # source
 source functions.sh
@@ -16,10 +16,20 @@ module load bioinfo-tools clp seidr-devel
 # Variables
 resultDir=results
 
-correlationNCPUs=28
+nodes=1
 
-inference=(aracne clr genie3 llr-ensemble narromi pcor pearson plsnet spearman tigress)
+genie3Multiplier=2
 
+tigressMultiplier=3
+
+partition="rbx"
+#partition="mpi"
+
+correlationNCPUs=24
+
+inference=(aracne clr genie3 llr-ensemble narromi pcor pearson plsnet spearman tigress tomsimilarity)
+
+# which inference to run
 run=(
   [0]=1
   [1]=1
@@ -30,36 +40,43 @@ run=(
   [6]=1
   [7]=1
   [8]=1
-  [9]=1)
+  [9]=1
+  [10]=1)
 
-# 28 workers on 1 nodes (kk has 28 per node) - setting -n 2 -c 14 (14 cores on 2 nodes, results in the same)
-default="-n 1 -c 28 -t 2-00:00:00"
+# queue
+default="-n $nodes -c $correlationNCPUs -t 2-00:00:00"
 
 arguments=(
   [0]=$default
   [1]=$default
-  [2]="-n 1 -c 42 -t 2-00:00:00"
+  #[2]="-n $(expr $nodes "*" genie3Multiplier) -c $(expr $correlationNCPUs "*" genie3Multiplier) -t 4-00:00:00"
+  [2]="-n $nodes -c $(expr $correlationNCPUs "*" genie3Multiplier) -t 4-00:00:00"
   [3]=$default
   [4]=$default
-  [5]="-n $correlationNCPUs -t 12:00:00"
-  [6]="-n $correlationNCPUs -t 12:00:00"
+  [5]=$default
+  [6]=$default
   [7]=$default
-  [8]="-n $correlationNCPUs -t 12:00:00"
-  [9]="-n 2 -c 42 -t 4-00:00:00")
-
+  [8]=$default
+  #[9]="-n $(expr $nodes "*" tigressMultiplier) -c $(expr $correlationNCPUs "*" tigressMultiplier) -t 4-00:00:00"
+  [9]="-n $nodes -c $(expr $correlationNCPUs "*" tigressMultiplier) -t 4-00:00:00"
+  [10]=$default)
+  
 #parallel="-O "'$SLURM_CPUS_PER_TASK'
 parallel="-O $correlationNCPUs"
+parallel2="-O "$(expr $correlationNCPUs "*" genie3Multiplier)
+parallel3="-O "$(expr $correlationNCPUs "*" tigressMultiplier)
 command=(
   [0]="mi -m ARACNE -M $resultDir/mi/mi.tsv "$parallel
   [1]="mi -m CLR -M $resultDir/mi/mi.tsv "$parallel
-  [2]="genie3 -O 42"
+  [2]="genie3 "$parallel2
   [3]="llr-ensemble "$parallel
-  [4]="narromi "$parallel
+  [4]="narromi -m interior-point "$parallel
   [5]="pcor"
   [6]="correlation -m pearson"
   [7]="plsnet "$parallel
   [8]="correlation -m spearman"
-  [9]="tigress -O 42")
+  [9]="tigress "$parallel3
+  [10]="tomsimilarity -m bicor")
 
 # usage
 USAGETXT=\
@@ -81,6 +98,10 @@ fi
 
 if [ ! -f $2 ]; then
   abort "The second argument needs to be the gene names tab delimited file"
+fi
+
+if [ -z "$mail"]; then
+  abort "Edit the script and add your email"
 fi
 
 if [ $(wc -l $2 | cut -d" " -f1) -ne 1 ]; then
@@ -115,17 +136,21 @@ ngenes=$(cat $2 | wc -w)
 default="-B $ngenes"
 
 # the number of nodes depends on the arguments list and default
+
 optionB=(
   [0]=$default
   [1]=$default
-  [2]="-B $(expr $(expr $ngenes '/' 2) '+' 1)"
+#  [2]="-B $(expr $(expr $ngenes '/' $(expr $nodes "*" $genie3Multiplier )) '+' 1)"
+  [2]=$default
   [3]=$default
   [4]=$default
   [5]=""
   [6]=""
   [7]=$default
   [8]=""
-  [9]="-B $(expr $(expr $ngenes '/' 3) '+' 1)")
+#  [9]="-B $(expr $(expr $ngenes '/' $(expr $nodes "*" $tigressMultiplier)) '+' 1)"
+  [9]=$default
+  [10]="")
 
 # Set the number of OMP threads
 # default to 1
@@ -141,7 +166,8 @@ ompThread=(
   [6]=$correlationNCPUs
   [7]=$default
   [8]=$correlationNCPUs
-  [9]=$default)
+  [9]=$default
+  [10]=$correlationNCPUs)
 
 # Set dependencies
 # Both ARACNE and CLR calculate the RAW MI
@@ -161,16 +187,18 @@ for ((i=0;i<len;i++)); do
     if [ ! -f $resultDir/$inf/$inf.tsv ]; then
       mkdir -p $resultDir/$inf
       echo "#!/bin/bash" > $resultDir/$inf/$inf.sh
+      if [ -f $resultDir/$inf/$inf.json ]; then
+        svr="--resume-from $resultDir/$inf/$inf.json"
+      else
+        svr="--save-resume $resultDir/$inf/$inf.json"
+      fi
       if [ -z ${ompThread[$i]} ]; then
  	      echo "unset OMP_NUM_THREADS" >> $resultDir/$inf/$inf.sh
       else
     	  echo "export OMP_NUM_THREADS=${ompThread[$i]}" >> $resultDir/$inf/$inf.sh
+    	  svr=
       fi
-	    if [ ${#optionB[$i]} -eq 0 ]; then
-	      echo "${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
-	    else
-	      echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 -o $resultDir/$inf/$inf.tsv --save-resume $resultDir/$inf/$inf.xml" >> $resultDir/$inf/$inf.sh
-      fi
+	    echo "srun ${command[$i]} ${optionB[$i]} -i $1 -g $2 $svr -o $resultDir/$inf/$inf.tsv" >> $resultDir/$inf/$inf.sh
       
       # Handle dependencies
       dep=
@@ -178,8 +206,8 @@ for ((i=0;i<len;i++)); do
         dep="-d afterok:${jobIDs[${deps[$i]}]}"
       fi
 
-      dep=$(sbatch --mail-type=ALL --mail-user=$mail -A $account -J $inf $dep \
-      -e $resultDir/$inf/$inf.err -o $resultDir/$inf/$inf.out -p mpi ${arguments[$i]} $resultDir/$inf/$inf.sh)
+      dep=$(sbatch --mail-type=END,FAIL --mail-user=$mail -A $account -J $inf $dep \
+      -e $resultDir/$inf/$inf.err -o $resultDir/$inf/$inf.out -p $partition ${arguments[$i]} $resultDir/$inf/$inf.sh)
 
       jobIDs[$i]=${dep//[^0-9]/}
     fi
