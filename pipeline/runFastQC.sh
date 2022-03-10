@@ -31,4 +31,4 @@ USAGETXT=\
 [[ ! -f $3 ]] && abort "The third argument needs to be an fastq file"
 
 ## start
-singularity exec $1 fastqc --outdir $2 -t $CPU $OPTIONS $3
+singularity exec --bind /mnt:/mnt $1 fastqc --outdir $2 -t $CPU $OPTIONS $3
