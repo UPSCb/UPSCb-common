@@ -25,7 +25,7 @@ NOGFF=0
 # USAGE
 USAGETXT=\
 "
-	Usage: $0 <singularity> <index dir> <fasta file> <gff3 file>
+	Usage: $0 [options] <singularity> <index dir> <fasta file> <gff3 file>
 
         Options:
             -b      the chromosome bin nbits ($BITS)
