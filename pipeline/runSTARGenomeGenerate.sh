@@ -92,7 +92,7 @@ singularity exec $1 STAR --runMode genomeGenerate --genomeDir $2 --genomeFastaFi
 --genomeSAsparseD $SPARSE --genomeSAindexNbases $SAINX $OPTIONS
 
 ## fix permission
-chmod -R g+w $1
+chmod -R g+w $2
 
 ##
 echo Done
