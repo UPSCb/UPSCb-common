@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p small
+#SBATCH -p node
 #SBATCH -n 1
 #SBATCH --mem=16GB
 #SBATCH --mail-type=END,FAIL

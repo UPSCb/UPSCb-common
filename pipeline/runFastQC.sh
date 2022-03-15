@@ -1,6 +1,5 @@
 #!/bin/bash -l
-##SBATCH -p core
-#SBATCH -p small
+#SBATCH -p core
 #SBATCH -n 1
 #SBATCH -t 3:00:00
 #SBATCH --mail-type=END,FAIL

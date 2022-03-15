@@ -1,6 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p small -n 2
-##SBATCH -p core -n 2
+#SBATCH -p core -n 2
 #SBATCH -t 1-00:00:00
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mem=12GB

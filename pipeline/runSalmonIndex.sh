@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p small -n 8
+#SBATCH -p node -n 8
 #SBATCH -t 12:00:00
 #SBATCH --mail-type ALL
 
