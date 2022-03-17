@@ -30,10 +30,6 @@ NoGZ="--readFilesCommand zcat"
 
 ## additional options for STAR
 OPTIONS="--outSAMmapqUnique 254 --outFilterMultimapNmax 100"
-#OPTIONS="$OPTIONS --twopassMode Basic"
-
-OPTIONS=" --outSAMmapqUnique 254 --outFilterMultimapNmax 100 \
---outReadsUnmapped Fastx --chimSegmentMin 1 --outSAMtype BAM SortedByCoordinate"
 
 ## usage
 USAGETXT=\
@@ -44,6 +40,7 @@ USAGETXT=\
 	Options:
 	  -b do not bam to cram
 	  -c produce chimeric files
+	  -d enable double pass
     -f the gtf/gff3 file format (default gtf)
     -g the path to a gtf/gff3 file
     -h print the usage
@@ -67,12 +64,13 @@ USAGETXT=\
 "
 
 ## get the options
-while getopts bcf:g:hil:m:nop:qstwz option
+while getopts bcdf:g:hil:m:nop:qstwz option
 do
   case "$option" in
       b) CRAM=0;;
       c) OPTIONS="$OPTIONS --chimSegmentMin 1"
          CHIMERIC=1;;
+      d) "$OPTIONS --twopassMode Basic";;
 	    f) FORMAT=$OPTARG;;
 	    g) GFF=$OPTARG;;
 	    h) usage;;
