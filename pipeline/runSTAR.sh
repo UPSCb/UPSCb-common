@@ -239,27 +239,27 @@ if [ $CRAM -eq 1 ]; then
   if [ $CHIMERIC -eq 1 ]; then
     singularity exec $samtools samtools view -CT $gfasta ${fnam}Chimeric.out.sam | \
     singularity exec $samtools samtools sort -@ $PROC - -o ${fnam}_STAR_Chimeric.cram
-    singularity exec $samtools index ${fnam}_STAR_Chimeric.cram 
+    singularity exec $samtools samtools index ${fnam}_STAR_Chimeric.cram
   fi
-  
+
   ## convert the output BAM in CRAM
   singularity exec $samtools samtools view -CT $gfasta -o ${fnam}_STAR.cram ${fnam}_STAR.bam
 
   ## index the CRAMs
   echo "Indexing"
-  singularity exec $samtools index ${fnam}_STAR.cram
+  singularity exec $samtools samtools index ${fnam}_STAR.cram
 
   ## cleanup
   echo "Cleaning"
   rm ${fnam}_STAR.bam
 else
   if [ $CHIMERIC -eq 1 ]; then 
-    singularity exec $samtools view -b ${fnam}Chimeric.out.sam | \
-    singularity exec $samtools sort -@ $PROC - -o ${fnam}_STAR_Chimeric.bam
-    singularity exec $samtools index ${fnam}_STAR_Chimeric.bam
+    singularity exec $samtools samtools view -b ${fnam}Chimeric.out.sam | \
+    singularity exec $samtools samtools sort -@ $PROC - -o ${fnam}_STAR_Chimeric.bam
+    singularity exec $samtools samtools index ${fnam}_STAR_Chimeric.bam
   fi
   echo "Indexing"
-  singularity exec $samtools index ${fnam}_STAR.bam
+  singularity exec $samtools samtools index ${fnam}_STAR.bam
 fi
 
 ## cleanup
