@@ -58,6 +58,9 @@ OPTIONS="$GC $SEQ $POS $ECLASS"
 
 [[ ! -f $1 ]] && abort "The first argument needs to be the salmon singularity container file"
 
+## enforce singularity
+[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+
 [[ ! -d $2 ]] && abort "The second argument needs to be an existing index directory"
 
 [[ ! -f $3 ]] && abort "The third argument needs to be an existing fq file"

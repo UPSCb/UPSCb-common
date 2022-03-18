@@ -117,11 +117,14 @@ fi
 ## get the containers
 star=$1
 shift
-[[ ! -f $star ]] && "The first argument needs to be an existing STAR singularity container"
+[[ ! -f $star ]] && abort "The first argument needs to be an existing STAR singularity container"
 
 samtools=$1
 shift
-[[ ! -f $samtools ]] && "The first argument needs to be an existing samtools singularity container"
+[[ ! -f $samtools ]] && abort "The first argument needs to be an existing samtools singularity container"
+
+## enforce singularity
+[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 ## get the out dir
 outdir=$1
@@ -141,7 +144,7 @@ shift
 ## Check if the first file exists
 fwd=$1
 shift
-[[ ! -f $fwd ]] && "The forward fastq file: $fwd does not exist"
+[[ ! -f $fwd ]] && abort "The forward fastq file: $fwd does not exist"
 
 ## Check if the second file exists
 [[ $SINGLE == 0 ]] && [[ ! -f $1 ]] && abort "The reverse fastq file: $1 does not exist"

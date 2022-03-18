@@ -20,10 +20,10 @@ PASSES=
 SAM=
 ILV=0
 
-## source functions
+# source functions
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
-## usage
+# usage
 export USAGETXT="
 	Usage: runSortmerna.sh [option] <singularity> <out dir> <ref fasta> <inx dir> <forward fastq.gz> <reverse fastq.gz>
 
@@ -52,7 +52,7 @@ do
 done
 shift `expr $OPTIND - 1`
 
-## we get two dir and two files as input
+# we get two dir and two files as input
 if [ $UNPAIRED == 0 ]; then
     [[ $# != 6 ]] && abort "This function takes two directories and four files as arguments"
 else

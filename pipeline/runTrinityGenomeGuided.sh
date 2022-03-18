@@ -68,6 +68,9 @@ shift `expr $OPTIND - 1`
 
 [[ ! -f $2 ]] && abort "The third argument (alignment BAM) needs to be an existing file"
 
+## enforce singularity
+[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+
 ## check args
 if [ ! -z $LONGREADS ]; then
 	[[ ! -f $LONGREADS ]] && abort "-l should point to an existing fasta file"

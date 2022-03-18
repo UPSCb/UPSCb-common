@@ -6,7 +6,7 @@ set -eu
 # Preprocessing script for RNA-Seq data.
 # THIS SCRIPT IS NOT TO BE RUN THROUGH SBATCH, USE BASH!
 ### ========================================================
-VERSION="0.4.0"
+VERSION="0.4.1"
 
 ### ========================================================
 ## pretty print
@@ -340,6 +340,9 @@ trimmomatic_clipping="ILLUMINACLIP:$adpt:$trimmomatic_clipping"
 [[ "$#" !=  "6" ]] && abort "ERROR: this script expects 6 arguments"
 
 [[ ! -d $3 ]] && abort "The third directory needs to point to a directory containing singularity containers"
+
+## enforce singularity
+[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 ## Do basic checks
 [[ $pstart =~ ^[0-9]+$ ]] || abort "$pstart is not a valid start value"

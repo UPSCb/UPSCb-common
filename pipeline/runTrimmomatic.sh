@@ -63,6 +63,9 @@ fi
 img=$1
 shift
 
+## enforce singularity
+[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+
 [[ ! -f $1 ]] && abort "The second argument must be the trimmomatic adapter fasta file"
 adpt=$1
 shift

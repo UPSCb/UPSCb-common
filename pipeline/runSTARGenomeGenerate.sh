@@ -64,14 +64,17 @@ fi
 
 ## we get one out dir, one fasta and one gff3 file as input
 if [ $# != 4 ] && [ $NOGFF -eq 0 ] ; then
-    abort "This function takes one directory, one fasta and one gff3 file as arguments"
+    abort "This function takes a singularity container, one directory, one fasta and one gff3 file as arguments"
 fi
 
 if [ $# != 3 ] && [ $NOGFF -eq 1 ] ; then
-    abort "This function takes one directory, one fasta file as arguments when -n is set"
+    abort "This function takes a singularity container, one directory, one fasta file as arguments when -n is set"
 fi
 
 [[ ! -f $1 ]] && abort "The first argument needs to be an existing singularity container"
+
+## enforce singularity
+[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 [[ ! -d $2 ]] && abort "The second argument needs to be the STAR index directory"
 

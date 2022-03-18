@@ -65,6 +65,9 @@ singularity=$1
 shift
 [[ ! -f $singularity ]] && abort "The first argument needs to be the trinity singularity container file"
 
+## enforce singularity
+[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+
 fwd=$1
 shift
 [[ ! -f $fwd ]] && abort "The second argument needs to be the forward (left) fastq file"
