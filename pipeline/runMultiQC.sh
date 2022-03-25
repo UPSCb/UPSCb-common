@@ -29,4 +29,4 @@ Usage: $(basename $0) <singularity container> <analysis directory> <output direc
 [[ ! -d $3 ]] && abort "The third argument needs to be an existing output directory."
 
 ## start
-singularity exec --bind /mnt:/mnt $1 multiqc -o $3 $2
+singularity exec $1 multiqc -o $3 $2
