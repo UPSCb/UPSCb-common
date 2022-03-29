@@ -27,9 +27,10 @@ This instructions are specific to the users at the Umeå Plant Science Centre, y
 We use `git` and `SLURM` to ensure reproducible research, here are gists on how to enable that in your projects:
 
 1. [Git setup](https://gist.github.com/nicolasDelhomme/46a1053d277510b95692318bd1732b6d)
-2. [SLURM usage]()
-3. A [video]() of a tech seminar on both (duration ~1h)
+2. [SLURM usage](https://gist.github.com/nicolasDelhomme/6fbff1e4db3c7ee4b3bb4f710667fd0d)
+3. A [video](https://youtu.be/3XMHTixiszE) of a tech seminar on both (duration ~1h)
 4. A description of our server structure
+5. A video on how to [download data from Novogene](https://youtu.be/A6JcORYs9L0)
 
 ## Rules of conduct
 
