@@ -17,7 +17,7 @@ GC="--gcBias"
 LTYPE="A"
 POS="--posBias"
 SEQ="--seqBias"
-
+CLEAN=0
 
 # USAGE
 ## a usage function
@@ -26,6 +26,7 @@ USAGETXT=\
     Usage: $0 [options] <singularity container> <index dir> <fwd fq file> <rev fq file> <out dir>
 
     Options:
+              C: remove the input files upon completion of the quantification (DANGER!)
               e: turn off dump equivalence class and perform gibbs sampling (on by default)
               g: turn off GC bias correction (on by default)
               l: the library type, defaults to A (automatic) - see https://salmon.readthedocs.io/en/latest/library_type.html#fraglibtype 
@@ -35,9 +36,10 @@ USAGETXT=\
 "
 
 ## get the options
-while getopts egl:pst: option
+while getopts Cegl:pst: option
 do
     case "$option" in
+    C) CLEAN=1;;
     e) ECLASS="";;
     g) GC="";;
     l) LTYPE="";;
@@ -75,3 +77,6 @@ outdir=$5/$(basename ${3/_1.f*q.gz/})
 
 # run
 singularity exec $1 salmon quant -p $CPU -i $2 -l $LTYPE -1 $3 -2 $4 -o $outdir $OPTIONS 
+
+# clean
+[[ $CLEAN -eq 1 ]] && [[ -f $outdir/quant.sf ]] && rm $3 $4

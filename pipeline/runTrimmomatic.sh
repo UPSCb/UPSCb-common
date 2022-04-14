@@ -18,6 +18,7 @@ Usage:
 
 Options:
     -c      clipping file and settings
+    -C      delete the input after successful completion
     -p      number of threads to use
     -q      use illumina quality (+64 offset), default to sanger now (+33 offset)!
     -s      single end reads
@@ -39,12 +40,13 @@ single_end=0
 thread=20
 trim="SLIDINGWINDOW:5:20 MINLEN:50"
 trimlog=0
-
+clean=0
 
 # options
-while getopts "c:p:qstv" opt; do
+while getopts "c:Cp:qstv" opt; do
     case $opt in
 	  c) clip=$OPTARG;;
+	  C) clean=1;;
 	  p) thread=$OPTARG;;
 	  q) phred="-phred64";;
     s) single_end=1;;
@@ -111,6 +113,7 @@ if [ $single_end -eq 0 ]; then
   else
 	  printf "%s\0%s\0%s\0%s" $out/${pattern}_trimmomatic_1.fq $out/${pattern}_unpaired_1.fq $out/${pattern}_trimmomatic_2.fq $out/${pattern}_unpaired_2.fq | xargs -0 -I {} -P $thread gzip -f {}
   fi
+  [[ $clean -eq 1 ]] && [[ -f $out/${pattern}_trimmomatic_1.fq.gz ]] && [[ -f $out/${pattern}_trimmomatic_2.fq.gz ]] && rm $fwd $rev
 else
   singularity exec $img trimmomatic SE -threads $thread $phred $log $fwd $out/${pattern}_trimmomatic.fq $clip $trim
   if [ $trimlog -eq 1 ]; then
@@ -118,5 +121,6 @@ else
   else
 	  gzip -f $out/${pattern}_trimmomatic.fq	
   fi
+  [[ $clean -eq 1 ]] && [[ -f $out/${pattern}_trimmomatic.fq.gz ]] && rm $fwd
 fi
 

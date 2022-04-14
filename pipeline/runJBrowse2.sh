@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p unlimited -n 1
+#SBATCH -p nolimit -n 1
 
 set -eu
 
@@ -33,5 +33,5 @@ USAGETXT=\
 [[ $2 -gt 30000 ]] && abort "The port should be below 30000"
 
 # run
-docker run -d --rm -p $3:3000 -v $2:/var/www/html/jbrowse2 delhomme/upscb-jbrowse2
-
+#docker run -d --rm -p $3:3000 -v $2:/var/www/html/jbrowse2 delhomme/upscb-jbrowse2
+docker run -d --rm -p $2:3000 -v $1:/var/www/html/jbrowse2 delhomme/upscb-jbrowse2

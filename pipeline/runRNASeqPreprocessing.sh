@@ -6,7 +6,7 @@ set -eu
 # Preprocessing script for RNA-Seq data.
 # THIS SCRIPT IS NOT TO BE RUN THROUGH SBATCH, USE BASH!
 ### ========================================================
-VERSION="0.4.1"
+VERSION="0.4.2"
 
 ### ========================================================
 ## pretty print
@@ -39,6 +39,7 @@ ${bold}ARGUMENTS:${normal}
 ${bold}OPTIONS:${normal}
     -h        show this help message and exit
     -d        dry-run. Check for the software dependencies, output the command lines and exit
+    -C        do not clean temporary file (default on)
     -D        Debug. On Uppmax use a devel node to try out changes during development or program updates, it's highly recommended to not run more than one step in this mode
     -r        Rerun. Ignore existing files.
     -s n      step at which to start (see ${underline}STEPS${nounderline})
@@ -56,7 +57,6 @@ ${bold}OPTIONS:${normal}
     -H gff    gff3 file for ${underline}H${nounderline}TSeq
     -i        IDATTR in GFF3 file to report counts (default: 'Parent')
     -m        the memory requirement for performing the alignment (in GB; e.g. enter 128 for 128GB)
-    -p        fastq data is phred64 encoded
     -t        library is s${underline}t${nounderline}randed (currently only relevant for HTSeq, for the illumina protocol, second strand cDNA using dUTP)
     -a        library is s${underline}t${nounderline}randed (currently only relevant for HTSeq, for the non illumina protocol e.g. first strand cDNA using dUTP)
     -S        Salmon index
@@ -81,7 +81,6 @@ ${bold}STEPS:${normal}
     10) (HTSeq-count*)
 
     The steps marked with * are optional; only accessible if -E is set.
-    The steps in () are tools not supported in kogia
 
 ${bold}NOTES:${normal}
     * This script should not be run through sbatch, just use bash.
@@ -268,6 +267,7 @@ adpt=""
 dryrun=0
 debug=0
 rerun=0
+clean="-C"
 pstart=1
 pend=9
 star_ref=
@@ -281,7 +281,6 @@ idattr="Parent"
 mem=
 memArg="--mem"
 bam_memory=10000000000
-phred_value=
 trimmomatic_clipping="2:30:10:2:keepBothReads"
 trimmomatic_options=
 kallisto_index=
@@ -292,15 +291,15 @@ salmon_index=
 sortmerna_fasta=
 sortmerna_inx=
 extended=0
-kogia=${PIPELINE_DIR}/../kogia/scripts
 
 # Parse the options
 OPTIND=1
-while getopts "aA:c:dDe:Ef:F:g:G:hH:i:I:kK:l:m:prs:S:tT:x:X:" opt; do
+while getopts "aA:c:CdDe:Ef:F:g:G:hH:i:I:kK:l:m:rs:S:tT:x:X:" opt; do
     case "$opt" in
         a) non_ilm_stranded=1;;
         A) adpt=$OPTARG ;;
         c) trimmomatic_clipping=$OPTARG ;;
+        C) clean="";
 	      d) dryrun=1;;
         D) debug=1;;
         e) pend=$OPTARG ;;
@@ -317,7 +316,6 @@ while getopts "aA:c:dDe:Ef:F:g:G:hH:i:I:kK:l:m:prs:S:tT:x:X:" opt; do
         K) kallisto_index=$OPTARG ;;
         l) bam_memory=$OPTARG ;;
         m) mem="${OPTARG}GB";;
-        p) phred_value="-q";;
         r) rerun=1;;
         s) pstart=$OPTARG ;;
         S) salmon_index=$OPTARG ;;
@@ -367,7 +365,7 @@ echo "### ========================================
 ## the toolArray (starting at 1) link the tool(s) to its respective step(s)
 ## starArray and htseqArray are there to simulate a nested array
 toolList=(fastQValidator fastqc sortmerna trimmomatic salmon kallisto samtools STAR htseq-count)
-toolVersion=( 0 0.11.9 4.3.4 0.39 1.6.0 0 0 0 0)
+toolVersion=( 0 0.11.9 4.3.4 0.39 1.8.0 0 1.15 2.7.10a 0)
 htseqArray=([0]=6 [1]=8)
 kallistoArray=([0]=5 [1]=6)
 toolArray=([1]=0 [2]=1 [3]=2 [4]=1 [5]=3 [6]=1 [7]=4 [8]=${kallistoArray[*]} [9]=7 [10]=${htseqArray[*]})
@@ -734,7 +732,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
         -o $outdir/${dirList[$step]}/${sname}_trimmomatic.log \
         -J ${sname}.RNAseq.Trimmomatic \
         $dep \
-        runTrimmomatic.sh $phred_value -c $trimmomatic_clipping $trm_img $adpt $fastq_sort_1 $fastq_sort_2 $outdir/${dirList[$step]} $trimmomatic_options))
+        runTrimmomatic.sh $clean -c $trimmomatic_clipping $trm_img $adpt $fastq_sort_1 $fastq_sort_2 $outdir/${dirList[$step]} $trimmomatic_options))
     JOBIDS+=($(run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}))
     skip=0
   fi
@@ -799,7 +797,7 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
         -e $outdir/${dirList[$step]}/${sname}_salmon.err \
         -o $outdir/${dirList[$step]}/${sname}_salmon.out \
         -J ${sname}.RNAseq.salmon \
-        $dep runSalmon.sh $slmn_img $salmon_index $fastq_trimmed_1 $fastq_trimmed_2 $outdir/${dirList[$step]}))
+        $dep runSalmon.sh $clean $slmn_img $salmon_index $fastq_trimmed_1 $fastq_trimmed_2 $outdir/${dirList[$step]}))
     JOBIDS+=($(run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}))
     skip=0
   fi
@@ -838,6 +836,7 @@ fi
 
 # Run STAR. Depends on a successful run of Trimmomatic.
 ((step+=1))
+star_img=$3/${toolList[${toolArray[$(($step+1))]}]}_${toolVersion[${toolArray[$(($step+1))]}]}.sif
 if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
     echo "# Preparing step $(($step+1))"
 
@@ -851,21 +850,16 @@ if [ $pstart -le $(($step+1)) ] && [ $pend -ge $(($step+1)) ]; then
         cleanup
     fi
 
-    if [ ! -z $star_gtf ]; then
-	    star_runner_options="-g $star_gtf"
-    fi
+    [[ ! -z $star_gtf ]] && star_runner_options="-g $star_gtf"
+    [[ ! -z $star_intron_max ]] && star_runner_options="$star_runner_options -m $star_intron_max"
     
-    if [ ! -z $star_intron_max ]; then
-      star_runner_options="$star_runner_options -m $star_intron_max"
-    fi
-
     JOBCMDS+=(`prepare_$CMD \
             $debug_var \
             -e $outdir/${dirList[$step]}/${sname}_STAR.err \
             -o $outdir/${dirList[$step]}/${sname}_STAR.out \
             -J ${sname}.RNAseq.STAR \
             ${mem:+"-m" "$mem"} \
-            $dep runSTAR.sh -l "$bam_memory" $star_runner_options $outdir/${dirList[$step]} $star_ref $genome_fasta $fastq_trimmed_1 $fastq_trimmed_2 $star_options`)
+            $dep runSTAR.sh -l "$bam_memory" $star_runner_options $star_img $samtools_img $outdir/${dirList[$step]} $star_ref $genome_fasta $fastq_trimmed_1 $fastq_trimmed_2 $star_options`)
     JOBIDS+=(`run_$CMD ${JOBCMDS[${#JOBCMDS[@]}-1]}`)
 fi
 
