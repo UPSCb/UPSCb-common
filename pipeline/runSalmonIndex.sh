@@ -54,7 +54,7 @@ IMG=$1
 shift
 
 ## enforce singularity
-[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+[[ ${SINGULARITY_BINDPATH:-1} -eq 1 ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 if [ ! -f $1 ]; then
   abort "The second argument should be a fasta file"

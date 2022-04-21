@@ -2,37 +2,19 @@
 #SBATCH -p core
 #SBATCH -n 1
 #SBATCH -t 00:10:00
-#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-type=ALL
 
-# stop on error
+## stop on error
 set -eu
 
 # functions
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
-# Vars
-CSI=
-
-# a usage function
+## a usage function
 USAGETXT=\
 "
-Usage: $0 [options] <samtools singularity container> <bam file>
-
-Options: -c generate CSI index (for large, e.g. the spruce, genomes)
-
-" 
-
-# get the options
-while getopts c:h option
-do
-        case "$option" in
-        c) CSI="-c";;
-	      h) usage;;
-		    \?) ## unknown flag
-		    abort "unknown option";;
-        esac
-done
-shift `expr $OPTIND - 1`
+Usage: $0 <samtools singularity container> <fasta file>
+"
 
 # safeguards
 [[ $# != 2 ]] && abort "This function takes two arguments"
@@ -43,5 +25,5 @@ shift `expr $OPTIND - 1`
 
 [[ ${SINGULARITY_BINDPATH:-1} -eq 1 ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
-# create the index
-singularity exec $1 samtools index $CSI $2
+## create the index
+singularity exec $1 samtools faidx $2

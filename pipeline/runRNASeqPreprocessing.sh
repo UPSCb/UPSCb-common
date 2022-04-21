@@ -340,7 +340,7 @@ trimmomatic_clipping="ILLUMINACLIP:$adpt:$trimmomatic_clipping"
 [[ ! -d $3 ]] && abort "The third directory needs to point to a directory containing singularity containers"
 
 ## enforce singularity
-[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+[[ ${SINGULARITY_BINDPATH:-1} -eq 1 ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 ## Do basic checks
 [[ $pstart =~ ^[0-9]+$ ]] || abort "$pstart is not a valid start value"

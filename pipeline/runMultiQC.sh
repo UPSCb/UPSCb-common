@@ -22,7 +22,7 @@ Usage: $(basename $0) <singularity container> <analysis directory> <output direc
 [[ ! -f $1 ]] && abort "The first argument needs to be an existing mutiqc singularity container file."
 
 ## enforce singularity
-[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+[[ ${SINGULARITY_BINDPATH:-1} -eq 1 ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 [[ ! -d $2 ]] && abort "The second argument needs to be an existing analysis directory."
 

@@ -1,7 +1,8 @@
 #!/bin/bash -l
-
-#load module(s)
-module load bioinfo-tools samtools
+#SBATCH -p core
+#SBATCH -n 1
+#SBATCH -t 12:00:00
+#SBATCH --mail-type=END,FAIL
 
 # be verbose and print
 set -ex
@@ -15,19 +16,24 @@ source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 # usage
 USAGETXT=\
 "
-Usage: runSamtoolsMerge.sh <output bam file> <input bamfile 1> <input bamfile 2>
+Usage: runSamtoolsMerge.sh <samtools singularity container> <output bam file> <input bamfile 1> <input bamfile 2> ... <input bamfile n>
 "
 
-# test if $2 - $3 are -f
+[[ $# -lt 4 ]] && abort "The script expects at least four arguments"
 
-if [ ! -d $(dirname $1)]; then
-    abort "The output directory does not exist."
-fi
+[[ ! -f $1 ]] && abort "The singularity container needs to be a file"
+singularity=$1
+shift
 
+[[ ! -d $(dirname $1) ]] && abort "The output directory of the output file does not exist."
 out=$1
 shift
 
-#run samtools merge
-samtools merge $out $@
+for f in $@; do
+  [[ ! -f $f ]] && abort "The input BAM $f does not exist"
+done
 
-samtools index $out
+[[ ${SINGULARITY_BINDPATH:-1} -eq 1 ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+
+#run samtools merge
+singularity exec $singularity samtools merge $out $@

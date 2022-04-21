@@ -124,7 +124,7 @@ shift
 [[ ! -f $samtools ]] && abort "The first argument needs to be an existing samtools singularity container"
 
 ## enforce singularity
-[[ -z $SINGULARITY_BINDPATH ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+[[ ${SINGULARITY_BINDPATH:-1} -eq 1 ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 ## get the out dir
 outdir=$1
