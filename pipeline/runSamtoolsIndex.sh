@@ -23,7 +23,7 @@ Options: -c generate CSI index (for large, e.g. the spruce, genomes)
 " 
 
 # get the options
-while getopts c:h option
+while getopts ch option
 do
         case "$option" in
         c) CSI="-c";;
