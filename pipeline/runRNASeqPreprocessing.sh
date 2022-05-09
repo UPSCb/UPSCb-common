@@ -196,10 +196,10 @@ prepare_sbatch() {
     ${memory:+"$memArg $memory"} \
     ${dependency:+"-d" "$dependency"} \
     $PIPELINE_DIR/$script $@
-    
+
 }
 
-## TODO warn about the random!!! 
+## TODO warn about the random!!!
 run_sbatch() {
     if [ $dryrun -eq 1 ]; then
 	echo $RANDOM
@@ -222,7 +222,7 @@ prepare_bash() {
 
     # echo the job
     # fetch but ignore the arguments
-    # 
+    #
     OPTIND=1
     log_path=""
     out_path=""
@@ -299,8 +299,8 @@ while getopts "aA:c:CdDe:Ef:F:g:G:hH:i:I:kK:l:m:rs:S:tT:x:X:" opt; do
         a) non_ilm_stranded=1;;
         A) adpt=$OPTARG ;;
         c) trimmomatic_clipping=$OPTARG ;;
-        C) clean="";
-	      d) dryrun=1;;
+        C) clean="";;
+	d) dryrun=1;;
         D) debug=1;;
         e) pend=$OPTARG ;;
         E) extended=1;;
