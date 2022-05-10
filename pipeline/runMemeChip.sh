@@ -67,8 +67,11 @@ FASTA=$(tempfile)
 cut -f1,2 ${GENOME}.fai > $SIZE
 
 # for a bed file. This adds -200 [1bp PEAK] +200 FLANKs to the peak and creates a .bed file of the result.
-bedtools flank -l $EXTEND -r $EXTEND -i $1 -g $SIZE > $FLANK
+#bedtools flank -l $EXTEND -r $EXTEND -i $1 -g $SIZE > $FLANK
 # or flank -b 200
+
+# Should be bedtools slop instead of bedtools flank. Flank creates two separate intervals on either side of the peak, slop expands and includes the peak.
+bedtools slop -i $1 -g $SIZE -b $EXTEND > $FLANK
 
 bedtools getfasta -fi $GENOME -bed $FLANK -fo $FASTA
 
