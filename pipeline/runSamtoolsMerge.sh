@@ -33,7 +33,7 @@ for f in $@; do
   [[ ! -f $f ]] && abort "The input BAM $f does not exist"
 done
 
-[[ ${SINGULARITY_BINDPATH:-1} -eq 1 ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+[[ -z ${SINGULARITY_BINDPATH:-} ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 #run samtools merge
 singularity exec $singularity samtools merge $out $@

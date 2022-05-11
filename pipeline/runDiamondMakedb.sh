@@ -21,6 +21,6 @@ USAGETXT=\
 
 [[ ! -d $(dirname $3) ]] && abort "The output directory for the index does not exist"
 
-[[ ${SINGULARITY_BINDPATH:-1} -eq 1 ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+[[ -z ${SINGULARITY_BINDPATH:-} ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 singularity exec $1 diamond makedb --in $2 -d $3

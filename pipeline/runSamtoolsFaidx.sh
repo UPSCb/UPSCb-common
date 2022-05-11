@@ -23,7 +23,7 @@ Usage: $0 <samtools singularity container> <fasta file>
 
 [[ ! -f $2 ]] && abort "The first argument needs to be an existing bam file"
 
-[[ ${SINGULARITY_BINDPATH:-1} -eq 1 ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+[[ -z ${SINGULARITY_BINDPATH:-} ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 ## create the index
 singularity exec $1 samtools faidx $2

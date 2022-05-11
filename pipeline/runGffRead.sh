@@ -46,7 +46,7 @@ shift `expr $OPTIND - 1`
 [[ ! -f $2 ]] && abort "The argument shoud be a valid file path to a gtf/gff file"
 
 ## enforce singularity
-[[ ${SINGULARITY_BINDPATH:-1} -eq 1 ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+[[ -z ${SINGULARITY_BINDPATH:-} ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
 ## check the option
 ## and define the output
