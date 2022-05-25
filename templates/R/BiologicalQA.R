@@ -262,7 +262,23 @@ pvrect(hm.pvclust)
 #' bootstrapping results as a table
 print(hm.pvclust, digits=3)
 
-
+#' ```{tech rep, echo=FALSE, eval=FALSE}
+#' # The block of code is meant to combine tech reps - as it is facultative it is commented out
+#' # First create a new variable in your sample object called BioID that identifies uniquely technical replicates, so one value for all tech rep of the same bio rep
+#' samples$BioID <- CHANGEME
+#' # Merging technical replicates
+#' txi$counts <- sapply(split.data.frame(t(txi$counts),samples$BioID),colSums)
+#' txi$length <- sapply(split.data.frame(t(txi$length),samples$BioID),colMaxs)
+#' # Counts are now in alphabetic order, check and reorder if necessary
+#' stopifnot(colnames(txi$counts) == samples$BioID)
+#' samples <- samples[match(colnames(txi$counts),samples$BioID),]
+#' # Recreate the dds
+#' dds <- DESeqDataSetFromTximport(
+#'   txi=txi,
+#'   colData = samples,
+#'   design = ~ Tissue)
+#'```
+#'
 #' ## Conclusion
 #' CHANGEME
 #' ```{r empty,eval=FALSE,echo=FALSE}
