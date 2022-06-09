@@ -10,7 +10,9 @@
 #' # What is this about?
 #' 
 #' This file is only a source file containing functions that help extract
-#' various sequences from a genome using a gff3 file
+#' various sequences from a genome using a gff3 file as well as to create a
+#' transcriptome to genome map, which can be used to lift coordinates from the 
+#' transcriptome to the genome.
 #' 
 #' To use it in your script do:
 #' ```{r, eval=FALSE}
