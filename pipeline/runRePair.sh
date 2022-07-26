@@ -14,7 +14,6 @@ echo Checking
 if [ $# != 2 ]; then
     echo "This function takes two files as arguments"
     echo "Usage: sbatch runRePair.sh <forward fastq> <reverse fastq>"
-    echo "Note: The UPSCb env. var. needs to be set to your UPSCb Git checkout dir."
     exit 1
 fi
 
@@ -25,6 +24,9 @@ fi
 if [ ! -f $2 ]; then
     echo "The third argument needs to be an existing fastq file"
 fi
+
+# set the UPSCb env. var.
+UPSCb=${UPSCb:-$(pwd)}/../UPSCb-common
 
 ##
 echo Pairing

@@ -49,11 +49,9 @@ do
 done
 shift `expr $OPTIND - 1`
 
-# check env
-if [ -z $UPSCb ]; then
-  echo "The UPSCb env. var. needs to be set to your UPSCb git checkout"
-  usage
-fi
+# set env
+# set the UPSCb env. var.
+UPSCb=${UPSCb:-$(pwd)}/../UPSCb-common
 
 # check args
 if [ $# -lt 6 ]; then

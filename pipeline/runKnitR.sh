@@ -7,11 +7,6 @@
 # modules
 module load R
 
-# check
-if [ -z $UPSCb ]; then
-  "You need to have the UPSCb env. var. set to your UPSCb Git checkout dir"
-fi
-
 # helper
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 

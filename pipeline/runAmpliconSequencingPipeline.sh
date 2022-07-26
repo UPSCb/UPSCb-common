@@ -6,7 +6,7 @@ set -ex
 # THIS SCRIPT IS NOT TO BE RUN THROUGH SBATCH, USE BASH!
 ### ========================================================
 # DEFAULTS
-VERSION="0.0.9"
+VERSION="0.0.10"
 
 ACCOUNT=
 ADAPTER=
@@ -176,11 +176,8 @@ run_sbatch() {
 ## main
 ### ========================================================
 
-# check that the UPSCb env. var. exists
-if [ -z $UPSCb ] || [ ! -d $UPSCb ]; then
-  abort "The UPSCb env. var. needs to be defined"
-  usage
-fi
+# set the UPSCb env. var.
+UPSCb=${UPSCb:-$(pwd)}/../UPSCb-common
 
 # load the modules
 module load bioinfo-tools FastQC deML Trimmomatic flash/1.2.11 fastx multiqc # Qiime blast/2.2.26 python/2.7.8
