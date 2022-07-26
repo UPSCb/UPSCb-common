@@ -87,7 +87,12 @@ for u in "${@}"; do
 done
 
 ## SLURM
-# create the account
+# create the account(s)
+# if the PI account does not exist
+[[ $(sudo sacctmgr list account Account=$PI | wc -l) -ne 3 ]] && \
+sudo sacctmgr add account Description=${PI}-lab Organization=upscb Name=$PI Parent=root
+
+# add the project account
 sudo sacctmgr add account Description=$DESCRIPTION Organization=$PI  Name=$GID Parent=$PI
 echo "Created the account $GID for the PI $PI"
 
