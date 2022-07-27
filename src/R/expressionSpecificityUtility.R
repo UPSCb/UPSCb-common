@@ -42,7 +42,10 @@
 #' ```
 #' # Setup
 #' Load libraries
-suppressPackageStartupMessages(library(matrixStats))
+suppressPackageStartupMessages({
+  library(matrixStats)
+  library(parallel)
+  })
 
 #' # Generic
 setGeneric(name="expressionSpecificity",

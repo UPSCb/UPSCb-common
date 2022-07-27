@@ -71,6 +71,14 @@ setGeneric(name="getIDPositions",
              standardGeneric("getIDPositions")
            })
 
+setGeneric(name="getIDTypeMapping",
+           def=function(
+    gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
+    feature=c("CDS","exon","five_prime_UTR","gene","intron","mRNA","three_prime_UTR"),
+    includeParent=TRUE){
+             standardGeneric("getIDTypeMapping")
+           })
+
 #' # Implementation
 #' 
 #' ## Arguments
@@ -164,9 +172,7 @@ setMethod(f = "getIDPositions",
             ){
             
             ## validation
-            if(nrow(gff3) == 1 & gff3[1,1] == 0 & gff3[1,2] == 0){
-              stop("You need to provide a non empty Genome_intervals_stranded 'gff3' object")
-            }
+            .validate(gff3)
             stopifnot(length(IDs)>0)
             feature <- match.arg(feature)
             
@@ -178,7 +184,44 @@ setMethod(f = "getIDPositions",
             return(.getPosition(feature,ID,Parent,IDs))
           })
 
-#' # An internal function
+#' ### getIDTypeMapping
+#' This functions returns a data.frame of ID and Type from the provided gff3 file.
+#' By defaults it returns all features, but can be provided an additional feature argument
+#' to return only these mappings
+setMethod(f = "getIDTypeMapping",
+          signature=c("Genome_intervals","character"),
+          definition=function(
+    gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
+    feature=c("CDS","exon","five_prime_UTR","gene","intron","mRNA","three_prime_UTR"),
+    includeParent=TRUE){
+            
+            ## validation
+            .validate(gff3)
+            feature <- match.arg(feature)
+            sel <- grepl(feature,gff3$type)
+            if(sum(sel)==0){
+              stop(sprintf("There are no feature of type: %s in your gff file",feature))
+            }
+            
+            # get the mapping
+            return(.getIDTypeMapping(gff3[sel,],includeParent))
+           })
+
+setMethod(f = "getIDTypeMapping",
+          signature=c("Genome_intervals","missing"),
+          definition=function(
+    gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
+    feature=c("CDS","exon","five_prime_UTR","gene","intron","mRNA","three_prime_UTR"),
+    includeParent=TRUE){
+            
+            ## validation
+            .validate(gff3)
+            
+            # no selection, return all
+            return(.getIDTypeMapping(gff3,includeParent))
+          })
+
+#' # Internal functions
 ".getPosition" <- function(feature,ID,Parent,IDs){
   sort(switch(feature,
               "gene" = {c(which(ID %in% IDs),
@@ -190,6 +233,25 @@ setMethod(f = "getIDPositions",
               "exon" = {c(which(ID %in% Parent[ID %in% Parent[ID %in% IDs]]),
                           which(ID %in% Parent[ID %in% IDs]),
                           which(ID %in% IDs))}))
+}
+
+".getIDTypeMapping" <- function(gff,includeParent){
+
+  # attrs
+  cList <- "ID"
+  if(includeParent){
+    cList <- c(cList,"Parent")
+  }
+  
+  # select
+  return(as.data.frame(cbind(getGffAttribute(gff,cList),
+                             Type=as.character(gff$type))))
+}
+
+".validate" <- function(gff){
+  if(nrow(gff) == 1 & gff[1,1] == 0 & gff[1,2] == 0){
+    stop("You need to provide a non empty Genome_intervals_stranded 'gff3' object")
+  }
 }
 
 #' # SessionInfo
