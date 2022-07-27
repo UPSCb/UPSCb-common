@@ -20,13 +20,14 @@ USAGETXT=\
 
   Options:
   -d the genome file to use to build the decoy sequences
+  -k the kmer size (default to salmon's default: 31)
   -t number of threads (default 8)
   -p triggers --perfectHash
 "
 
 # process the arguments
 ## get the options
-while getopts d:t:p option
+while getopts d:k:t:p option
 do
   case "$option" in
       d) DECOY=$OPTARG
@@ -34,6 +35,7 @@ do
           abort "The genome file to extract the decoys from does not exist"
         fi
         ;;
+      k) OPTIONS="-k $OPTARG $OPTIONS";;
 	    t) CPU=$OPTARG;;
 	    p) OPTIONS="--perfectHash $OPTIONS";;
 		  \?) ## unknown flag
