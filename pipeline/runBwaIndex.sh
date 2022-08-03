@@ -1,38 +1,30 @@
 #!/bin/bash -l
-#SBATCH --mail-type=all
+#SBATCH --mail-type=END,FAIL
+#SBATCH -p core -w picea
+#SBATCH --mem=264GB
+#SBATCH -t 12:00:00
 
-module load bioinfo-tools bwa
+# failsafe
+set -eu
 
-usage () {
-    echo "runBwaIndex.sh -i <Genome Fasta> -o <Output dir>"
-    echo
-    echo "Note: If <Output dir> does not exist, it will be created"
-    exit 1
-}
+# load helpers
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
+# usage
+USAGETXT=\
+"
+    runBwaIndex.sh <bwa singularity container> <Genome Fasta> <Output Dir>
+"
 
-while getopts i:o: opt
-do
-    case "$opt" in
-	i) INDEX=$OPTARG;;
-	o) OUT=$OPTARG;;
-	\?)# unknown flag
-	        usage;;
-    esac
-done
+# sanity
+[[ $# -ne 3 ]] && abort "The script expects three arguments."
+[[ ! -f $1 ]] && abort "BWA singularity container not found"
+[[ ! -f $2 ]] && abort "FASTA input not found"
+[[ ! -d $3 ]] && abort "OUTPUT directory not found"
 
-if [ -z $INDEX ] || [ -z $OUT ]; then
-    echo -e "\e[91m[ERR] One or more mandatory arguments are empty\e[39m"
-    usage
-fi
+[[ -z ${SINGULARITY_BINDPATH:-} ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
-[[ ! -f $INDEX ]] && echo -e "\e[91m[ERR] Index FASTA not found\e[39m" && usage;
-[[ ! -d $OUT ]] && mkdir -p $OUT && echo -e "\e[33m[WARN] Created $OUT\e[39m";
-
-
-ln -s $INDEX $OUT
-BNAM=$(basename $INDEX)
-echo "[INFO] Command line: runBwaIndex.sh $@"
-IVDIR=$(pwd)
-echo "[INFO] Invoked from: $IVDIR"
-bwa index ${OUT}/$BNAM
+# prep
+ln -sf $2 $3
+BNAM=$(basename $2)
+singularity exec $1 bwa index $3/$BNAM

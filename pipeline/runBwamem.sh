@@ -1,97 +1,92 @@
-#!/bin/bash -l
-#SBATCH --mail-type=all
+#!/bin/bash
+#SBATCH --mail-type=END,FAIL
+#SBATCH -p rbx
+#SBATCH -n 24
+#SBATCH -t 12:00:00
 
-module load bioinfo-tools bwa/0.7.17 samtools
+# failsafe
+set -eu
 
-set -ex
+# load helpers
+source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 
-usage () {
-    echo >&2 "
-    Usage: runBwamem.sh -f <Forward read> -r <Reverse read> -i <Index Fasta> -o <Output dir>
-    
-    Optional arguments:
-    -t <INT>     ----- Number of mapping and sorting threads
-    -I           ----- Index the fasta file if no index is present
-    -O <string>  ----- optional arguments to pass to bwa mem (must be quoted)
+# usage
+USAGETXT=\
+"
+    Usage: runBwamem.sh [options] <bwa singularity container> <samtools singularity container> <Forward read> <Reverse read> <Index Fasta> <Output dir> [--] [additional BWA arguments] 
+    Options:
+    -c           ----- csi index for large genomes
     -s           ----- single end alignment
-    "                                                
-    echo -e "\e[91mNOTE: You need to reserve memory for -t <INT> * 768M in SLURM\e[39m"
-    exit 1
-}
+    -t <INT>     ----- Number of mapping and sorting threads
+    -- is a special argument that stop the command line scanning for the script  options.
+ 
+    NOTE: You need to reserve memory for -t <INT> * 768M in SLURM
+"
 
-
-OPTS=""
+# vars
+CSI=
 SINGLE=0
+THREADS=24
+ARGSN=6
 
-while getopts f:i:r:t:o:O:Is opt
+# options
+while getopts cst: opt
 do
-    case "$opt" in
-	f) FW=$OPTARG;;
-	i) INDEX=$OPTARG;;
-	r) RV=$OPTARG;;
-	t) THREADS=$OPTARG;;
-	o) OUT=$OPTARG;;
-	I) DOINDEX=1;;
-	O) OPTS=$OPTARG;;
-	s) SINGLE=1;;
-	\?)# unknown flag
+  case "$opt" in
+    c) CSI="-c";;
+    s) SINGLE=1
+    ARGSN=$(expr $ARGSN - $SINGLE);;
+	  t) THREADS=$OPTARG;;
+	  \?)# unknown flag
 	        usage;;
-    esac
+  esac
 done
 
-if [ $SINGLE -eq 1 ]; then
-  RV="dummy"
+shift `expr $OPTIND - 1`
+
+# sanity
+[[ $# -lt $ARGSN ]] && abort "The script expects $ARGSN arguments."
+
+# get the containers
+bwa=$1
+shift
+[[ ! -f $bwa ]] && abort "The first argument needs to be an existing BWA singularity container"
+
+samtools=$1
+shift
+[[ ! -f $samtools ]] && abort "The first argument needs to be an existing samtools singularity container"
+
+## enforce singularity
+[[ -z ${SINGULARITY_BINDPATH:-} ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
+
+# input
+INPUT=$1
+NAM=$(basename ${INPUT/.f*q.gz/})
+shift
+
+[[ ! -f $INPUT ]] && abort "Forward FASTQ not found"
+
+if [ $SINGLE -eq 0 ]; then
+  [[ ! -f $1 ]] && abort "Reverse FASTQ not found"
+  INPUT="$INPUT $1"
+  shift
 fi
 
-if [ -z $FW ] || [ -z $RV ] || [ -z $INDEX ] || [ -z $OUT ]; then
-    echo -e "\e[91m[ERR] One or more mandatory arguments are empty\e[39m"
-    usage
-fi
+INDEX=$1
+shift
+[[ ! -f $INDEX ]] && abort "Index FASTA not found"
 
-#echo $PPID
+# output
+OUT=$1
+shift
+[[ ! -d $OUT ]] && abort "Output directory not found"
 
-if [ ! -f $FW ]; then
-  echo -e "\e[91m[ERR] Forward FASTQ not found\e[39m"
-  usage
-fi
-if [ $RV != "dummy" ] && [ ! -f $RV ]; then
-  echo -e "\e[91m[ERR] Reverse FASTQ not found\e[39m"
-  usage
-fi
-if [ ! -f $INDEX ]; then
-  echo -e "\e[91m[ERR] Index FASTA not found\e[39m"
-  usage
-fi
+## do we have more arguments? drop the --
+[[ $# != 0 ]] && shift
 
-if [ ! -d $OUT ]; then 
-  mkdir -p $OUT
-  echo -e "\e[33m[WARN] Created $OUT\e[39m"
-fi
+# run
+singularity exec $bwa bwa mem $@ -t $THREADS $INDEX $INPUT | \
+singularity exec $samtools samtools view -bT $INDEX - | \
+singularity exec $samtools samtools sort -@ $THREADS -o ${OUT}/${NAM}.sorted.bam
 
-if [ $DOINDEX ]; then
-    NEEDS_INDEX=0
-    for suffix in .ann .pac .bwt .sa .amb .fai; do
-	if [ ! -f ${INDEX}$suffix ]; then
-	    NEEDS_INDEX=1
-	fi
-    done
-
-    if [ NEEDS_INDEX ]; then
-	bwa index $INDEX
-    fi
-fi
-
-[[ -z $THREADS ]] && THREADS=1;
-
-END="_1.f*q"
-if [ $RV == "dummy" ]; then
-  END=".f*q"
-  RV=""
-fi
-
-NAM=$(basename $FW)
-if [[ $NAM =~ \.gz$ ]]; then END="${END}.gz"; fi
-
-bwa mem $OPTS -t $THREADS $INDEX $FW $RV | samtools view -bT $INDEX - | samtools sort -@ $THREADS -o ${OUT}/${NAM/$END/.sorted.bam}
-
-samtools index ${OUT}/${NAM/$END/.sorted.bam}
+singularity exec $samtools samtools index $CSI ${OUT}/${NAM}.sorted.bam
