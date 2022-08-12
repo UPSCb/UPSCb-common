@@ -32,7 +32,7 @@ hpal <- colorRampPalette(c("blue","white","red"))(100)
 
 #' * Metadata
 #' Sample information
-#' ```{r CHANGEME1,eval=FALSE,echo=FALSE}
+#' ```{r Instructions1,eval=FALSE,echo=FALSE}
 #' # The csv file should contain the sample information, including the sequencing file name, 
 #' # any relevant identifier, and the metadata of importance to the study design
 #' # as columns, e.g. the SamplingTime for a time series experiment
@@ -41,7 +41,7 @@ samples <- read_csv(here("doc/CHANGE-ME.csv"),
                       col_types=cols(.default=col_factor()))
 
 #' tx2gene translation table
-#' ```{r CHANGEME2,eval=FALSE,echo=FALSE}
+#' ```{r Instructions2,eval=FALSE,echo=FALSE}
 #' # This file is necessary if your species has more than one transcript per gene.
 #' #
 #' # It should then contain two columns, tab delimited, the first one with the transcript
@@ -60,7 +60,7 @@ filelist <- list.files(here("data/salmon"),
                           full.names = TRUE)
 
 #' Sanity check to ensure that the data is sorted according to the sample info
-#' ```{r CHANGEME3,eval=FALSE,echo=FALSE}
+#' ```{r Instructions3,eval=FALSE,echo=FALSE}
 #' # This step is to validate that the salmon files are inthe same order as 
 #' # described in the samples object. If not, then they need to be sorted
 #' ````

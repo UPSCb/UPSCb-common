@@ -32,19 +32,20 @@ stopifnot(suppressPackageStartupMessages(require(Biostrings)))
 stopifnot(suppressPackageStartupMessages(require(genomeIntervals)))
 stopifnot(suppressPackageStartupMessages(require(parallel)))
 
-#' 
 #' # Generics
 setGeneric(name="extract",
            def=function(gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
                         genome=DNAStringSet(),
-                        feature=c("CDS","mRNA","protein")
+                        feature=character(0L),
+                        ...
            ){
              standardGeneric("extract")
            })
 
 setGeneric(name="extractFromGenome",
            def=function(gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
-                        genome=DNAStringSet()
+                        genome=DNAStringSet(),
+                        ...
                         ){
              standardGeneric("extractFromGenome")
            })
@@ -52,7 +53,8 @@ setGeneric(name="extractFromGenome",
 setGeneric(name="extractCdsFromGenome",
            def=function(
              gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
-             genome=DNAStringSet()
+             genome=DNAStringSet(),
+             ...
            ){
              standardGeneric("extractCdsFromGenome")
            })
@@ -60,7 +62,8 @@ setGeneric(name="extractCdsFromGenome",
 setGeneric(name="extractMrnaFromGenome",
            def=function(
              gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
-             genome=DNAStringSet()
+             genome=DNAStringSet(),
+             ...
            ){
              standardGeneric("extractMrnaFromGenome")
            })
@@ -68,7 +71,8 @@ setGeneric(name="extractMrnaFromGenome",
 setGeneric(name="extractProteinFromGenome",
            def=function(
              gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
-             genome=DNAStringSet()
+             genome=DNAStringSet(),
+             ...
            ){
              standardGeneric("extractProteinFromGenome")
            })
@@ -91,9 +95,14 @@ setGeneric(name="getProteinState",
 #'
 #' The extract function (the most generic) has a third argument to define the type of feature to retrieve
 #' 
-#' 3. feature: one of 'CDS', 'mRNA' or 'protein'
+#' 3. feature: a character vector of a gff3 feature type, e.g. exon, intron, CDS, etc.
 #'
 #' The 'getProteinState' function takes an _AAStringSet_ as argument.
+#'
+#' Note, all functions can pass additional parameters to the worker function (extractFromGenome). 
+#' The only purpose of this so far is to allow setting the narrowOutOfSequenceRangeIntervals argument
+#' of that function. It allows for narrowing the ranges of the sequences retrieved if the actual range
+#' defined in the gff3 are larger than the corresponding sequences.
 #'
 #' ## Functions
 #' ### extract
@@ -105,21 +114,15 @@ setMethod(f = "extract",
           definition = function(
             gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
             genome=DNAStringSet(),
-            feature=c("CDS","mRNA","protein")
+            feature=character(0),
+            ...
           ){
             
-            ## validation
-            if(nrow(gff3) == 1 & gff3[1,1] == 0 & gff3[1,2] == 0){
-              stop("You need to provide a non empty Genome_intervals_stranded 'gff3' object")
-            }            
-            stopifnot(length(genome)>0)            
-            feature <- match.arg(feature)
+            ## validation (the rest is delegated)
+            stopifnot(feature %in% levels(gff3$type))
             
-            ## dispatch
-            switch(feature,
-                   "CDS" = extractCdsFromGenome(gff3,genome),
-                   "mRNA" = extractMrnaFromGenome(gff3,genome),
-                   "protein" = extractProteinFromGenome(gff3,genome))
+            # dispatch
+            extractFromGenome(gff3[gff3$type==feature,],genome,...)
           })
 
 #' ### extractCdsFromGenome
@@ -130,9 +133,10 @@ setMethod(f = "extractCdsFromGenome",
           signature = c("Genome_intervals","DNAStringSet"),
           definition = function(
             gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
-            genome=DNAStringSet()
+            genome=DNAStringSet(),
+            ...
           ){
-            extractFromGenome(gff3[gff3$type=="CDS",],genome)
+            extract(gff3,genome,"CDS",...)
           })
 
 #' ### extractMrnaFromGenome
@@ -143,9 +147,10 @@ setMethod(f = "extractMrnaFromGenome",
           signature = c("Genome_intervals","DNAStringSet"),
           definition = function(
             gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
-            genome=DNAStringSet()
+            genome=DNAStringSet(),
+            ...
           ){
-            extractFromGenome(gff3[gff3$type=="exon",],genome)
+            extract(gff3,genome,"exon",...)
           })
 
 #' ### extractProteinFromGenome
@@ -157,11 +162,11 @@ setMethod(f = "extractProteinFromGenome",
           signature = c("Genome_intervals_stranded","DNAStringSet"),
           definition = function(
             gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
-            genome=DNAStringSet()
+            genome=DNAStringSet(),
+            ...
           ){
-            translate(extractFromGenome(
-              gff3[gff3$type=="CDS",],
-              genome), if.fuzzy.codon="solve")
+            translate(extract(gff3,genome,"CDS",...),
+                      if.fuzzy.codon="solve")
           })
 
 #' ### extractFromGenome
@@ -173,13 +178,23 @@ setMethod(f = "extractFromGenome",
           signature = c("Genome_intervals","DNAStringSet"),
           definition = function(
             gff3=GenomeIntervals(chromosome="empty",start=0,end=0),
-            genome=DNAStringSet()
+            genome=DNAStringSet(),
+            narrowOutOfSequenceRangeIntervals=FALSE
           ){
+            
+            .validate(gff3,genome,narrowOutOfSequenceRangeIntervals)
+            
             # order the gff by chrom, start, stop
             gff3 <- gff3[order(seqnames(gff3),gff3[,1]),]
             
-            # sanity check
-            stopifnot(!all(duplicated(getGffAttribute(gff3,"ID")[,1])))
+            # narrowing
+            if(narrowOutOfSequenceRangeIntervals){
+              widths <- width(genome)[match(seqnames(gff3),names(genome))]
+              start.sel <- gff3[,1] > widths
+              gff3[start.sel,1] <- widths[start.sel]
+              end.sel <- gff3[,2] > widths
+              gff3[end.sel,2] <- widths[end.sel]
+            }
             
             # Get all sub sequences
             sseq <- subseq(genome[seqnames(gff3)],gff3[,1],gff3[,2])
@@ -208,7 +223,7 @@ setMethod(f = "extractFromGenome",
               DNAStringSet(mclapply(which(strands=="-"),
                                     function(i,d){
                                       reverseComplement(d[[i]])
-                                    },seq,mc.cores=16))
+                                    },seq,mc.cores=16L))
             
             #' return the sequences
             return(seq)
@@ -236,3 +251,37 @@ setMethod(f = "getProteinState",
                             levels=c("full-length","5p-partial","fragment",
                                      "3p-partial","non-coding")))
             })
+
+#' ### Internal functions
+".select" <-
+
+
+".validate" <- function(gff3,genome,narrowOutOfSequenceRangeIntervals){
+  
+  # gff3 
+  if(nrow(gff3) == 1 & gff3[1,1] == 0 & gff3[1,2] == 0){
+    stop("You need to provide a non empty Genome_intervals_stranded 'gff3' object")
+  }
+
+  stopifnot(!all(duplicated(getGffAttribute(gff3,"ID")[,1])))
+  
+  # genome
+  stopifnot(length(genome)>0)
+  
+  # combined
+  stopifnot(any(seqnames(gff3) %in% names(genome)))
+
+  coordTest <- gff3[,2] > width(genome)[match(seqnames(gff3),names(genome))]
+  if(any(coordTest)){
+    if(!narrowOutOfSequenceRangeIntervals){
+      stop("Some of the range in your gff3 are outside the corresponding sequences. You can set 'narrowOutOfSequenceRangeIntervals=TRUE' if you know what you are doing.")
+    } else {
+      message(sprintf("%s ranges are outside their supporting sequence length. You set 'narrowOutOfSequenceRangeIntervals=TRUE' so these will be narrowed down.",sum(coordTest)))
+    }
+  }
+}
+
+#' # Session Info
+#' ```{r session info, echo=FALSE}
+#' sessionInfo()
+#' ```
