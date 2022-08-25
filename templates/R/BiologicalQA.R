@@ -4,11 +4,23 @@
 #' date: "`r Sys.Date()`"
 #' output:
 #'  html_document:
+#'    fig_width: 9
+#'    fig_height: 6
 #'    toc: true
 #'    number_sections: true
+#'    toc_depth: 4
+#'    toc_float:
+#'      collapsed: TRUE
+#'      smooth_scroll: TRUE
 #'    code_folding: hide
+#'    theme: "flatly"
+#'    highlight: pygments
 #' ---
+#' <p style="text-align: left;"><span style="color: #bd047c;"><em>CHANGEME@CHANGEME</em></span></p>
+#' 
 #' # Setup
+#' This section and the next are relevant for reproducibility purposes. For results, please skip to section 3 (Quality Control)
+#' 
 #' * Libraries
 suppressPackageStartupMessages({
   library(data.table)
@@ -16,6 +28,7 @@ suppressPackageStartupMessages({
   library(gplots)
   library(here)
   library(hyperSpec)
+  library(magrittr)
   library(parallel)
   library(plotly)
   library(pvclust)
@@ -30,8 +43,8 @@ source(here("UPSCb-common/src/R/featureSelection.R"))
 #' * Graphics
 hpal <- colorRampPalette(c("blue","white","red"))(100)
 
-#' * Metadata
-#' Sample information
+#' # Data
+#' * Sample information
 #' ```{r Instructions1,eval=FALSE,echo=FALSE}
 #' # The csv file should contain the sample information, including the sequencing file name, 
 #' # any relevant identifier, and the metadata of importance to the study design
@@ -40,7 +53,7 @@ hpal <- colorRampPalette(c("blue","white","red"))(100)
 samples <- read_csv(here("doc/CHANGE-ME.csv"),
                       col_types=cols(.default=col_factor()))
 
-#' tx2gene translation table
+#' * tx2gene translation table
 #' ```{r Instructions2,eval=FALSE,echo=FALSE}
 #' # This file is necessary if your species has more than one transcript per gene.
 #' #
@@ -53,41 +66,50 @@ samples <- read_csv(here("doc/CHANGE-ME.csv"),
 tx2gene <- suppressMessages(read_delim(here("reference/annotation/CHANGE-ME"),delim="\t",
                                  col_names=c("TXID","GENE")))
 
-#' # Raw data
+#' * Raw data
 filelist <- list.files(here("data/salmon"), 
                           recursive = TRUE, 
                           pattern = "quant.sf",
                           full.names = TRUE)
 
-#' Sanity check to ensure that the data is sorted according to the sample info
+#' * Sanity check to ensure that the data is sorted according to the sample info
 #' ```{r Instructions3,eval=FALSE,echo=FALSE}
 #' # This step is to validate that the salmon files are inthe same order as 
 #' # described in the samples object. If not, then they need to be sorted
 #' ````
-stopifnot(all(match(sub("_sortmerna.*","",basename(dirname(filelist))),
+stopifnot(all(match(sub("_CHANGE-ME.*","",basename(dirname(filelist))),
                     samples$SampleID) == 1:nrow(samples)))
 
-#' name the file list vector
-names(filelist) <- samples$SampleID
+#' * add filelist to samples as a new column
+samples %<>% mutate(Filenames = filelist)
+
+#' * export full rank samples
+write_tsv(samples,here("doc/samples_full_rank.txt"))
 
 #' Read the expression at the gene level
 #' ```{r CHANGEME4,eval=FALSE,echo=FALSE}
-#' If the species has only one transcript per gene, replace with the following
-#' txi <- suppressMessages(tximport(files = filelist, type = "salmon",txOut=TRUE))
+#' If the species has only one transcript per gene, or if you are conducting QA 
+#' in transcript level replace with the following:
+#' txi <- suppressMessages(tximport(files = samples$Filenames, type = "salmon",txOut=TRUE))
 #' ```
-txi <- suppressMessages(tximport(files = filelist,
+txi <- suppressMessages(tximport(files = samples$Filenames,
                                  type = "salmon",
                                  tx2gene=tx2gene))
 counts <- txi$counts
-
-#' ## Quality Control
-#' * Check how many genes are never expressed
+colnames(counts) <- samples$SampleID
+#' 
+#' <hr />
+#' &nbsp;
+#' 
+#' # Quality Control
+#' ## "Not expressed" genes
 sel <- rowSums(counts) == 0
 sprintf("%s%% percent (%s) of %s genes are not expressed",
         round(sum(sel) * 100/ nrow(counts),digits=1),
         sum(sel),
         nrow(counts))
 
+#' ## Sequencing depth
 #' * Let us take a look at the sequencing depth, colouring by CHANGEME
 #' ```{r CHANGEME5,eval=FALSE,echo=FALSE}
 #' # In the following most often you need to replace CHANGEME by your
@@ -97,21 +119,31 @@ sprintf("%s%% percent (%s) of %s genes are not expressed",
 dat <- tibble(x=colnames(counts),y=colSums(counts)) %>% 
   bind_cols(samples)
 
-ggplot(dat,aes(x,y,fill=CHANGEME)) + geom_col() + 
+ggplot(dat,aes(x,y,fill=CHANGEME)) + 
+  geom_col() + 
   scale_y_continuous(name="reads") +
-  theme(axis.text.x=element_text(angle=90,size=4),axis.title.x=element_blank())
+  facet_grid(~ factor(CHANGEME), scales = "free") +
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=90,size=4),
+        axis.title.x=element_blank())
 
-#' * Display the per-gene mean expression
+#' `r emoji("point_right")` **We observe almost no difference in the raw sequencing depth**
+
+
+#' ## per-gene mean expression
 #' 
 #' _i.e._ the mean raw count of every gene across samples is calculated
 #' and displayed on a log10 scale.
 #' 
-#' The cumulative gene coverage is as expected
-ggplot(data.frame(value=log10(rowMeans(counts))),aes(x=value)) + 
-  geom_density() + ggtitle("gene mean raw counts distribution") +
-  scale_x_continuous(name="mean raw counts (log10)")
 
-#' The same is done for the individual samples colored by CHANGEME. 
+ggplot(data.frame(value=log10(rowMeans(counts))),aes(x=value)) + 
+  geom_density(na.rm = TRUE) +
+  ggtitle("gene mean raw counts distribution") +
+  scale_x_continuous(name="mean raw counts (log10)") + 
+  theme_bw()
+
+#' `r emoji("point_right")` **The cumulative gene coverage is as expected**
+
 #' ```{r CHANGEME6,eval=FALSE,echo=FALSE}
 #' # In the following, the second mutate also needs changing, I kept it 
 #' # as an example to illustrate the first line. SampleID would be 
@@ -120,22 +152,34 @@ ggplot(data.frame(value=log10(rowMeans(counts))),aes(x=value)) +
 #' # If you have only a single metadata, then remove the second mutate call
 #' # If you have more, add them as needed.
 #' ```
-dat <- as.data.frame(log10(counts)) %>% utils::stack() %>% 
+#' 
+#' ## Per-sample expression
+
+dat <- as.data.frame(log10(counts)) %>% 
+  utils::stack() %>% 
   mutate(CHANGEME=samples$CHANGEME[match(ind,samples$CHANGEME)]) %>% 
   mutate(SamplingTime=samples$SamplingTime[match(ind,samples$SampleID)])
 
 ggplot(dat,aes(x=values,group=ind,col=CHANGEME)) + 
-  geom_density() + ggtitle("sample raw counts distribution") +
-  scale_x_continuous(name="per gene raw counts (log10)")
+  geom_density(na.rm = TRUE) + 
+  ggtitle("sample raw counts distribution") +
+  scale_x_continuous(name="per gene raw counts (log10)") + 
+  theme_bw()
 
-#' ## Export
+#' `r emoji("point_right")` **All samples have the same sequencing depth characteristics and there is no deviation when we look at one or the other variable**
+#' 
+#' * Export raw expression data
 dir.create(here("data/analysis/salmon"),showWarnings=FALSE,recursive=TRUE)
 write.csv(counts,file=here("data/analysis/salmon/raw-unormalised-gene-expression_data.csv"))
-
+#' 
+#' <hr />
+#' &nbsp;
+#' 
 #' # Data normalisation 
 #' ## Preparation
+#' 
 #' For visualization, the data is submitted to a variance stabilization
-#' transformation using DESeq2. The dispersion is estimated independently
+#' transformation using _DESeq2_. The dispersion is estimated independently
 #' of the sample tissue and replicate. 
 #'  
 #'  ```{r CHANGEME7,eval=FALSE,echo=FALSE}
@@ -150,12 +194,22 @@ dds <- DESeqDataSetFromTximport(
 
 save(dds,file=here("data/analysis/salmon/dds.rda"))
 
-#' Check the size factors (_i.e._ the sequencing library size effect)
+#' ## size factors 
+#' (_i.e._ the sequencing library size effect)
 #' 
-dds <- estimateSizeFactors(dds)
+dds <- estimateSizeFactors(dds) %>% 
+  suppressMessages()
+
 boxplot(normalizationFactors(dds),
         main="Sequencing libraries size factor",
         las=2,log="y")
+abline(h=1, col = "Red", lty = 3)
+
+#' and without outliers:
+boxplot(normalizationFactors(dds),
+        main="Sequencing libraries size factor",
+        las=2,log="y", outline=FALSE)
+abline(h=1, col = "Red", lty = 3)
 
 #' Assess whether there might be a difference in library size linked to a
 #' given metadata
@@ -170,37 +224,45 @@ plot(sizes,log10(colSums(counts(dds))),ylab="log10 raw depth",xlab="scaling fact
 legend("bottomright",fill=rainbow(n=nlevels(dds$CHANGEME)),
        legend=levels(dds$CHANGEME),cex=0.6)
 
-
-#' ## Variance Stabilising Transformation
-vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
-vst <- assay(vsd)
-vst <- vst - min(vst)
-
-#' * Validation
+#' ## Validation
 #' 
-#' The variance stabilisation worked adequately
+#' let's look at standard deviations before and after VST normalization. 
+#' This plot is to see whether there is a dependency of SD on the mean. 
 #' 
+#' Before:  
+meanSdPlot(log1p(counts(dds))[rowSums(counts(dds))>0,])
+
+#' After VST normalization, the red line is almost horizontal which indicates
+#' no dependency of variance on mean (homoscedastic).
+
 meanSdPlot(vst[rowSums(vst)>0,])
 
+#' `r emoji("point_right")` **We can conclude that the variance stabilization worked adequately**
+#' 
+#' <hr />
+#' &nbsp;
+#' 
 #' ## QC on the normalised data
 #' ### PCA
 pc <- prcomp(t(vst))
 percent <- round(summary(pc)$importance[2,]*100)
 
-#' * Cumulative components effect
+#' ### Scree plot
 #' 
-#' We define the number of variable of the model
-nvar=2
+#' We define the number of variable of the model: `r nvar=2`
+
 
 #' An the number of possible combinations
 #' ```{r CHANGEME8,eval=FALSE,echo=FALSE}
 #' This needs to be adapted to your study design. Add or drop variables aas needed.
 #' ```
-nlevel=nlevels(dds$MDay) * nlevels(dds$MGenotype)
+#' `r nlevel=nlevels(dds$MDay) * nlevels(dds$MGenotype)`
 
-#' We plot the percentage explained by the different components, the
-#' red line represent the number of variable in the model, the orange line
-#' the number of variable combinations.
+#' We plot the percentage explained by different components
+#' 
+#' * the red line represents number of variables in the model  
+#' * the orange line represents number of variable combinations.
+#' 
 ggplot(tibble(x=1:length(percent),y=cumsum(percent)),aes(x=x,y=y)) +
   geom_line() + scale_y_continuous("variance explained (%)",limits=c(0,100)) +
   scale_x_continuous("Principal component") + 
@@ -209,7 +271,7 @@ ggplot(tibble(x=1:length(percent),y=cumsum(percent)),aes(x=x,y=y)) +
   geom_vline(xintercept=nlevel,colour="orange",linetype="dashed",size=0.5) + 
   geom_hline(yintercept=cumsum(percent)[nlevel],colour="orange",linetype="dashed",size=0.5)
   
-#' ### 2D
+#' ### PCA plot
 pc.dat <- bind_cols(PC1=pc$x[,1],
                     PC2=pc$x[,2],
                     as.data.frame(colData(dds)))
@@ -222,20 +284,21 @@ ggplotly(p) %>%
   layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
          yaxis=list(title=paste("PC2 (",percent[2],"%)",sep="")))
 
-#' ### Sequencing depth
-#' Number of genes expressed per condition at different cutoffs
+#' ## Sequencing depth
+#' Number of genes expressed per condition at different cutoffs:
 conds <- factor(paste(dds$CHANGEME,dds$CHANGEME))
 dev.null <- rangeSamplesSummary(counts=vst,
                                 conditions=conds,
                                 nrep=3)
 
-#' ### Heatmap
+#' ## Heatmap
 #' 
 #' Filter for noise
 #' 
 sels <- rangeFeatureSelect(counts=vst,
                            conditions=conds,
-                           nrep=3)
+                           nrep=3) %>% 
+  suppressWarnings()
 vst.cutoff <- 2
 
 #' * Heatmap of "all" genes
@@ -249,7 +312,7 @@ hm <- heatmap.2(t(scale(t(vst[sels[[vst.cutoff+1]],]))),
 
 plot(as.hclust(hm$colDendrogram),xlab="",sub="")
 
-#' ### Hierarchical clustering
+#' ## Clustering of samples
 #' Done to assess the previous dendrogram's reproducibility
 hm.pvclust <- pvclust(data = t(scale(t(vst[sels[[vst.cutoff+1]],]))),
                        method.hclust = "ward.D2", 
@@ -259,9 +322,12 @@ hm.pvclust <- pvclust(data = t(scale(t(vst[sels[[vst.cutoff+1]],]))),
 plot(hm.pvclust, labels = conds)
 pvrect(hm.pvclust)
 
-#' bootstrapping results as a table
-print(hm.pvclust, digits=3)
-
+#' <details><summary>bootstrapping results as a table</summary>
+#' ```{r bootstrapping results as a table}
+#' print(hm.pvclust, digits=3)
+#' ```
+#' </details>
+#' 
 #' ```{tech rep, echo=FALSE, eval=FALSE}
 #' # The block of code is meant to combine tech reps - as it is facultative it is commented out
 #' # First create a new variable in your sample object called BioID that identifies uniquely technical replicates, so one value for all tech rep of the same bio rep
@@ -279,12 +345,17 @@ print(hm.pvclust, digits=3)
 #'   design = ~ Tissue)
 #'```
 #'
-#' ## Conclusion
-#' CHANGEME
+#' <hr />
+#' &nbsp;
+#' 
+#' # Summary
+#' `r emoji("star")` **CHANGE-ME**
+#' 
 #' ```{r empty,eval=FALSE,echo=FALSE}
 #' ```
 #'
 #' # Session Info
-#' ```{r session info, echo=FALSE}
+#' <details><summary>Session Info</summary>
+#' ```{r session info}
 #' sessionInfo()
 #' ```
