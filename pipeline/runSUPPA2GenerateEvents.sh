@@ -48,7 +48,7 @@ done
 shift `expr $OPTIND - 1`
 
 # checks
-[[ ! $@ -ne 3 ]] && abort "This script expects three arguments"
+[[ $# -ne 3 ]] && abort "This script expects three arguments"
 [[ ! -f $1 ]] && abort "The first argument needs to be an existing file path to a singularity container"
 [[ -z ${SINGULARITY_BINDPATH:-} ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 [[ ! -f $2 ]] && abort "The second argument needs to be an existing file path to a gtf annotation file"

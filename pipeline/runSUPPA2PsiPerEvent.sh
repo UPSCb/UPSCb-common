@@ -17,7 +17,7 @@ USAGETXT=\
 "
 
 # checks
-[[ ! $@ -ne 4 ]] && abort "This script expects three arguments"
+[[ $# -ne 4 ]] && abort "This script expects four arguments"
 [[ ! -f $1 ]] && abort "The first argument needs to be an existing file path to a singularity container"
 [[ -z ${SINGULARITY_BINDPATH:-} ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 [[ ! -f $2 ]] && abort "The second argument needs to be an existing file path to an ioe annotation file"
@@ -28,5 +28,5 @@ USAGETXT=\
 singularity exec $1 \
 suppa.py psiPerEvent \
 -i $2 \
--o $4/$(basename ${3/.tsv/})_$(basename ${2/.ioe/} \
+-o $4/$(basename ${3/.tsv/})_$(basename ${2/.ioe/}) \
 -e $3
