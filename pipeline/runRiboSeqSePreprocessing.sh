@@ -294,11 +294,7 @@ partition=
 
 # Parse the options
 OPTIND=1
-<<<<<<< HEAD
-while getopts "ab:c:Dde:f:hk:M:m:p:q:r:S:s:tT:" opt; do
-=======
 while getopts "ab:c:Dde:f:hk:L:M:m:p:r:S:s:tT:" opt; do
->>>>>>> kogia
     case "$opt" in
         h) usage;;
         a) non_ilm_stranded=1;;
