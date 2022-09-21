@@ -58,6 +58,6 @@ shift `expr $OPTIND - 1`
 singularity exec $1 \
 suppa.py generateEvents \
 -i $2 \
--o $3 \
+-o $3/$(basename $3) \
 -e $SE $SS $MX $RI $FL \
 -f $format
