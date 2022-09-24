@@ -46,7 +46,7 @@ do
 done
 shift `expr $OPTIND - 1`
 
-OPTIONS=$combine $median $paired $export $multiple
+OPTIONS="$combine $median $paired $export $multiple"
 
 # checks
 [[ $# -ne 5 ]] && abort "This script expects five arguments"
@@ -55,13 +55,17 @@ OPTIONS=$combine $median $paired $export $multiple
 [[ ! -f $2 ]] && abort "The second argument needs to be an existing file path to an event annotation file, .ioi or .ioe"
 [[ ! -d $5 ]] && abort "The fifth argument needs to be an existing directory"
 
-# deconvolute the input files and test them
-echo $3 | xargs -d, -I {} bash -c '[[ ! -f $(readlink $0) ]] && echo $0 is not a valid file && exit 1' {}
-echo $4 | xargs -d, -I {} bash -c '[[ ! -f $(readlink $0) ]] && echo $0 is not a valid file && exit 1' {}
+# separate the input files and test them
+tmp=$(mktemp)
+echo $3 | xargs -d, -I {} bash -c '[[ ! -f $(realpath $0) ]] && echo $0 is not a valid file > $1' {} $tmp && echo
+[[ $(wc -l $tmp|cut -f1 -d " ") -ne 0 ]] && abort "Some psi files do not exist, check $3"
+echo $4 | xargs -d, -I {} bash -c '[[ ! -f $(realpath $0) ]] && echo $0 is not a valid file > $1' {} $tmp && echo
+[[ $(wc -l $tmp | cut -f1 -d" ") -ne 0 ]] && abort "Some tpm files do not exist, check $4"
 
 # run
-singularity exec $1 \
+# singularity exec $1 \
 suppa.py diffSplice \
--p $(tr , "" $3) \
--e $(tr , "" $3) \
+-m empirical \
+-p $(echo $3 | tr , " ") \
+-e $(echo $4 | tr , " ") \
 -i $2 -o $5 $OPTIONS
