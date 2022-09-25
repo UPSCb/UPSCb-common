@@ -13,7 +13,7 @@ source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
 # usage
 USAGETXT=\
 "
-  Synopsis [options] $0 <suppa2 singularity container> <event file> <psi comma separated files> <exp comma separated files> <out dir>
+  Synopsis [options] $0 <suppa2 singularity container> <event file> <psi comma separated files> <exp comma separated files> <out file prefix>
   
   Options:
     -c perform all samples combinations 
@@ -53,7 +53,7 @@ OPTIONS="$combine $median $paired $export $multiple"
 [[ ! -f $1 ]] && abort "The first argument needs to be an existing file path to a singularity container"
 [[ -z ${SINGULARITY_BINDPATH:-} ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 [[ ! -f $2 ]] && abort "The second argument needs to be an existing file path to an event annotation file, .ioi or .ioe"
-[[ ! -d $5 ]] && abort "The fifth argument needs to be an existing directory"
+[[ ! -d $(dirname $5) ]] && abort "The fifth argument (file prefix) needs to be in an existing directory"
 
 # separate the input files and test them
 tmp=$(mktemp)
@@ -63,7 +63,7 @@ echo $4 | xargs -d, -I {} bash -c '[[ ! -f $(realpath $0) ]] && echo $0 is not a
 [[ $(wc -l $tmp | cut -f1 -d" ") -ne 0 ]] && abort "Some tpm files do not exist, check $4"
 
 # run
-# singularity exec $1 \
+singularity exec $1 \
 suppa.py diffSplice \
 -m empirical \
 -p $(echo $3 | tr , " ") \
