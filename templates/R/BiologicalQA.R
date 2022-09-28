@@ -224,6 +224,11 @@ plot(sizes,log10(colSums(counts(dds))),ylab="log10 raw depth",xlab="scaling fact
 legend("bottomright",fill=rainbow(n=nlevels(dds$CHANGEME)),
        legend=levels(dds$CHANGEME),cex=0.6)
 
+#' ## Variance Stabilising Transformation
+vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
+vst <- assay(vsd)
+vst <- vst - min(vst)
+
 #' ## Validation
 #' 
 #' let's look at standard deviations before and after VST normalization. 
