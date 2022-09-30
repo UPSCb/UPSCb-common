@@ -24,3 +24,8 @@ The templates expect the following directory structure.
                   |- salmon - the directory containing the salmon results. One directory per sample, each containing the salmon results for that sample
             |- reference a link to the reference genomic information (_e.g._ transcript to gene mapping file)
             
+2. Helper files
+These are styling files you need (currently needed only for BiologicalQA.R)
+  1. style.css: Controls the width and margins of the report
+  2. header.html: This adds the little Github logo in the top corner
+  3. footer.html: this adds the logo and the links at the bottom of the report. You need to edit for your name and links
