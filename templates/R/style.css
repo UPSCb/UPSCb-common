@@ -1,0 +1,14 @@
+body .main-container {
+  max-width: 98% !important; 
+  margin-left: 0px;
+  margin-right: 20px;
+}
+
+img {
+    display:block;
+    float:none;
+    margin-left:auto;
+    margin-right:auto;
+}
+
+.btn-group { display: none; }
