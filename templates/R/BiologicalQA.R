@@ -1,5 +1,6 @@
 #' ---
 #' title: "CHANGEME Biological QA"
+#' subtitle: "CHANGEME Project title"
 #' author: "CHANGEME"
 #' date: "`r Sys.Date()`"
 #' output:
@@ -8,15 +9,21 @@
 #'    fig_height: 6
 #'    toc: true
 #'    number_sections: true
-#'    toc_depth: 4
+#'    toc_depth: 3
 #'    toc_float:
 #'      collapsed: TRUE
 #'      smooth_scroll: TRUE
 #'    code_folding: hide
 #'    theme: "flatly"
 #'    highlight: pygments
+#'   includes:
+#'    before_body: header.html
+#'    after_body: footer.html
+#'   css: style.css
 #' ---
-#' <p style="text-align: left;"><span style="color: #bd047c;"><em>CHANGEME@CHANGEME</em></span></p>
+#' 
+#' <hr />
+#' &nbsp;
 #' 
 #' # Setup
 #' This section and the next are relevant for reproducibility purposes. For results, please skip to section 3 (Quality Control)
@@ -25,11 +32,16 @@
 suppressPackageStartupMessages({
   library(data.table)
   library(DESeq2)
+  library(emoji)
   library(gplots)
+  library(gtools)
   library(here)
   library(hyperSpec)
+  library(limma)
   library(magrittr)
   library(parallel)
+  library(patchwork)
+  library(pheatmap)
   library(plotly)
   library(pvclust)
   library(tidyverse)
@@ -51,7 +63,7 @@ hpal <- colorRampPalette(c("blue","white","red"))(100)
 #' # as columns, e.g. the SamplingTime for a time series experiment
 #'  ```
 samples <- read_csv(here("doc/CHANGE-ME.csv"),
-                      col_types=cols(.default=col_factor()))
+                    col_types=cols(.default=col_factor()))
 
 #' * tx2gene translation table
 #' ```{r Instructions2,eval=FALSE,echo=FALSE}
@@ -102,7 +114,7 @@ colnames(counts) <- samples$SampleID
 #' &nbsp;
 #' 
 #' # Quality Control
-#' ## "Not expressed" genes
+#' * "Not expressed" genes
 sel <- rowSums(counts) == 0
 sprintf("%s%% percent (%s) of %s genes are not expressed",
         round(sum(sel) * 100/ nrow(counts),digits=1),
@@ -237,11 +249,12 @@ vst <- vst - min(vst)
 #' Before:  
 meanSdPlot(log1p(counts(dds))[rowSums(counts(dds))>0,])
 
-#' After VST normalization, the red line is almost horizontal which indicates
-#' no dependency of variance on mean (homoscedastic).
-
+#' After:
 meanSdPlot(vst[rowSums(vst)>0,])
 
+#' After VST normalization, the red line is almost horizontal which indicates
+#' no dependency of variance on mean (homoscedastic).
+#' 
 #' `r emoji("point_right")` **We can conclude that the variance stabilization worked adequately**
 #' 
 #' <hr />
@@ -254,12 +267,12 @@ percent <- round(summary(pc)$importance[2,]*100)
 
 #' ### Scree plot
 #' 
-#' We define the number of variable of the model: `r nvar=2`
-
+#' We define the number of variable of the model: ```r nvar=2```
+#' `r nvar = 2`
 
 #' An the number of possible combinations
 #' ```{r CHANGEME8,eval=FALSE,echo=FALSE}
-#' This needs to be adapted to your study design. Add or drop variables aas needed.
+#' This needs to be adapted to your study design. Add or drop variables as needed.
 #' ```
 #' `r nlevel=nlevels(dds$MDay) * nlevels(dds$MGenotype)`
 
@@ -279,15 +292,31 @@ ggplot(tibble(x=1:length(percent),y=cumsum(percent)),aes(x=x,y=y)) +
 #' ### PCA plot
 pc.dat <- bind_cols(PC1=pc$x[,1],
                     PC2=pc$x[,2],
+                    PC3=pc$x[,3],
                     as.data.frame(colData(dds)))
 
-p <- ggplot(pc.dat,aes(x=PC1,y=PC2,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) + 
+#PC1 vs PC2
+p1 <- ggplot(pc.dat,aes(x=PC1,y=PC2,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) + 
   geom_point(size=2) + 
   ggtitle("Principal Component Analysis",subtitle="variance stabilized counts")
 
-ggplotly(p) %>% 
+p1 %<>% ggplotly(p1) %>% 
   layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
-         yaxis=list(title=paste("PC2 (",percent[2],"%)",sep="")))
+         yaxis=list(title=paste("PC2 (",percent[3],"%)",sep=""))) %>% suppressWarnings()
+
+#PC1 vs PC3
+p2 <- ggplot(pc.dat,aes(x=PC1,y=PC3,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) + 
+  geom_point(size=2) + 
+  ggtitle("Principal Component Analysis",subtitle="variance stabilized counts")
+
+p2 %<>% ggplotly(p2) %>% 
+  layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
+         yaxis=list(title=paste("PC3 (",percent[3],"%)",sep=""))) %>% suppressWarnings()
+
+#' ```{r subplot, out.width = '100%'}
+#' subplot(style(p1, showlegend = F), p2,
+#'         titleX = TRUE, titleY = TRUE, nrows = 1, margin = c(0.05, 0.05, 0, 0))
+#' ```
 
 #' ## Sequencing depth
 #' Number of genes expressed per condition at different cutoffs:
@@ -306,24 +335,59 @@ sels <- rangeFeatureSelect(counts=vst,
   suppressWarnings()
 vst.cutoff <- 2
 
-#' * Heatmap of "all" genes
-#' 
-hm <- heatmap.2(t(scale(t(vst[sels[[vst.cutoff+1]],]))),
-          distfun=pearson.dist,
-          hclustfun=function(X){hclust(X,method="ward.D2")},
-          labRow = NA,trace = "none",
-          labCol = conds,
-          col=hpal)
+nn <- nrow(vst_g[sels[[vst.cutoff+1]],])
+tn <- nrow(vst_g)
+pn <- round(nn * 100/ tn, digits=1)
 
-plot(as.hclust(hm$colDendrogram),xlab="",sub="")
+#' `r emoji("warning")` **`r pn`%** (`r nn`) of total `r tn` genes are plotted below:
+
+#' ```{r CHANGEME9,eval=FALSE,echo=FALSE}
+#' Optionally You can decide which variable to select for annotation. 
+#' add the following to your pheatmap call (select the variable you want)
+#' This will be a colored ribbon on top of the heatmap for better reading
+#' annotation_col = samples %>% select(CHANGEME) %>% as.data.frame()
+#' 
+#' if you want, you can also modify the colors to better match with previous graphs. 
+#' e.g. if you want a colored ribbon for Temperature (16,23,27) (adjust this example based on your need and add to pheatmap call)
+#' annotation_colors = list(Temperature = c("23" = "#F8766D", "16" = "#00BF7D", "27" = "#00B0F6"))
+#' 
+#' Alternatively you can use the heatmap.2 version
+#' #heatmap.2 version
+#' hm <- heatmap.2(t(scale(t(vst[sels[[vst.cutoff+1]],]))),
+#'                 distfun=pearson.dist,
+#'                 hclustfun=function(X){hclust(X,method="ward.D2")},
+#'                 labRow = NA,trace = "none",
+#'                 labCol = conds,
+#'                 col=hpal)
+#' ```
+#'  
+mat <- t(scale(t(vst[sels[[vst.cutoff+1]],])))
+hm <- pheatmap(mat,
+               color = hpal,
+               border_color = NA,
+               clustering_distance_rows = "correlation",
+               clustering_method = "ward.D2",
+               show_rownames = F,
+               labels_col = conds,
+               angle_col = 90,
+               treeheight_col = 0,
+               legend = F)
+
 
 #' ## Clustering of samples
-#' Done to assess the previous dendrogram's reproducibility
+plot(as.hclust(hm$colDendrogram),xlab="",sub="")
+
+#' Below we assess the previous dendrogram's reproducibility and plot the clusters with au and bp where:
+#' 
+#' * __au (Approximately Unbiased): computed by multiscale bootstrap resampling__ `r emoji("point_left")` a better approximation
+#' * __bp (Bootstrap Probability): computed by normal bootstrap resampling__
+#' 
+#' `r emoji("warning")`Clusters with AU larger than 95% are highlighted by rectangles, which are strongly supported by data
+#' 
 hm.pvclust <- pvclust(data = t(scale(t(vst[sels[[vst.cutoff+1]],]))),
                        method.hclust = "ward.D2", 
                        nboot = 1000, parallel = TRUE)
 
-#' plot the clustering with bp and au
 plot(hm.pvclust, labels = conds)
 pvrect(hm.pvclust)
 
@@ -364,3 +428,7 @@ pvrect(hm.pvclust)
 #' ```{r session info}
 #' sessionInfo()
 #' ```
+#' </details>
+#'   
+#' &nbsp;
+#' 
