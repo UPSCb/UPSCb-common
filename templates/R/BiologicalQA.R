@@ -356,7 +356,8 @@ pn <- round(nn * 100/ tn, digits=1)
 #' hm <- heatmap.2(t(scale(t(vst[sels[[vst.cutoff+1]],]))),
 #'                 distfun=pearson.dist,
 #'                 hclustfun=function(X){hclust(X,method="ward.D2")},
-#'                 labRow = NA,trace = "none",
+#'                 labRow = NA,
+#'                 trace = "none",
 #'                 labCol = conds,
 #'                 col=hpal)
 #' ```
@@ -370,7 +371,6 @@ hm <- pheatmap(mat,
                show_rownames = F,
                labels_col = conds,
                angle_col = 90,
-               treeheight_col = 0,
                legend = F)
 
 
