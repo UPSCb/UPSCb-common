@@ -34,10 +34,14 @@ We use `git` and `SLURM` to ensure reproducible research, here are gists on how 
 
 ## Rules of conduct
 
-## Resolving Issues by yourself
+# Troubleshooting
 
+## Resolving Issues by yourself
 1. [Rstudio common issues](https://gist.github.com/nicolasDelhomme/5bde1e878b2eaa3def1cced06076b7db)
+
+
+# Visulization examples
+1. [Gene Ontology](https://gist.github.com/amnzr/7d859ae127c30e13fef3198c20287da2) 
 
 ## Contact us
 For UPSC members, ask us to be added to our Slack channel as well as mailing list. These are the two channels we use to communicate about server updates and downtime (as well as other technical issues), but also those we use to discuss projects, provide support, _etc._
-
