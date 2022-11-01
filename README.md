@@ -43,7 +43,7 @@ Before **re-inventing the wheel**, check the templates directory! A number of us
 1. `R/empty.R` to initiate an R script with the Rmd header and session info blocks.
 2. `R/BiologicalQA.R` to do the initial Exploratory Data Analysis (EDA) of your RNA-Seq data
 3. `R/DifferentialExpression.R` to perform a Differential Expression (DE) of your data (follows the previous one)
-4. `bash/template.sh` to prototype script to be run on an HPC (High Perf. Compute) using SLURM (a job manager)
+4. `bash/runTemplate.sh` to prototype script to be run on an HPC (High Perf. Compute) using SLURM (a job manager)
 
 # Troubleshooting
 

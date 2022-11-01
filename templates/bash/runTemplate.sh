@@ -6,7 +6,7 @@
 #SBATCH --mail-usage=END,FAIL
 
 # sanity
-set -eu
+set -eu -o pipefail
 
 # functions
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
