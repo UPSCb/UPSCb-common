@@ -3,7 +3,7 @@
 #SBATCH -n 1
 #SBATCH -A facility
 #SBATCH -J CHANGEME
-#SBATCH --mail-usage=END,FAIL
+#SBATCH --mail-type=END,FAIL
 
 # sanity
 set -eu -o pipefail
