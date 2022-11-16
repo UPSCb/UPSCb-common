@@ -16,10 +16,10 @@
 #'    code_folding: hide
 #'    theme: "flatly"
 #'    highlight: pygments
-#'   includes:
-#'    before_body: header.html
-#'    after_body: footer.html
-#'   css: style.css
+#'    includes:
+#'      before_body: header.html
+#'      after_body: footer.html
+#'    css: style.css
 #' ---
 #' 
 #' <hr />
@@ -302,7 +302,7 @@ p1 <- ggplot(pc.dat,aes(x=PC1,y=PC2,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) 
 
 p1 %<>% ggplotly(p1) %>% 
   layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
-         yaxis=list(title=paste("PC2 (",percent[3],"%)",sep=""))) %>% suppressWarnings()
+         yaxis=list(title=paste("PC2 (",percent[2],"%)",sep=""))) %>% suppressWarnings()
 
 #PC1 vs PC3
 p2 <- ggplot(pc.dat,aes(x=PC1,y=PC3,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) + 
@@ -314,7 +314,7 @@ p2 %<>% ggplotly(p2) %>%
          yaxis=list(title=paste("PC3 (",percent[3],"%)",sep=""))) %>% suppressWarnings()
 
 #' ```{r subplot, out.width = '100%'}
-#' subplot(style(p1, showlegend = F), p2,
+#' subplot(style(p1, showlegend = FALSE), p2,
 #'         titleX = TRUE, titleY = TRUE, nrows = 1, margin = c(0.05, 0.05, 0, 0))
 #' ```
 
@@ -335,8 +335,8 @@ sels <- rangeFeatureSelect(counts=vst,
   suppressWarnings()
 vst.cutoff <- 2
 
-nn <- nrow(vst_g[sels[[vst.cutoff+1]],])
-tn <- nrow(vst_g)
+nn <- nrow(vst[sels[[vst.cutoff+1]],])
+tn <- nrow(vst)
 pn <- round(nn * 100/ tn, digits=1)
 
 #' `r emoji("warning")` **`r pn`%** (`r nn`) of total `r tn` genes are plotted below:
@@ -368,15 +368,18 @@ hm <- pheatmap(mat,
                border_color = NA,
                clustering_distance_rows = "correlation",
                clustering_method = "ward.D2",
-               show_rownames = F,
+               show_rownames = FALSE,
                labels_col = conds,
                angle_col = 90,
-               legend = F)
+               legend = FALSE)
 
 
 #' ## Clustering of samples
-plot(as.hclust(hm$colDendrogram),xlab="",sub="")
-
+#' ```{r echo=FALSE,eval=FALSE}
+#' # Developer: This wouldonly works with the gplots heatmap.2, not the pheatmap
+#' plot(as.hclust(hm$colDendrogram),xlab="",sub="")
+#' ```
+#'
 #' Below we assess the previous dendrogram's reproducibility and plot the clusters with au and bp where:
 #' 
 #' * __au (Approximately Unbiased): computed by multiscale bootstrap resampling__ `r emoji("point_left")` a better approximation
