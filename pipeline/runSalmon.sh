@@ -80,3 +80,6 @@ singularity exec $1 salmon quant -p $CPU -i $2 -l $LTYPE -1 $3 -2 $4 -o $outdir 
 
 # clean
 [[ $CLEAN -eq 1 ]] && [[ -f $outdir/quant.sf ]] && rm $3 $4
+
+# clean exit
+exit 0

@@ -119,8 +119,10 @@ else
   if [ $trimlog -eq 1 ]; then
 	  printf "%s\0%s" $out/${pattern}_trimmomatic.fq $out/$pattern.log | xargs -0 -I {} -P $thread gzip -f {}
   else
-	  gzip -f $out/${pattern}_trimmomatic.fq	
+	  gzip -f $out/${pattern}_trimmomatic.fq
   fi
   [[ $clean -eq 1 ]] && [[ -f $out/${pattern}_trimmomatic.fq.gz ]] && rm $fwd
 fi
 
+# clean exit
+exit 0
