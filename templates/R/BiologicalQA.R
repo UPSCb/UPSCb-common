@@ -300,7 +300,7 @@ p1 <- ggplot(pc.dat,aes(x=PC1,y=PC2,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) 
   geom_point(size=2) + 
   ggtitle("Principal Component Analysis",subtitle="variance stabilized counts")
 
-p1 %<>% ggplotly(p1) %>% 
+ggplotly(p1) %>% 
   layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
          yaxis=list(title=paste("PC2 (",percent[2],"%)",sep=""))) %>% suppressWarnings()
 
@@ -309,7 +309,7 @@ p2 <- ggplot(pc.dat,aes(x=PC1,y=PC3,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) 
   geom_point(size=2) + 
   ggtitle("Principal Component Analysis",subtitle="variance stabilized counts")
 
-p2 %<>% ggplotly(p2) %>% 
+ggplotly(p2) %>% 
   layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
          yaxis=list(title=paste("PC3 (",percent[3],"%)",sep=""))) %>% suppressWarnings()
 
