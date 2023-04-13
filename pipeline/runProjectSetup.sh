@@ -5,8 +5,8 @@ set -e
 PI=
 SPECIES=
 GID=
-DATADIR=/mnt/picea/storage/data
-PROJECTDIR=/mnt/picea/projects
+DATADIR=/mnt/ada/storage/data # Temporarily set to ada
+PROJECTDIR=/mnt/ada/projects # Temporarily set to ada
 read -r -a KNOWNPIS <<< $(getent group | awk -F: '{if($3 >= 2007 && $3 < 3000){print $1}}' | grep -v u20 | xargs )
 read -r -a KNOWNSPECIES <<< $(find $DATADIR -mindepth 1 -maxdepth 1 -type d -exec basename "{}" \; | xargs )
 read -r -a KNOWNGROUPS <<< $(getent group | awk -F: '{if($3 >= 2007 && $3 < 3000){print $1}}' | grep u20 | xargs )
@@ -43,9 +43,9 @@ Specifics:
 source ${SLURM_SUBMIT_DIR:-$(pwd)}/../src/bash/functions.sh
 
 # check the host
-if [ $HOSTNAME != "picea" ]; then
-  abort "Not running on the right host"
-fi
+#if [ $HOSTNAME != "picea" ]; then
+#  abort "Not running on the right host"
+#fi
 
 # get the arguments
 if [ $# -ne 4 ]; then
