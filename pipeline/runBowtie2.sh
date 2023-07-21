@@ -99,7 +99,7 @@ if [ $# -lt $ARGS ]; then
     usage
 fi
 
-bowtieIndex=$(find $1.1.bt2*)
+bowtieIndex=$(find $1 -name "*.bt2")
 if [ ! -f $bowtieIndex ]; then
       	echo "The genome index: $1.1.bt2* does not exists"
 	usage

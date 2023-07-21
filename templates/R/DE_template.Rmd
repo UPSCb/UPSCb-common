@@ -1,0 +1,458 @@
+---
+title: "CHANGEME"
+author: "CHANGEME"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    fig_width: 12
+    fig_height: 9
+    toc: true
+    number_sections: true
+    toc_depth: 3
+    toc_float:
+      collapsed: TRUE
+      smooth_scroll: TRUE
+    code_folding: hide
+    theme: "flatly"
+    highlight: pygments
+  includes:
+    before_body: header.html
+    after_body: footer.html
+  css: style.css
+---
+
+````{r opts, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+````
+
+<details><summary>Setup</summary>
+
+* Libraries
+
+````{r }
+suppressPackageStartupMessages({
+    library(data.table)
+    library(DESeq2)
+    library(gplots)
+    library(here)
+    library(hyperSpec)
+    library(RColorBrewer)
+    library(tidyverse)
+    library(VennDiagram)
+})
+````
+
+* Helper files
+
+````{r }
+suppressMessages({
+    source(here("UPSCb-common/Rtoolbox/src/plotEnrichedTreemap.R"))
+    source(here("UPSCb-common/src/R/featureSelection.R"))
+    source(here("UPSCb-common/src/R/volcanoPlot.R"))
+    source(here("UPSCb-common/src/R/gopher.R"))
+})
+````
+
+* Graphics
+
+````{r }
+pal=brewer.pal(8,"Dark2")
+hpal <- colorRampPalette(c("blue","white","red"))(100)
+mar <- par("mar")
+````
+
+* Functions
+
+  * Plot specific gene expression
+
+````{r line_plot}
+"line_plot" <- function(dds=dds,vst=vst,gene_id=gene_id){
+    message(paste("Plotting",gene_id))
+    sel <- grepl(gene_id,rownames(vst))
+    stopifnot(sum(sel)==1)
+
+    p <- ggplot(bind_cols(as.data.frame(colData(dds)),
+                          data.frame(value=vst[sel,])),
+                aes(x=Treatment,y=value,col=Treatment,group=Treatment)) +
+        geom_point() + geom_smooth() +
+        scale_y_continuous(name="VST expression") + 
+        ggtitle(label=paste("Expression for: ",gene_id))
+    
+    suppressMessages(suppressWarnings(plot(p)))
+    return(NULL)
+}
+````
+
+  * Extract the DE results. Default cutoffs are from Schurch _et al._, RNA, 2016
+
+````{r function_extract_results}
+"extract_results" <- function(dds,vst,contrast,
+                              padj=0.01,lfc=0.5,
+                              plot=TRUE,verbose=TRUE,
+                              export=TRUE,default_dir=here("data/analysis/cold/DE"),
+                              default_prefix="DE-",
+                              labels=colnames(dds),
+                              sample_sel=1:ncol(dds),
+                              expression_cutoff=0,
+                              debug=FALSE,filter=c("median",NULL),...){
+    
+    # get the filter
+    if(!is.null(match.arg(filter))){
+        filter <- rowMedians(counts(dds,normalized=TRUE))
+        message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
+    }
+    
+    # validation
+    if(length(contrast)==1){
+        res <- results(dds,name=contrast,filter = filter)
+    } else {
+        res <- results(dds,contrast=contrast,filter = filter)
+    }
+    
+    stopifnot(length(sample_sel)==ncol(vst))
+    
+    if(plot){
+        par(mar=c(5,5,5,5))
+        volcanoPlot(res)
+        par(mar=mar)
+    }
+    
+    # a look at independent filtering
+    if(plot){
+        plot(metadata(res)$filterNumRej,
+             type="b", ylab="number of rejections",
+             xlab="quantiles of filter")
+        lines(metadata(res)$lo.fit, col="red")
+        abline(v=metadata(res)$filterTheta)
+    }
+    
+    if(verbose){
+        message(sprintf("The independent filtering cutoff is %s, removing %s of the data",
+                        round(metadata(res)$filterThreshold,digits=5),
+                        names(metadata(res)$filterThreshold)))
+        
+        max.theta <- metadata(res)$filterNumRej[which.max(metadata(res)$filterNumRej$numRej),"theta"]
+        message(sprintf("The independent filtering maximises for %s %% of the data, corresponding to a base mean expression of %s (library-size normalised read)",
+                        round(max.theta*100,digits=5),
+                        round(quantile(counts(dds,normalized=TRUE),probs=max.theta),digits=5)))
+    }
+    
+    if(plot){
+        qtl.exp=quantile(counts(dds,normalized=TRUE),probs=metadata(res)$filterNumRej$theta)
+        dat <- data.frame(thetas=metadata(res)$filterNumRej$theta,
+                          qtl.exp=qtl.exp,
+                          number.degs=sapply(lapply(qtl.exp,function(qe){
+                              res$padj <= padj & abs(res$log2FoldChange) >= lfc & 
+                                  ! is.na(res$padj) & res$baseMean >= qe
+                          }),sum))
+        if(debug){
+            plot(ggplot(dat,aes(x=thetas,y=qtl.exp)) + 
+                     geom_line() + geom_point() +
+                     scale_x_continuous("quantiles of expression") + 
+                     scale_y_continuous("base mean expression") +
+                     geom_hline(yintercept=expression_cutoff,
+                                linetype="dotted",col="red"))
+        
+            p <- ggplot(dat,aes(x=thetas,y=qtl.exp)) + 
+                geom_line() + geom_point() +
+                scale_x_continuous("quantiles of expression") + 
+                scale_y_log10("base mean expression") + 
+                geom_hline(yintercept=expression_cutoff,
+                           linetype="dotted",col="red")
+            suppressMessages(suppressWarnings(plot(p)))
+            
+            plot(ggplot(dat,aes(x=thetas,y=number.degs)) + 
+                     geom_line() + geom_point() +
+                     geom_hline(yintercept=dat$number.degs[1],linetype="dashed") +
+                     scale_x_continuous("quantiles of expression") + 
+                     scale_y_continuous("Number of DE genes"))
+            
+            plot(ggplot(dat,aes(x=thetas,y=number.degs[1] - number.degs),aes()) + 
+                     geom_line() + geom_point() +
+                     scale_x_continuous("quantiles of expression") + 
+                     scale_y_continuous("Cumulative number of DE genes"))
+            
+            plot(ggplot(data.frame(x=dat$thetas[-1],
+                                   y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
+                     geom_line() + geom_point() +
+                     scale_x_continuous("quantiles of expression") + 
+                     scale_y_continuous("Number of DE genes per interval"))
+            
+            plot(ggplot(data.frame(x=dat$qtl.exp[-1],
+                                   y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
+                     geom_line() + geom_point() +
+                     scale_x_continuous("base mean of expression") + 
+                     scale_y_continuous("Number of DE genes per interval"))
+            
+            p <- ggplot(data.frame(x=dat$qtl.exp[-1],
+                                   y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
+                geom_line() + geom_point() +
+                scale_x_log10("base mean of expression") + 
+                scale_y_continuous("Number of DE genes per interval") + 
+                geom_vline(xintercept=expression_cutoff,
+                           linetype="dotted",col="red")
+            suppressMessages(suppressWarnings(plot(p)))
+        }
+    }
+    
+    sel <- res$padj <= padj & abs(res$log2FoldChange) >= lfc & ! is.na(res$padj) & 
+        res$baseMean >= expression_cutoff
+    
+    if(verbose){
+      message(sprintf(paste(
+        ifelse(sum(sel)==1,
+               "There is %s gene that is DE",
+               "There are %s genes that are DE"),
+        "with the following parameters: FDR <= %s, |log2FC| >= %s, base mean expression > %s"),
+        sum(sel),padj,
+        lfc,expression_cutoff))
+    }
+    
+        # proceed only if there are DE genes
+    if(sum(sel) > 0){
+        val <- rowSums(vst[sel,sample_sel,drop=FALSE])==0
+        if (sum(val) >0){
+          warning(sprintf(paste(
+            ifelse(sum(val)==1,
+                   "There is %s DE gene that has",
+                   "There are %s DE genes that have"),
+            "no vst expression in the selected samples"),sum(val)))
+          sel[sel][val] <- FALSE
+        } 
+
+        if(export){
+            if(!dir.exists(default_dir)){
+                dir.create(default_dir,showWarnings=FALSE,recursive=TRUE,mode="0771")
+            }
+            write.csv(res,file=file.path(default_dir,paste0(default_prefix,"_results.csv")))
+            write.csv(res[sel,],file.path(default_dir,paste0(default_prefix,"_genes.csv")))
+        }
+        par(mar=c(0,5,5,5)+0.1)
+        if(plot & sum(sel)>1){
+            heatmap.2(t(scale(t(vst[sel,sample_sel]))),
+                      distfun = pearson.dist,
+                      hclustfun = function(X){hclust(X,method="ward.D2")}, dendrogram='row',  Rowv=TRUE,
+                      trace="none",col=hpal,labRow = FALSE, srtCol = 45, margin=c(6,6),
+                      labCol=labels[sample_sel],...
+            )
+        }
+    }
+    return(list(all=rownames(res[sel,]),
+                up=rownames(res[sel & res$log2FoldChange > 0,]),
+                dn=rownames(res[sel & res$log2FoldChange < 0,])))
+}
+````
+
+  * Extract and plot the enrichment results
+
+````{r function_enrichment_results}
+extractEnrichmentResults <- function(enrichment,task="go",
+                                     diff.exp=c("all","up","dn"),
+                                     go.namespace=c("BP","CC","MF"),
+                                     genes=NULL,export=TRUE,plot=TRUE,
+                                     default_dir=here("data/analysis/DE"),
+                                     default_prefix="DE",
+                                     url="athaliana"){
+    # process args
+    diff.exp <- match.arg(diff.exp)
+    de <- ifelse(diff.exp=="all","none",
+                 ifelse(diff.exp=="dn","down",diff.exp))
+
+    # sanity
+    if( is.null(enrichment[[task]]) | length(enrichment[[task]]) == 0){
+        message(paste("No enrichment for",task))
+    } else {
+
+        # write out
+        if(export){
+            write_tsv(enrichment[[task]],
+                      file=here(default_dir,
+                                paste0(default_prefix,"-genes_GO-enrichment.tsv")))
+            if(!is.null(genes)){
+                write_tsv(
+                    enrichedTermToGenes(genes=genes,terms=enrichment[[task]]$id,url=url,mc.cores=16L),
+                    file=here(default_dir,
+                              paste0(default_prefix,"-enriched-term-to-genes.tsv"))
+                )
+            }
+        }
+        
+        if(plot){
+            sapply(go.namespace,function(ns){
+                titles <- c(BP="Biological Process",
+                            CC="Cellular Component",
+                            MF="Molecular Function")
+                suppressWarnings(tryCatch({plotEnrichedTreemap(enrichment,enrichment=task,
+                                                               namespace=ns,
+                                                               de=de,title=paste(default_prefix,titles[ns]))},
+                                          error = function(e) {
+                                              message(paste("Treemap plot failed for",ns, 
+                                                            "because of:",e))
+                                              return(NULL)
+                                          }))
+            })
+        }
+    }
+}
+````
+
+
+* Load data and normalisation for visualisation
+
+````{r vst}
+
+load(here("CHANGEME"))
+
+vsd <- varianceStabilizingTransformation(dds,blind=FALSE)
+vst <- assay(vsd)
+vst <- vst - min(vst)
+
+dir.create(here("data/analysis/DE"),showWarnings=FALSE)
+save(vst,file=here("data/analysis/DE/vst-aware.rda"))
+write_delim(as.data.frame(vst) %>% rownames_to_column("ID"),
+            here("data/analysis/DE/vst-aware.tsv"))
+
+````
+
+
+</details>
+
+# Differential Expression
+
+## Methods
+
+The pre-processing was performed using FASTQC v.0.11.9 for quality control, SortmeRNA v.4.3.4 for filtering out ribosomal RNA, Trimmomatic v.0.39 for trimming away any adapter content and Salmon v.1.9.0 for quantifying the expression at transcript-level. The R-package DESeq2 was used to do the differential gene expression analysis. The functions under the section 1. Setup are used to extract the results and can filter DE genes based on adjusted p-value (padj) and log fold change (lfc). The default values used are padj=0.01 and lfc=0.5.
+
+## Results
+
+### DESeq2
+
+All output files can be found in the DE folder respectively, where files marked _genes* contain gene list which have been filtered based on the following criteria. The files marked _results* contain all DE genes (without any filtering based on quality criteria). 
+
+* Running the pipeline
+
+````{r DEseq2}
+# Relevel to make the control samples baseline, formulate design and run the DESeq analysis. 
+
+dds$CHANGEME <- relevel(dds$CHANGEME,"CHANGEME")
+design(dds) <- formula(~ CHANGEME)
+dds <- DESeq(dds)
+
+````
+
+<details><summary>Dispersion</summary>
+
+The dispersion estimation is adequate.
+
+````{r disp_est, fig.cap="Dispersion estimation"}
+plotDispEsts(dds)
+````
+
+</details>
+
+<details><summary>Results graphs</summary>
+
+#### CHANGEME
+````{r extract_results}
+
+# Example usage of the extract_results function. Change contrast, default_prefix, labels and sample_sel accordingly. 
+Treatment_heat_38 <- extract_results(dds,vst,"CHANGEME",
+                                     default_dir = here("data/analysis/DE/Treatment"),
+                                     default_prefix = "CHANGEME",
+                                     labels=dds$CHANGEME,
+                                     sample_sel = dds$CHANGEME == "CHANGEME",
+                                     plot = TRUE, verbose = TRUE)
+````
+
+</details>
+
+### Venn diagrams
+
+Calculating the Venn diagrams of DE genes and extracting gene lists of the partitions. All files can be found in the supplementary folder.
+
+````{r Venn_diagram_calculations}
+res.list <- list("CHANGEME"=CHANGEME, 
+                 "CHANGEME"=CHANGEME,
+                 "CHANGEME"=CHANGEME
+)
+
+## Separate all genes, only upregulated and downregulated genes in different lists
+all_res.list <- list("CHANGEME"=CHANGEME$all, 
+                     "CHANGEME"=CHANGEME$all, 
+                     "CHANGEME"=CHANGEME$all)
+
+up_res.list <- list("CHANGEME"=CHANGEME$up, 
+                    "CHANGEME"=CHANGEME$up,
+                    "CHANGEME"=CHANGEME$up)
+
+dn_res.list <- list("CHANGEME"=CHANGEME$dn, 
+                    "CHANGEME"=CHANGEME$dn,
+                    "CHANGEME"=CHANGEME$dn)
+
+## Get the partitions from every list
+all_pars <- get.venn.partitions(all_res.list, force.unique = TRUE, keep.elements = TRUE,
+                                hierarchical = FALSE)
+
+up_pars <- get.venn.partitions(up_res.list, force.unique = TRUE, keep.elements = TRUE,
+                               hierarchical = FALSE)
+
+dn_pars <- get.venn.partitions(dn_res.list, force.unique = TRUE, keep.elements = TRUE,
+                               hierarchical = FALSE)
+
+## Structure the output and export 
+all_df <- tibble(all_pars) %>% 
+  unnest_longer(.,..values..) %>% 
+  dplyr::select(..set..,..count..,..values..) %>% rename(partition=..set..,count=..count..,genes=..values..)
+
+up_df <- tibble(up_pars) %>% 
+  unnest_longer(.,..values..) %>% 
+  dplyr::select(..set..,..count..,..values..) %>% rename(partition=..set..,count=..count..,genes=..values..)
+
+dn_df <- tibble(dn_pars) %>% 
+  unnest_longer(.,..values..) %>% 
+  dplyr::select(..set..,..count..,..values..) %>% rename(partition=..set..,count=..count..,genes=..values..)
+
+write.csv(all_df,file=here("data/analysis/Venn_partitions_ALL_genes.csv"))
+write.csv(up_df,file=here("data/analysis/Venn_partitions_UP_genes.csv"))
+write.csv(dn_df,file=here("data/analysis/Venn_partitions_DOWN_genes.csv"))
+````
+
+#### {.tabset .tabset-pills .unlisted .unnumbered}
+
+##### All DE genes {-}
+
+````{r venn_all}
+# Change number of colors in palette to number of contrasts to be compared. Default is 3. 
+grid.newpage()
+grid.draw(venn.diagram(all_res.list, NULL,
+                       fill=pal[1:3]))
+````
+
+##### Upregulated DE RLK genes {-}
+
+````{r venn_up}
+grid.newpage()
+grid.draw(venn.diagram(up_res.list,
+                       NULL,
+                       fill=pal[1:3]))
+````
+
+##### Downregulated DE RLK genes {-}
+
+````{r venn_dn}
+grid.newpage()
+grid.draw(venn.diagram(dn_res.list,
+                       NULL,
+                       fill=pal[1:3]))
+````
+
+## References
+
+## Session Info
+<details><summary>Setup</summary>
+ ````{r session info, echo=FALSE}
+ sessionInfo()
+ ````
+</details>
