@@ -41,6 +41,7 @@ suppressPackageStartupMessages({
   library(magrittr)
   library(parallel)
   library(patchwork)
+  library(PCAtools)
   library(pheatmap)
   library(plotly)
   library(pvclust)
@@ -204,6 +205,8 @@ dds <- DESeqDataSetFromTximport(
   colData = samples,
   design = ~ CHANGEME)
 
+colnames(dds) <- samples$SampleID
+
 save(dds,file=here("data/analysis/salmon/dds.rda"))
 
 #' ## size factors 
@@ -223,18 +226,25 @@ boxplot(normalizationFactors(dds),
         las=2,log="y", outline=FALSE)
 abline(h=1, col = "Red", lty = 3)
 
+#' `r emoji("point_right")` **There is almost no differences in the libraries' size factors. They are all within +/1 10% of the average library size.**
+
 #' Assess whether there might be a difference in library size linked to a
 #' given metadata
 #' ```{r echo=FALSE,eval=FALSE}
 #' # Developer: This would need to be ggplot2'ed
 #' ```
-boxplot(split(sizes,dds$CHANGEME),las=2,
-        main="Sequencing libraries size factor by Tissue")
+boxplot(split(normalizationFactors(dds),dds$CHANGEME),las=2,
+        main="Sequencing libraries size factor by CHANGEME",
+        outline=FALSE)
 
-plot(sizes,log10(colSums(counts(dds))),ylab="log10 raw depth",xlab="scaling factor",
+plot(colMeans(normalizationFactors(dds)),
+     log10(colSums(counts(dds))),ylab="log10 raw depth",
+     xlab="average scaling factor",
      col=rainbow(n=nlevels(dds$CHANGEME))[as.integer(dds$CHANGEME)],pch=19)
 legend("bottomright",fill=rainbow(n=nlevels(dds$CHANGEME)),
        legend=levels(dds$CHANGEME),cex=0.6)
+
+#' `r emoji("point_right")` **The scaling factor appear linearly proportional to the sequencing depth.**
 
 #' ## Variance Stabilising Transformation
 vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
@@ -265,30 +275,43 @@ meanSdPlot(vst[rowSums(vst)>0,])
 pc <- prcomp(t(vst))
 percent <- round(summary(pc)$importance[2,]*100)
 
+#' Using PCAtools
+p <- pca(vst,colData(dds))
+
 #' ### Scree plot
 #' 
-#' We define the number of variable of the model: ```r nvar=2```
-#' `r nvar = 2`
+#' We define the number of variable of the model: ```r [CHANGEME]```
+nvar <- "CHANGEME"
 
 #' An the number of possible combinations
 #' ```{r CHANGEME8,eval=FALSE,echo=FALSE}
 #' This needs to be adapted to your study design. Add or drop variables as needed.
 #' ```
-#' `r nlevel=nlevels(dds$MDay) * nlevels(dds$MGenotype)`
+nlevel <- nlevels(dds$CHANGEME) * nlevels(dds$CHANGEME)
 
-#' We plot the percentage explained by different components
+#' We devise the optimal number of components using two methods
+horn <- suppressWarnings(parallelPCA(vst))
+elbow <- findElbowPoint(p$variance)
+
+#' We plot the percentage explained by different components and try to empirically assess whether
+#' the observed number of components would be in agreement with our model's assumptions.
 #' 
 #' * the red line represents number of variables in the model  
 #' * the orange line represents number of variable combinations.
+#' * the black dotted, annotate lines represent the optimal number of components 
+#' reported by the horn and elbow methods.
 #' 
-ggplot(tibble(x=1:length(percent),y=cumsum(percent)),aes(x=x,y=y)) +
-  geom_line() + scale_y_continuous("variance explained (%)",limits=c(0,100)) +
-  scale_x_continuous("Principal component") + 
-  geom_vline(xintercept=nvar,colour="red",linetype="dashed",size=0.5) + 
-  geom_hline(yintercept=cumsum(percent)[nvar],colour="red",linetype="dashed",size=0.5) +
-  geom_vline(xintercept=nlevel,colour="orange",linetype="dashed",size=0.5) + 
-  geom_hline(yintercept=cumsum(percent)[nlevel],colour="orange",linetype="dashed",size=0.5)
-  
+ggplot(tibble(x=1:length(percent),y=cumsum(percent),p=percent),aes(x=x,y=y)) +
+  geom_line() + geom_col(aes(x,p)) + scale_y_continuous("variance explained (%)",limits=c(0,100)) +
+  scale_x_continuous("Principal component",breaks=1:length(percent),minor_breaks=NULL) + 
+  geom_vline(xintercept=nvar,colour="red",linetype="dashed",linewidth=0.5) + 
+  geom_hline(yintercept=cumsum(percent)[nvar],colour="red",linetype="dashed",linewidth=0.5) +
+  geom_vline(xintercept=nlevel,colour="orange",linetype="dashed",linewidth=0.5) + 
+  geom_hline(yintercept=cumsum(percent)[nlevel],colour="orange",linetype="dashed",linewidth=0.5) +
+  geom_vline(xintercept=c(horn$n,elbow),colour="black",linetype="dotted",linewidth=0.5) +
+  geom_label(aes(x = horn$n + 1, y = cumsum(percent)[horn$n],label = 'Horn', vjust = 1)) +
+  geom_label(aes(x = elbow + 1, y = cumsum(percent)[elbow],label = 'Elbow', vjust = 1))
+
 #' ### PCA plot
 pc.dat <- bind_cols(PC1=pc$x[,1],
                     PC2=pc$x[,2],
