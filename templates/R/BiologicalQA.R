@@ -45,6 +45,7 @@ suppressPackageStartupMessages({
   library(pheatmap)
   library(plotly)
   library(pvclust)
+  library(RColorBrewer)
   library(tidyverse)
   library(tximport)
   library(vsn)
@@ -55,6 +56,7 @@ source(here("UPSCb-common/src/R/featureSelection.R"))
 
 #' * Graphics
 hpal <- colorRampPalette(c("blue","white","red"))(100)
+pal <- brewer.pal(9,"Blues")
 
 #' # Data
 #' * Sample information
@@ -312,6 +314,9 @@ ggplot(tibble(x=1:length(percent),y=cumsum(percent),p=percent),aes(x=x,y=y)) +
   geom_label(aes(x = horn$n + 1, y = cumsum(percent)[horn$n],label = 'Horn', vjust = 1)) +
   geom_label(aes(x = elbow + 1, y = cumsum(percent)[elbow],label = 'Elbow', vjust = 1))
 
+#' `r emoji("point_right")` **The first component explains 40% of the data variance. Both metrics, Horn and Elbow suggest that one or two components are those that are informative. Indeed the slope of the curve is fairly linear past PC3 and that would indicate that the remaining PCs only capture sample specific noise. While this is only empirical, the scree plot support having only few variables of importance in the dataset.**
+#'
+
 #' ### PCA plot
 pc.dat <- bind_cols(PC1=pc$x[,1],
                     PC2=pc$x[,2],
@@ -327,6 +332,17 @@ ggplotly(p1) %>%
   layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
          yaxis=list(title=paste("PC2 (",percent[2],"%)",sep=""))) %>% suppressWarnings()
 
+#' The same as a biplot
+biplot(p,
+       colby = CHANGEME,
+       colLegendTitle = CHANGEME,
+       encircle = TRUE,
+       encircleFill = TRUE,
+       legendPosition = 'top', 
+       legendLabSize = 16, legendIconSize = 8.0)
+
+#' `r emoji("point_right")` **CHANGEME**
+
 #PC1 vs PC3
 p2 <- ggplot(pc.dat,aes(x=PC1,y=PC3,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) + 
   geom_point(size=2) + 
@@ -336,13 +352,78 @@ ggplotly(p2) %>%
   layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
          yaxis=list(title=paste("PC3 (",percent[3],"%)",sep=""))) %>% suppressWarnings()
 
+#' The same as a biplot
+biplot(p,x = 'PC1', y = 'PC3',
+       colby = CHANGEME,
+       colLegendTitle = CHANGEME,
+       encircle = TRUE,
+       encircleFill = TRUE,
+       legendPosition = 'top', 
+       legendLabSize = 16, legendIconSize = 8.0)
+
+#' `r emoji("point_right")` **CHANGEME**
+
 #' ```{r subplot, out.width = '100%'}
 #' subplot(style(p1, showlegend = FALSE), p2,
 #'         titleX = TRUE, titleY = TRUE, nrows = 1, margin = c(0.05, 0.05, 0, 0))
 #' ```
 
+#' ### Pairs plot
+#' This allows for looking at more dimensions, five by default
+#' 
+suppressMessages(pairsplot(p,colby=CHANGEME,shape=CHANGEME))
+
+#' `r emoji("point_right")` **CHANGEME**
+
+#' ### Loadings
+#' Loadings, _i.e._ the individual effect of every gene in a component can be studied. Here the most important ones are visualized throughout the different PCs
+plotloadings(p,
+             rangeRetain = 0.01,
+             labSize = 4.0,
+             title = 'Loadings plot',
+             subtitle = 'PC1 to PC5',
+             caption = 'Top 1% variables',
+             drawConnectors = TRUE)
+
+#' `r emoji("point_right")` **CHANGEME**
+
+#' ### Correlation
+#' This is a plot showing the correlation between the PC and the model variables. Note that while this might be relevant 
+#' for a linear variable, it is less so for categorical variables. Sorting categorical variables in a linear order according to the PCs above might help.
+#' 
+#' ```{r beffect, echo=FALSE, eval=FALSE
+#' # You could do as follows to reorder a categorial variable
+#' p$metadata$Beffect <- ifelse(as.integer(dds$Batch)==1,3,as.integer(dds$Batch)-1)
+#' ````
+#' 
+#' 
+#' Plotting only the relevant variables.
+#' 
+#' ```{r validation, echo=FALSE, eval=FALSE}
+#' # Plotting all the variables just as a control, the categorical and the transformed ones.
+#' suppressWarnings(eigencorplot(p,metavars=c('Beffect','Day',"Batch","Time")))
+#' ```
+suppressWarnings(eigencorplot(p,metavars=c('CHANGEME','CHANGEME')))
+
+#' `r emoji("point_right")` **CHANGEME**
+
+#' ### Samples Distance
+sampleDists <- dist(t(assay(vsd)))
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- colnames(sampleDistMatrix) <- dds$SampleID
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=pal)
+
+#' `r emoji("point_right")` **CHANGEME**
+
 #' ## Sequencing depth
-#' Number of genes expressed per condition at different cutoffs:
+#' The figures show the number of genes expressed per condition at different expression cutoffs. The scale on the lower plot is the same as on the upper.
+#' The first plot is a heatmap showing the number of genes above a given cutoff. The second plot shows it as a ratio of the number of genes expressed for (a)
+#' given variable(s) divided by the average number of genes expressed at that cutoff across all variable(s). The latter plot is of course biased at higher cutoff 
+#' as the number of genes becomes smaller and smaller.
+#' The point of these two plots is to assert whether the number of genes expressed varies between conditions, as this would break some assumptions for normalisation and differential expression.
 conds <- factor(paste(dds$CHANGEME,dds$CHANGEME))
 dev.null <- rangeSamplesSummary(counts=vst,
                                 conditions=conds,
@@ -350,12 +431,17 @@ dev.null <- rangeSamplesSummary(counts=vst,
 
 #' ## Heatmap
 #' 
-#' Filter for noise
-#' 
+#' Here we want to visualise all the informative genes as a heatmap. We first filter the genes to remove those below the selected noise/signal cutoff. 
+#' The method employed here is naive, and relies on observing a sharp decrease in the number of genes within the first few low level of expression. 
+#' Using an independent filtering method, such as implemented in DESeq2 would be more accurate, but for the purpose of QA validation, a naive approach is sufficient.
+#' Note that a sweet spot for computation is around 20 thousand genes, as building the hierarchical clustering for the heatmap scales non-linearly.
+#'
 sels <- rangeFeatureSelect(counts=vst,
                            conditions=conds,
                            nrep=3) %>% 
   suppressWarnings()
+
+#' `r emoji("point_right")` **Here a cutoff of CHANGEME is applied**
 vst.cutoff <- 2
 
 nn <- nrow(vst[sels[[vst.cutoff+1]],])
@@ -396,6 +482,7 @@ hm <- pheatmap(mat,
                angle_col = 90,
                legend = FALSE)
 
+#' `r emoji("point_right")` **CHANGEME**
 
 #' ## Clustering of samples
 #' ```{r echo=FALSE,eval=FALSE}
@@ -412,10 +499,12 @@ hm <- pheatmap(mat,
 #' 
 hm.pvclust <- pvclust(data = t(scale(t(vst[sels[[vst.cutoff+1]],]))),
                        method.hclust = "ward.D2", 
-                       nboot = 1000, parallel = TRUE)
+                       nboot = 100, parallel = TRUE)
 
 plot(hm.pvclust, labels = conds)
 pvrect(hm.pvclust)
+
+#' `r emoji("point_right")` **CHANGEME**
 
 #' <details><summary>bootstrapping results as a table</summary>
 #' ```{r bootstrapping results as a table}
