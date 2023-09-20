@@ -235,9 +235,11 @@ abline(h=1, col = "Red", lty = 3)
 #' ```{r echo=FALSE,eval=FALSE}
 #' # Developer: This would need to be ggplot2'ed
 #' ```
-boxplot(split(normalizationFactors(dds),dds$CHANGEME),las=2,
+boxplot(split(t(normalizationFactors(dds)),dds$CHANGEME),las=2,
         main="Sequencing libraries size factor by CHANGEME",
         outline=FALSE)
+
+#' `r emoji("point_right")` **The scaling factor distribution is (in)dependent of the CHANGEME variable.**
 
 plot(colMeans(normalizationFactors(dds)),
      log10(colSums(counts(dds))),ylab="log10 raw depth",
