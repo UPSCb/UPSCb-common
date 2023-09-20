@@ -325,7 +325,7 @@ pc.dat <- bind_cols(PC1=pc$x[,1],
                     PC3=pc$x[,3],
                     as.data.frame(colData(dds)))
 
-#PC1 vs PC2
+#' * PC1 vs PC2
 p1 <- ggplot(pc.dat,aes(x=PC1,y=PC2,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) + 
   geom_point(size=2) + 
   ggtitle("Principal Component Analysis",subtitle="variance stabilized counts")
@@ -345,7 +345,7 @@ biplot(p,
 
 #' `r emoji("point_right")` **CHANGEME**
 
-#PC1 vs PC3
+#' * PC1 vs PC3
 p2 <- ggplot(pc.dat,aes(x=PC1,y=PC3,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) + 
   geom_point(size=2) + 
   ggtitle("Principal Component Analysis",subtitle="variance stabilized counts")
