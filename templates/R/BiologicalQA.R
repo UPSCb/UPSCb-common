@@ -284,7 +284,7 @@ p <- pca(vst,colData(dds))
 
 #' ### Scree plot
 #' 
-#' We define the number of variable of the model: ```r [CHANGEME]```
+#' We define the number of variable of the model:
 nvar <- "CHANGEME"
 
 #' An the number of possible combinations
@@ -336,8 +336,8 @@ ggplotly(p1) %>%
 
 #' The same as a biplot
 biplot(p,
-       colby = CHANGEME,
-       colLegendTitle = CHANGEME,
+       colby = 'CHANGEME',
+       colLegendTitle = 'CHANGEME',
        encircle = TRUE,
        encircleFill = TRUE,
        legendPosition = 'top', 
@@ -356,8 +356,8 @@ ggplotly(p2) %>%
 
 #' The same as a biplot
 biplot(p,x = 'PC1', y = 'PC3',
-       colby = CHANGEME,
-       colLegendTitle = CHANGEME,
+       colby = 'CHANGEME',
+       colLegendTitle = 'CHANGEME',
        encircle = TRUE,
        encircleFill = TRUE,
        legendPosition = 'top', 
@@ -373,7 +373,7 @@ biplot(p,x = 'PC1', y = 'PC3',
 #' ### Pairs plot
 #' This allows for looking at more dimensions, five by default
 #' 
-suppressMessages(pairsplot(p,colby=CHANGEME,shape=CHANGEME))
+suppressMessages(pairsplot(p,colby='CHANGEME',shape='CHANGEME'))
 
 #' `r emoji("point_right")` **CHANGEME**
 
@@ -430,6 +430,15 @@ conds <- factor(paste(dds$CHANGEME,dds$CHANGEME))
 dev.null <- rangeSamplesSummary(counts=vst,
                                 conditions=conds,
                                 nrep=3)
+
+#' `r emoji("point_right")` **CHANGEME**
+
+#' Plotting the number of genes that are expressed (at any level)
+do.call(rbind,split(t(nrow(vst) - colSums(vst==0)),samples$CHANGEME)) %>% as.data.frame() %>% 
+  rownames_to_column("CHANGEME") %>% pivot_longer(starts_with("V")) %>% 
+  ggplot(aes(x=CHANGEME, y=value, fill=CHANGEME)) + geom_dotplot(binaxis = "y", stackdir = "center")
+
+#' `r emoji("point_right")` **CHANGEME**
 
 #' ## Heatmap
 #' 
