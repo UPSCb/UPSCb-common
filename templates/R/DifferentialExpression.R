@@ -341,7 +341,7 @@ resultsNames(dds)
 #' First chunk will be by using complex contrasts on the whole dataset. This is what we will use for the final result.
 #' Second chunk is subsetting the dataset then apply simpler contrast. This will reduce the power (p-values will change).
 #' We check whether the log2FC of the same gene are similar by plotting a scatter plot.
-#' 1. If yes (y=x), then we did not make any mistake on setting complex contrast, we can continue to use the result from the first chunk.
+#' 1. If yes (y=x; some jitters allowed), then we did not make any mistake on setting complex contrast, we can continue to use the result from the first chunk.
 #' 2. If no (cloud of points), we need to review if we did anything wrong on contrast specification in the first chunk.
 #' 3. If yes (y=x) but there is a few points that is very far from y=x line, then it might come from accumulation of rounding error in control samples.
 #' If we encounter rounding error accumulation, we should use the whole dds but relevel the ref so that the ref is within the pair that we want to compare.
@@ -389,7 +389,6 @@ resultsNames(dds)
 #'  labs(title = "Tissue#2 Tr2 vs Tr1")
 #'remove(ddssubset,vstsubset,vsdsubset)
 #' ```
-
 
 #' ### Venn Diagram
 #' ```{r venn, echo=FALSE,eval=FALSE}
