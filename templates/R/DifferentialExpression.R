@@ -333,6 +333,63 @@ resultsNames(dds)
 #'contrast1 <- extract_results(dds=dds,vst=vst,contrast="CHANGEME")
 #' ```
 
+#' ```{r sanitycheck, echo=FALSE,eval=FALSE}
+#' CHANGEME - Here is the sanity check for complex contrasts in DE
+#' And this is optional, you don't have to run this if you're not in doubt with the contrasts.
+#' 
+#' In the examples below, we assume that we wanted to compare between two subsets from the whole dataset
+#' First chunk will be by using complex contrasts on the whole dataset. This is what we will use for the final result.
+#' Second chunk is subsetting the dataset then apply simpler contrast. This will reduce the power (p-values will change).
+#' We check whether the log2FC of the same gene are similar by plotting a scatter plot.
+#' 1. If yes (y=x; some jitters allowed), then we did not make any mistake on setting complex contrast, we can continue to use the result from the first chunk.
+#' 2. If no (cloud of points), we need to review if we did anything wrong on contrast specification in the first chunk.
+#' 3. If yes (y=x) but there is a few points that is very far from y=x line, then it might come from accumulation of rounding error in control samples.
+#' If we encounter rounding error accumulation, we should use the whole dds but relevel the ref so that the ref is within the pair that we want to compare.
+#' 
+#' Here assuming we have one control, two treatments, and 2 types of tissue in each condition. Tissue#1 is the control.
+#' Then, for this specific contrast, we want to compare tissue#2 between two treatments conditions.
+#' ```
+
+#' ```{r complexcontrast, echo=FALSE,eval=FALSE}
+#'resultsNames(dds)
+#'tissue2_tr1tr2 <- extract_results(dds=dds,vst=vst,contrast=c(0,0,1,-1,1,-1),
+#'.                                 default_dir = here("data/analysis/DE/test"),
+#'.                                 default_prefix = "tissue2_tr1tr2_contrast_",
+#'.                                 labels=paste(dds$Treatment,dds$Tissue,sep="_"),
+#'.                                 sample_sel = dds$Tissue == "2" & dds$Treatment %in% c("Tr1","Tr2"), 
+#'.                                 cexCol=.9, plot = TRUE, verbose = TRUE)
+#' ```
+
+#' ```{r simplercontrast, echo=FALSE,eval=FALSE}
+#'sample_sel <- dds$Tissue == "2" & dds$Treatment %in% c("Tr1","Tr2")
+#'ddssubset <- dds[,sample_sel]
+#'ddssubset$Treatment <- relevel(ddssubset$Treatment,ref = "Tr1")
+#'design(ddssubset) <- ~ Treatment
+#'ddssubset$Treatment <- droplevels(ddssubset$Treatment)
+#'ddssubset$Tissue <- droplevels(ddssubset$Tissue)
+#'ddssubset <- DESeq(ddssubset)
+#'vsdsubset <- varianceStabilizingTransformation(ddssubset,blind=FALSE)
+#'vstsubset <- assay(vsdsubset)
+#'vstsubset <- vstsubset - min(vstsubset)
+#'resultsNames(ddssubset)
+#'tissue2_tr1tr2 <- extract_results(dds=ddssubset,vst=vstsubset,contrast="Treatment_Tr2_vs_Tr1",
+#'                                  default_dir = here("data/analysis/DE/test"),
+#'                                  default_prefix = "tissue2_tr1tr2_subset_",
+#'                                  labels=paste(ddssubset$Treatment,ddssubset$Tissue,sep="_"),
+#'                                  cexCol=.9, plot = TRUE, verbose = TRUE)
+#'contrast_result <- na.omit(read.csv(here("data/analysis/DE/test/tissue2_tr1tr2_contrast_results.csv")))
+#'subset_result <- na.omit(read.csv(here("data/analysis/DE/test/tissue2_tr1tr2_subset_results.csv")))
+#'colnames(contrast_result) <- paste0("con_",colnames(contrast_result))
+#'contrast_result$gene <- contrast_result$con_X
+#'colnames(subset_result) <- paste0("sub_",colnames(subset_result))
+#'subset_result$gene <- subset_result$sub_X
+#'dat <- inner_join(contrast_result,subset_result)
+#'ggplot(dat, aes(x=con_log2FoldChange, y=sub_log2FoldChange)) + 
+#'  geom_point() + 
+#'  labs(title = "Tissue#2 Tr2 vs Tr1")
+#'remove(ddssubset,vstsubset,vsdsubset)
+#' ```
+
 #' ### Venn Diagram
 #' ```{r venn, echo=FALSE,eval=FALSE}
 #' CHANGEME - Here, you typically would have run several contrasts and you want
