@@ -143,8 +143,7 @@ ggplot(dat,aes(x,y,fill=CHANGEME)) +
         axis.title.x=element_blank())
 
 #' `r emoji("point_right")` **We observe almost no difference in the raw sequencing depth**
-
-
+#' 
 #' ## per-gene mean expression
 #' 
 #' _i.e._ the mean raw count of every gene across samples is calculated
@@ -158,7 +157,7 @@ ggplot(data.frame(value=log10(rowMeans(counts))),aes(x=value)) +
   theme_bw()
 
 #' `r emoji("point_right")` **The cumulative gene coverage is as expected**
-
+#' 
 #' ```{r CHANGEME6,eval=FALSE,echo=FALSE}
 #' # In the following, the second mutate also needs changing, I kept it 
 #' # as an example to illustrate the first line. SampleID would be 
@@ -229,7 +228,7 @@ boxplot(normalizationFactors(dds),
 abline(h=1, col = "Red", lty = 3)
 
 #' `r emoji("point_right")` **There is almost no differences in the libraries' size factors. They are all within +/1 10% of the average library size.**
-
+#' 
 #' Assess whether there might be a difference in library size linked to a
 #' given metadata
 #' ```{r echo=FALSE,eval=FALSE}
@@ -249,7 +248,7 @@ legend("bottomright",fill=rainbow(n=nlevels(dds$CHANGEME)),
        legend=levels(dds$CHANGEME),cex=0.6)
 
 #' `r emoji("point_right")` **The scaling factor appear linearly proportional to the sequencing depth.**
-
+#' 
 #' ## Variance Stabilising Transformation
 vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
 vst <- assay(vsd)
@@ -285,7 +284,7 @@ p <- pca(vst,colData(dds))
 #' ### Scree plot
 #' 
 #' We define the number of variable of the model:
-nvar <- "CHANGEME"
+nvar <- "CHANGEME (for a number)"
 
 #' An the number of possible combinations
 #' ```{r CHANGEME8,eval=FALSE,echo=FALSE}
@@ -318,7 +317,7 @@ ggplot(tibble(x=1:length(percent),y=cumsum(percent),p=percent),aes(x=x,y=y)) +
 
 #' `r emoji("point_right")` **The first component explains 40% of the data variance. Both metrics, Horn and Elbow suggest that one or two components are those that are informative. Indeed the slope of the curve is fairly linear past PC3 and that would indicate that the remaining PCs only capture sample specific noise. While this is only empirical, the scree plot support having only few variables of importance in the dataset.**
 #'
-
+#'
 #' ### PCA plot
 pc.dat <- bind_cols(PC1=pc$x[,1],
                     PC2=pc$x[,2],
@@ -344,7 +343,7 @@ biplot(p,
        legendLabSize = 16, legendIconSize = 8.0)
 
 #' `r emoji("point_right")` **CHANGEME**
-
+#' 
 #' * PC1 vs PC3
 p2 <- ggplot(pc.dat,aes(x=PC1,y=PC3,col=CHANGEME,shape=CHANGEME,text=CHANGEME)) + 
   geom_point(size=2) + 
@@ -364,19 +363,19 @@ biplot(p,x = 'PC1', y = 'PC3',
        legendLabSize = 16, legendIconSize = 8.0)
 
 #' `r emoji("point_right")` **CHANGEME**
-
+#' 
 #' ```{r subplot, out.width = '100%'}
 #' subplot(style(p1, showlegend = FALSE), p2,
 #'         titleX = TRUE, titleY = TRUE, nrows = 1, margin = c(0.05, 0.05, 0, 0))
 #' ```
-
+#'
 #' ### Pairs plot
 #' This allows for looking at more dimensions, five by default
 #' 
 suppressMessages(pairsplot(p,colby='CHANGEME',shape='CHANGEME'))
 
 #' `r emoji("point_right")` **CHANGEME**
-
+#' 
 #' ### Loadings
 #' Loadings, _i.e._ the individual effect of every gene in a component can be studied. Here the most important ones are visualized throughout the different PCs
 plotloadings(p,
@@ -388,7 +387,7 @@ plotloadings(p,
              drawConnectors = TRUE)
 
 #' `r emoji("point_right")` **CHANGEME**
-
+#' 
 #' ### Correlation
 #' This is a plot showing the correlation between the PC and the model variables. Note that while this might be relevant 
 #' for a linear variable, it is less so for categorical variables. Sorting categorical variables in a linear order according to the PCs above might help.
@@ -408,7 +407,7 @@ plotloadings(p,
 suppressWarnings(eigencorplot(p,metavars=c('CHANGEME','CHANGEME')))
 
 #' `r emoji("point_right")` **CHANGEME**
-
+#' 
 #' ### Samples Distance
 sampleDists <- dist(t(assay(vsd)))
 sampleDistMatrix <- as.matrix(sampleDists)
@@ -419,7 +418,7 @@ pheatmap(sampleDistMatrix,
          col=pal)
 
 #' `r emoji("point_right")` **CHANGEME**
-
+#' 
 #' ## Sequencing depth
 #' The figures show the number of genes expressed per condition at different expression cutoffs. The scale on the lower plot is the same as on the upper.
 #' The first plot is a heatmap showing the number of genes above a given cutoff. The second plot shows it as a ratio of the number of genes expressed for (a)
@@ -432,14 +431,14 @@ dev.null <- rangeSamplesSummary(counts=vst,
                                 nrep=3)
 
 #' `r emoji("point_right")` **CHANGEME**
-
+#' 
 #' Plotting the number of genes that are expressed (at any level)
 do.call(rbind,split(t(nrow(vst) - colSums(vst==0)),samples$CHANGEME)) %>% as.data.frame() %>% 
   rownames_to_column("CHANGEME") %>% pivot_longer(starts_with("V")) %>% 
   ggplot(aes(x=CHANGEME, y=value, fill=CHANGEME)) + geom_dotplot(binaxis = "y", stackdir = "center")
 
 #' `r emoji("point_right")` **CHANGEME**
-
+#' 
 #' ## Heatmap
 #' 
 #' Here we want to visualise all the informative genes as a heatmap. We first filter the genes to remove those below the selected noise/signal cutoff. 
@@ -460,7 +459,7 @@ tn <- nrow(vst)
 pn <- round(nn * 100/ tn, digits=1)
 
 #' `r emoji("warning")` **`r pn`%** (`r nn`) of total `r tn` genes are plotted below:
-
+#'
 #' ```{r CHANGEME9,eval=FALSE,echo=FALSE}
 #' Optionally You can decide which variable to select for annotation. 
 #' add the following to your pheatmap call (select the variable you want)
@@ -494,7 +493,7 @@ hm <- pheatmap(mat,
                legend = FALSE)
 
 #' `r emoji("point_right")` **CHANGEME**
-
+#'
 #' ## Clustering of samples
 #' ```{r echo=FALSE,eval=FALSE}
 #' # Developer: This wouldonly works with the gplots heatmap.2, not the pheatmap
@@ -516,7 +515,7 @@ plot(hm.pvclust, labels = conds)
 pvrect(hm.pvclust)
 
 #' `r emoji("point_right")` **CHANGEME**
-
+#' 
 #' <details><summary>bootstrapping results as a table</summary>
 #' ```{r bootstrapping results as a table}
 #' print(hm.pvclust, digits=3)
