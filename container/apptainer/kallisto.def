@@ -1,0 +1,27 @@
+BootStrap: docker
+From: ubuntu:22.04
+
+%environment
+export LC_ALL=C
+
+%post 
+apt-get update && \
+apt-get -y install \
+build-essential \
+cmake \
+zlib1g-dev \
+libhdf5-dev \
+git
+apt-get clean
+
+cd ~
+git clone https://github.com/pachterlab/kallisto.git
+cd kallisto
+mkdir build
+cd build
+cmake ..
+make
+make install
+
+%runscript
+kallisto
