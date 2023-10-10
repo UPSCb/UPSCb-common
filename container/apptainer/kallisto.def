@@ -24,4 +24,4 @@ make
 make install
 
 %runscript
-kallisto
+kallisto "$@"
