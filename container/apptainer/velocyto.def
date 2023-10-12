@@ -1,0 +1,41 @@
+BootStrap: docker
+From: ubuntu:22.04
+
+%environment
+export LC_ALL=C
+
+%post 
+apt-get update && \
+apt-get -y install \
+    build-essential \
+    python3-dev \
+    python3-pip \
+    python3 \
+    zlib1g-dev \
+    libhdf5-dev \
+    curl \
+    bzip2 \
+    git \
+    libncurses5-dev \
+    libncursesw5-dev \
+    libbz2-dev \
+    liblzma-dev \
+    wget
+apt-get clean
+
+cd ~
+wget https://github.com/samtools/samtools/releases/download/1.18/samtools-1.18.tar.bz2
+tar -xvf samtools-1.18.tar.bz2
+rm samtools-1.18.tar.bz2
+cd samtools-1.18
+./configure
+make
+make install
+
+cd ~
+pip install numpy scipy cython numba matplotlib scikit-learn h5py click
+pip install velocyto
+pip cache purge
+
+%runscript
+velocyto "$@"
