@@ -61,17 +61,20 @@ prepAnnot <- function(mapping){
 #' 1. All three ontologies are searched by default
 #' 2. The default algorithm is parent-child
 #' 3. The corresponding test is fisher
-#' 4. The default filtering is FDR based (Benjamini-Hochberg correction), at a 1% cutoff. The cutoff can be changed.
+#' 4. The default filtering is FDR based (Benjamini-Hochberg correction), at a 1% cutoff. Both method and significance cutoff (alpha) can be controlled. Check `p.adjust.methods` for possible choices of correction including "none".
 #' 
 #' Note: Check the topGO vignette for alternative algorithms / statistics and their possible combination (see Table 1 in the Introduction section)
 #' 
-#' Value: it returns a list of length (ontology) - **caveat - not tested for length 1**; of tibbles with six columns. Names are self-explanatory.
+#' Value: it returns a list of length "ontology" of tibbles with six columns. Names are self-explanatory.
 #'  
 topGO <- function(set,background,annotation,
                   ontology=c("BP","CC","MF"),
                   algorithm="parentchild",
                   statistic="fisher",
-                  padj=0.01){
+                  p.adjust=sort(p.adjust.methods),
+                  alpha=0.01){
+  
+  p.adjust <- match.arg(p.adjust)
   
   # create the allGenes
   allGenes <- factor(as.integer(background %in% set))
@@ -85,10 +88,19 @@ topGO <- function(set,background,annotation,
                   annot = annFUN.gene2GO, 
                   gene2GO = a)
     results <- runTest(GOdata,algorithm=algorithm,statistic=statistic)
-    as_tibble(GenTable(GOdata,
-                       results,
-                       topNodes=sum(p.adjust(score(results),method="BH") <= padj))) %>% 
-      rename_with(function(sel){"FDR"},.cols=last_col())
+    
+    n <- ifelse(p.adjust=="none",
+                sum(score(results) <= alpha),
+                sum(p.adjust(score(results),method=p.adjust) <= alpha))
+
+    if(n==0){
+      return(NULL)
+    } else{
+      as_tibble(GenTable(GOdata,
+                         results,
+                         topNodes=n)) %>% 
+        rename_with(function(sel){"FDR"},.cols=last_col())  
+    }
   },allGenes,annotation)
   names(lst) <- ontology
   return(lst)

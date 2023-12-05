@@ -430,18 +430,22 @@ function.</p>
 <p>Optional arguments: 1. All three ontologies are searched by default
 2. The default algorithm is parent-child 3. The corresponding test is
 fisher 4. The default filtering is FDR based (Benjamini-Hochberg
-correction), at a 1% cutoff. The cutoff can be changed.</p>
+correction), at a 1% cutoff. Both method and significance cutoff (alpha)
+can be controlled. Check <code>p.adjust.methods</code> for possible
+choices of correction including “none”.</p>
 <p>Note: Check the topGO vignette for alternative algorithms /
 statistics and their possible combination (see Table 1 in the
 Introduction section)</p>
-<p>Value: it returns a list of length (ontology) - <strong>caveat - not
-tested for length 1</strong>; of tibbles with six columns. Names are
-self-explanatory.</p>
+<p>Value: it returns a list of length “ontology” of tibbles with six
+columns. Names are self-explanatory.</p>
 <pre class="r"><code>topGO &lt;- function(set,background,annotation,
                   ontology=c(&quot;BP&quot;,&quot;CC&quot;,&quot;MF&quot;),
                   algorithm=&quot;parentchild&quot;,
                   statistic=&quot;fisher&quot;,
-                  padj=0.01){
+                  p.adjust=sort(p.adjust.methods),
+                  alpha=0.01){
+  
+  p.adjust &lt;- match.arg(p.adjust)
   
   # create the allGenes
   allGenes &lt;- factor(as.integer(background %in% set))
@@ -455,10 +459,19 @@ self-explanatory.</p>
                   annot = annFUN.gene2GO, 
                   gene2GO = a)
     results &lt;- runTest(GOdata,algorithm=algorithm,statistic=statistic)
-    as_tibble(GenTable(GOdata,
-                       results,
-                       topNodes=sum(p.adjust(score(results),method=&quot;BH&quot;) &lt;= padj))) %&gt;% 
-      rename_with(function(sel){&quot;FDR&quot;},.cols=last_col())
+    
+    n &lt;- ifelse(p.adjust==&quot;none&quot;,
+                sum(score(results) &lt;= alpha),
+                sum(p.adjust(score(results),method=p.adjust) &lt;= alpha))
+
+    if(n==0){
+      return(NULL)
+    } else{
+      as_tibble(GenTable(GOdata,
+                         results,
+                         topNodes=n)) %&gt;% 
+        rename_with(function(sel){&quot;FDR&quot;},.cols=last_col())  
+    }
   },allGenes,annotation)
   names(lst) &lt;- ontology
   return(lst)
