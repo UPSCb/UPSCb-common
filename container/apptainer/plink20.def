@@ -1,0 +1,21 @@
+BootStrap: docker
+From: ubuntu:22.04
+
+%environment
+export LC_ALL=C
+
+%post 
+apt-get update && \
+apt-get -y install \
+    unzip \
+    wget
+apt-get clean
+
+cd ~
+wget https://s3.amazonaws.com/plink2-assets/plink2_linux_x86_64_20231123.zip
+unzip plink2_linux_x86_64_20231123.zip
+rm plink2_linux_x86_64_20231123.zip
+cp plink2 /usr/local/bin/
+
+%runscript
+plink2 "$@"

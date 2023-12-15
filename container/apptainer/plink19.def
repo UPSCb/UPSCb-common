@@ -1,0 +1,22 @@
+BootStrap: docker
+From: ubuntu:22.04
+
+%environment
+export LC_ALL=C
+
+%post 
+apt-get update && \
+apt-get -y install \
+    unzip \
+    wget
+apt-get clean
+
+cd ~
+wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20231018.zip
+unzip plink_linux_x86_64_20231018.zip
+rm plink_linux_x86_64_20231018.zip
+cp plink /usr/local/bin/
+cp prettify /usr/local/bin/
+
+%runscript
+plink "$@"
