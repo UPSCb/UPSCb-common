@@ -45,7 +45,7 @@ listMappings <- function(refresh=FALSE){
 #' This function takes one of the mapping provided above and converts them into the object required by topGO
 prepAnnot <- function(mapping){
   annot <- read_delim(mapping,col_names=FALSE,show_col_types=FALSE)
-  geneID2GO <- lapply(unlist(annot[,2],use.names=FALSE),strsplit,"\\|")
+  geneID2GO <- lapply(lapply(unlist(annot[,2],use.names=FALSE),strsplit,"\\|"),unlist)
   names(geneID2GO) <- unlist(annot[,1],use.names=FALSE)
   return(geneID2GO)
 }
@@ -87,6 +87,8 @@ topGO <- function(set,background,annotation,
                   allGenes = g,
                   annot = annFUN.gene2GO, 
                   gene2GO = a)
+    allGO <- genesInTerm(GOdata)
+    
     results <- runTest(GOdata,algorithm=algorithm,statistic=statistic)
     
     n <- ifelse(p.adjust=="none",
@@ -96,10 +98,18 @@ topGO <- function(set,background,annotation,
     if(n==0){
       return(NULL)
     } else{
-      as_tibble(GenTable(GOdata,
-                         results,
-                         topNodes=n)) %>% 
-        rename_with(function(sel){"FDR"},.cols=last_col())  
+      resultTable <- as_tibble(GenTable(GOdata,
+                                        results,
+                                        topNodes=n)) %>% 
+                       rename_with(function(sel){"FDR"},.cols=last_col())
+      #Todo: fix the for loop
+      resultTable$allgenes <- resultTable$GO.ID
+      resultTable$siggenes <- resultTable$GO.ID
+      for(i in 1:length(resultTable$GO.ID)){
+        resultTable$allgenes[i] <- allGO[resultTable$GO.ID[i]]
+        resultTable$siggenes[i] <- list(unlist(resultTable$allgenes[i])[unlist(resultTable$allgenes[i]) %in% set])
+      }
+      resultTable
     }
   },allGenes,annotation)
   names(lst) <- ontology
