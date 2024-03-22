@@ -72,7 +72,8 @@ topGO <- function(set,background,annotation,
                   algorithm="parentchild",
                   statistic="fisher",
                   p.adjust=sort(p.adjust.methods),
-                  alpha=0.01){
+                  alpha=0.01,
+                  getgenes=FALSE){
   
   p.adjust <- match.arg(p.adjust)
   
@@ -102,12 +103,14 @@ topGO <- function(set,background,annotation,
                                         results,
                                         topNodes=n)) %>% 
                        rename_with(function(sel){"FDR"},.cols=last_col())
-      #Todo: fix the for loop
-      resultTable$allgenes <- resultTable$GO.ID
-      resultTable$siggenes <- resultTable$GO.ID
-      for(i in 1:length(resultTable$GO.ID)){
-        resultTable$allgenes[i] <- allGO[resultTable$GO.ID[i]]
-        resultTable$siggenes[i] <- list(unlist(resultTable$allgenes[i])[unlist(resultTable$allgenes[i]) %in% set])
+      if(getgenes){
+        #Todo: fix the for loop
+        resultTable$allgenes <- resultTable$GO.ID
+        resultTable$siggenes <- resultTable$GO.ID
+        for(i in 1:length(resultTable$GO.ID)){
+          resultTable$allgenes[i] <- allGO[resultTable$GO.ID[i]]
+          resultTable$siggenes[i] <- list(unlist(resultTable$allgenes[i])[unlist(resultTable$allgenes[i]) %in% set])
+        }
       }
       resultTable
     }
