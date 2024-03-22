@@ -1,0 +1,25 @@
+BootStrap: docker
+From: ubuntu:22.04
+
+%environment
+export LC_ALL=C
+export DEBIAN_FRONTEND=noninteractive
+
+%post 
+apt-get update && \
+apt-get -y install \
+    opencl-headers \
+    pocl-opencl-icd \
+    libgomp1 \
+    wget \
+    unzip
+apt-get clean
+
+cd ~
+wget https://github.com/snugel/cas-offinder/releases/download/2.4.1/cas-offinder_linux_x86-64.zip
+unzip cas-offinder_linux_x86-64.zip
+chmod +x cas-offinder
+mv cas-offinder /usr/local/bin/
+
+%runscript
+cas-offinder "$@"

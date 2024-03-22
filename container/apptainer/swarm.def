@@ -1,0 +1,20 @@
+BootStrap: docker
+From: ubuntu:22.04
+
+%environment
+export LC_ALL=C
+
+%post 
+apt-get update && \
+apt-get -y install \
+    wget
+apt-get clean
+
+cd ~
+wget https://github.com/torognes/swarm/releases/download/v3.1.4/swarm-3.1.4-linux-x86_64.tar.gz
+tar -xzvf swarm-3.1.4-linux-x86_64.tar.gz
+rm swarm-3.1.4-linux-x86_64.tar.gz
+cp swarm-3.1.4-linux-x86_64/bin/swarm /usr/local/bin/
+
+%runscript
+swarm "$@"

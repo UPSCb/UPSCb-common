@@ -1,0 +1,39 @@
+BootStrap: docker
+From: ubuntu:22.04
+
+%environment
+export LC_ALL=C
+export DEBIAN_FRONTEND=noninteractive
+
+%post 
+apt-get update && \
+apt-get -y install \
+    build-essential \
+    wget \
+    make \
+    zlib1g-dev \
+    libhdf5-dev \
+    curl \
+    bzip2 \
+    libncurses5-dev \
+    libncursesw5-dev \
+    libbz2-dev \
+    liblzma-dev
+apt-get clean
+
+wget http://popgen.dk/software/download/angsd/angsd0.940.tar.gz
+tar xf angsd0.940.tar.gz
+rm angsd0.940.tar.gz
+
+cd htslib
+make
+cd ..
+
+cd angsd
+make HTSSRC=../htslib
+cd ..
+
+cp angsd/angsd /usr/local/bin/
+
+%runscript
+angsd "$@"
