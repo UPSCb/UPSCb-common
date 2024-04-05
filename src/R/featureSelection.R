@@ -248,11 +248,11 @@ setMethod(f = "rangeSamplesSummary",
                             col=colorRampPalette(c("blue","white","red"))(100),
                             main="log10 # of genes",xlab="vst expression cutoff")
                   
-                  meds <- colMedians(res) + 1
-                  barplot(t(t(res) / meds) - 1,
-                          beside=TRUE,col=rainbow(nlevels(conditions)),
-                          main="# gene expressed / median # gene expressed")
-                  legend("topleft",legend=levels(conditions),fill=rainbow(nlevels(conditions)))
+                  # meds <- colMedians(res) + 1
+                  # barplot(t(t(res) / meds) - 1,
+                  #         beside=TRUE,col=rainbow(nlevels(conditions)),
+                  #         main="# gene expressed / median # gene expressed")
+                  # legend("topleft",legend=levels(conditions),fill=rainbow(nlevels(conditions)))
               }
               
               ## return
