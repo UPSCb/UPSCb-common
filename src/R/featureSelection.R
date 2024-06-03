@@ -72,7 +72,8 @@ setGeneric(name="rangeSamplesSummary",
            def=function(counts=matrix(),
                         conditions=factor(),
                         nrep=2L,
-                        plot=TRUE
+                        plot=TRUE,
+                        ...
            ){
                standardGeneric("rangeSamplesSummary")
            })
@@ -227,7 +228,8 @@ setMethod(f = "rangeSamplesSummary",
               counts=matrix(),
               conditions=factor(),
               nrep=2L,
-              plot=TRUE){
+              plot=TRUE,
+              ...){
               
               ## validation
               .validate(counts,conditions)
@@ -246,7 +248,8 @@ setMethod(f = "rangeSamplesSummary",
                   heatmap.2(log10(res+1),dendrogram="row",
                             Colv=FALSE,
                             col=colorRampPalette(c("blue","white","red"))(100),
-                            main="log10 # of genes",xlab="vst expression cutoff")
+                            main="log10 # of genes",xlab="vst expression cutoff",
+                            ...)
                   
                   # meds <- colMedians(res) + 1
                   # barplot(t(t(res) / meds) - 1,
