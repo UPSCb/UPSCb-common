@@ -1,0 +1,708 @@
+---
+title: "FAI Differential expression"
+author: "Edoardo Piombo"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    fig_width: 12
+    fig_height: 9
+    toc: true
+    number_sections: true
+    toc_depth: 3
+    toc_float:
+      collapsed: TRUE
+      smooth_scroll: TRUE
+    code_folding: hide
+    theme: "flatly"
+    highlight: pygments
+  includes:
+    before_body: header.html
+    after_body: footer.html
+  css: style.css
+---
+
+**This pipeline does not work for everyone at the moment. It uses reticulate to access a conda environment present only in certain accounts.**
+**If you want to use this pipeline, ask Edoardo about how to make the conda environment.**
+
+
+
+````{r opts, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+````
+
+<details><summary>Setup</summary>
+
+* Libraries
+
+````{r }
+suppressPackageStartupMessages({
+    library(data.table)
+    library(DESeq2)
+    library(gplots)
+    library(here)
+    library(hyperSpec)
+    library(RColorBrewer)
+    library(emoji)
+    library(tidyverse)
+    library(VennDiagram)
+})
+````
+
+* Helper files
+
+````{r }
+suppressMessages({
+    source(here("UPSCb-common/Rtoolbox/src/plotEnrichedTreemap.R"))
+    source(here("UPSCb-common/src/R/featureSelection.R"))
+    source(here("UPSCb-common/src/R/volcanoPlot.R"))
+})
+````
+
+* Graphics
+
+````{r }
+pal=brewer.pal(8,"Dark2")
+hpal <- colorRampPalette(c("blue","white","red"))(100)
+mar <- par("mar")
+````
+
+* Functions
+
+  * Plot specific gene expression
+
+````{r line_plot}
+"line_plot" <- function(dds=dds,vst=vst,gene_id=gene_id){
+    message(paste("Plotting",gene_id))
+    sel <- grepl(gene_id,rownames(vst))
+    stopifnot(sum(sel)==1)
+
+    p <- ggplot(bind_cols(as.data.frame(colData(dds)),
+                          data.frame(value=vst[sel,])),
+                aes(x=Treatment,y=value,col=Treatment,group=Treatment)) +
+        geom_point() + geom_smooth() +
+        scale_y_continuous(name="VST expression") + 
+        ggtitle(label=paste("Expression for: ",gene_id))
+    
+    suppressMessages(suppressWarnings(plot(p)))
+    return(NULL)
+}
+````
+
+  * Extract the DE results. Default cutoffs are from Schurch _et al._, RNA, 2016
+
+````{r function_extract_results}
+"extract_results" <- function(dds,vst,contrast,
+                              padj=0.01,lfc=0.5,
+                              plot=TRUE,verbose=TRUE,
+                              export=TRUE,default_dir=here("data/analysis/DE"),
+                              default_prefix="DE-",
+                              labels=colnames(dds),
+                              sample_sel=1:ncol(dds),
+                              expression_cutoff=0,
+                              debug=FALSE,filter=c("median",NULL),...){
+    
+    # get the filter
+    if(!is.null(match.arg(filter))){
+        filter <- rowMedians(counts(dds,normalized=TRUE))
+        message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
+    }
+    
+    # validation
+    if(length(contrast)==1){
+        res <- results(dds,name=contrast,filter = filter)
+    } else {
+        res <- results(dds,contrast=contrast,filter = filter)
+    }
+    
+    stopifnot(length(sample_sel)==ncol(vst))
+    
+    if(plot){
+        par(mar=c(5,5,5,5))
+        volcanoPlot(res)
+        par(mar=mar)
+    }
+    
+    # a look at independent filtering
+    if(plot){
+        plot(metadata(res)$filterNumRej,
+             type="b", ylab="number of rejections",
+             xlab="quantiles of filter")
+        lines(metadata(res)$lo.fit, col="red")
+        abline(v=metadata(res)$filterTheta)
+    }
+    
+    if(verbose){
+        message(sprintf("The independent filtering cutoff is %s, removing %s of the data",
+                        round(metadata(res)$filterThreshold,digits=5),
+                        names(metadata(res)$filterThreshold)))
+        
+        max.theta <- metadata(res)$filterNumRej[which.max(metadata(res)$filterNumRej$numRej),"theta"]
+        message(sprintf("The independent filtering maximises for %s %% of the data, corresponding to a base mean expression of %s (library-size normalised read)",
+                        round(max.theta*100,digits=5),
+                        round(quantile(counts(dds,normalized=TRUE),probs=max.theta),digits=5)))
+    }
+    
+    if(plot){
+        qtl.exp=quantile(counts(dds,normalized=TRUE),probs=metadata(res)$filterNumRej$theta)
+        dat <- data.frame(thetas=metadata(res)$filterNumRej$theta,
+                          qtl.exp=qtl.exp,
+                          number.degs=sapply(lapply(qtl.exp,function(qe){
+                              res$padj <= padj & abs(res$log2FoldChange) >= lfc & 
+                                  ! is.na(res$padj) & res$baseMean >= qe
+                          }),sum))
+        if(debug){
+            plot(ggplot(dat,aes(x=thetas,y=qtl.exp)) + 
+                     geom_line() + geom_point() +
+                     scale_x_continuous("quantiles of expression") + 
+                     scale_y_continuous("base mean expression") +
+                     geom_hline(yintercept=expression_cutoff,
+                                linetype="dotted",col="red"))
+        
+            p <- ggplot(dat,aes(x=thetas,y=qtl.exp)) + 
+                geom_line() + geom_point() +
+                scale_x_continuous("quantiles of expression") + 
+                scale_y_log10("base mean expression") + 
+                geom_hline(yintercept=expression_cutoff,
+                           linetype="dotted",col="red")
+            suppressMessages(suppressWarnings(plot(p)))
+            
+            plot(ggplot(dat,aes(x=thetas,y=number.degs)) + 
+                     geom_line() + geom_point() +
+                     geom_hline(yintercept=dat$number.degs[1],linetype="dashed") +
+                     scale_x_continuous("quantiles of expression") + 
+                     scale_y_continuous("Number of DE genes"))
+            
+            plot(ggplot(dat,aes(x=thetas,y=number.degs[1] - number.degs),aes()) + 
+                     geom_line() + geom_point() +
+                     scale_x_continuous("quantiles of expression") + 
+                     scale_y_continuous("Cumulative number of DE genes"))
+            
+            plot(ggplot(data.frame(x=dat$thetas[-1],
+                                   y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
+                     geom_line() + geom_point() +
+                     scale_x_continuous("quantiles of expression") + 
+                     scale_y_continuous("Number of DE genes per interval"))
+            
+            plot(ggplot(data.frame(x=dat$qtl.exp[-1],
+                                   y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
+                     geom_line() + geom_point() +
+                     scale_x_continuous("base mean of expression") + 
+                     scale_y_continuous("Number of DE genes per interval"))
+            
+            p <- ggplot(data.frame(x=dat$qtl.exp[-1],
+                                   y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
+                geom_line() + geom_point() +
+                scale_x_log10("base mean of expression") + 
+                scale_y_continuous("Number of DE genes per interval") + 
+                geom_vline(xintercept=expression_cutoff,
+                           linetype="dotted",col="red")
+            suppressMessages(suppressWarnings(plot(p)))
+        }
+    }
+    
+    sel <- res$padj <= padj & abs(res$log2FoldChange) >= lfc & ! is.na(res$padj) & 
+        res$baseMean >= expression_cutoff
+    
+    if(verbose){
+      message(sprintf(paste(
+        ifelse(sum(sel)==1,
+               "There is %s gene that is DE",
+               "There are %s genes that are DE"),
+        "with the following parameters: FDR <= %s, |log2FC| >= %s, base mean expression > %s"),
+        sum(sel),padj,
+        lfc,expression_cutoff))
+    }
+    
+        # proceed only if there are DE genes
+    if(sum(sel) > 0){
+        val <- rowSums(vst[sel,sample_sel,drop=FALSE])==0
+        if (sum(val) >0){
+          warning(sprintf(paste(
+            ifelse(sum(val)==1,
+                   "There is %s DE gene that has",
+                   "There are %s DE genes that have"),
+            "no vst expression in the selected samples"),sum(val)))
+          sel[sel][val] <- FALSE
+        } 
+
+        if(export){
+            if(!dir.exists(default_dir)){
+                dir.create(default_dir,showWarnings=FALSE,recursive=TRUE,mode="0771")
+            }
+            write.csv(res,file=file.path(default_dir,paste0(default_prefix,"_results.csv")))
+            write.csv(res[sel,],file.path(default_dir,paste0(default_prefix,"_genes.csv")))
+        }
+        par(mar=c(0,5,5,5)+0.1)
+        if(plot & sum(sel)>1){
+            heatmap.2(t(scale(t(vst[sel,sample_sel]))),
+                      distfun = pearson.dist,
+                      hclustfun = function(X){hclust(X,method="ward.D2")}, dendrogram='row',  Rowv=TRUE,
+                      trace="none",col=hpal,labRow = FALSE, srtCol = 45, margin=c(6,6),
+                      labCol=labels[sample_sel],...
+            )
+        }
+    }
+    return(list(all=rownames(res[sel,]),
+                up=rownames(res[sel & res$log2FoldChange > 0,]),
+                dn=rownames(res[sel & res$log2FoldChange < 0,])))
+}
+````
+
+
+* Load data and normalisation for visualisation
+
+````{r vst}
+
+dds <- readRDS(file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
+samples <- read_csv(here("doc/samples_merged-tech-reps.csv"),show_col_types = FALSE)
+
+vsd <- varianceStabilizingTransformation(dds,blind=FALSE)
+vst <- assay(vsd)
+vst <- vst - min(vst)
+
+dir.create(here("data/analysis/DE"),showWarnings=FALSE)
+save(vst,file=here("data/analysis/DE/vst-aware.rda"))
+write_delim(as.data.frame(vst) %>% rownames_to_column("ID"),
+            here("data/analysis/DE/vst-aware.tsv"))
+
+````
+
+
+</details>
+
+# Methods
+
+The pre-processing was performed using the nfcore rnaseq pipeline v. 3.14.0, using the "--skip_alignment" and "--pseudo-alignment salmon" options.
+
+# Results
+
+## DESeq2
+
+All output files can be found in the DE_results folder, where files ending in "genes.csv" contain gene list which have been filtered based on a FDR threshold of 0.01 and a minumum log2FC of 1.5.
+
+This stringent threshold was chosen due to the high number of differentially expressed genes.
+
+The files ending in "results.csv" contain all DE genes (without any filtering based on quality criteria). 
+
+* Running the pipeline
+
+````{r DEseq2}
+# Change the design to make contrasts along a single condition
+
+dds <- DESeq(dds)
+
+resultsNames(dds)
+````
+
+<details><summary>Dispersion</summary>
+
+The dispersion estimation is adequate.
+
+````{r disp_est, fig.cap="Dispersion estimation"}
+plotDispEsts(dds)
+````
+
+</details>
+
+<details><summary>Results graphs per contrast</summary>
+
+### Extracting results
+````{r contrasts}
+# Define your contrasts as a list of vectors
+contrasts <- list(
+  c("Description_Short", "F10W",	"T10W"),
+  c("Description_Short", "F2WC",	"T2WC"),
+  c("Description_Short", "F5WC",	"T5WC"),
+  c("Description_Short", "F1WLD",	"T1WLD"),
+  c("Description_Short", "T2WC",	"T10W"),
+  c("Description_Short", "T5WC",	"T10W"),
+  c("Description_Short", "T5WC",	"T2WC"),
+  c("Description_Short", "T1WLD",	"T5WC"),
+  c("Description_Short", "T1WLD",	"T10W"),
+  c("Description_Short", "F2WC",	"F10W"),
+  c("Description_Short", "F5WC",	"F10W"),
+  c("Description_Short", "F5WC",	"F2WC"),
+  c("Description_Short", "F1WLD",	"F5WC"),
+  c("Description_Short", "F1WLD",	"F10W")
+)
+
+
+
+# Initialize an empty list to store all result objects
+results_list <- list()
+
+# Loop through each contrast and apply your function
+for (contrast in contrasts) {
+  # Create a dynamic variable name based on the contrast elements
+  result_name <- gsub(" ", "", paste(contrast[-1], collapse="vs"))
+  
+  print(result_name)
+  # Apply the function and store the result in the list
+  results_list[[result_name]] <- extract_results(dds=dds,
+                                                 vst=vst,
+                                                 contrast=contrast,
+                                                 lfc= 1.5,
+                                                 default_prefix=paste0("DE-", result_name),
+                                                 filter=NULL)
+}
+
+
+````
+
+</details>
+
+### DEGs number
+
+This graph shows the number of differentially expressed genes in every situation.
+
+````{r visualization}
+
+library(reshape2)
+
+
+# Convert the list of lists to a data frame
+df <- do.call(rbind, lapply(seq_along(results_list), function(i) {
+  data.frame(list = factor(names(results_list)[i], levels = names(results_list)),
+             up = length(results_list[[i]]$up),
+             dn = length(results_list[[i]]$dn))
+}))
+
+df_melt <- melt(df, id.vars = "list")
+
+# Create the stacked bar plot
+
+ggplot(df_melt, aes(x = list, y = value, fill = variable)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Contrast", y = "Differentially expressed genes", fill="Differential expression") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+detach("package:reshape2", unload=TRUE)
+
+
+````
+
+
+
+
+## GO enrichment
+GO enrichment was run on all the groups of upregulated or downregulated genes, using a parent-child Fisher test with an FDR threshold of 0.05.
+
+The table with the names and codes of the enriched GOs can be found in the DE_results folder.
+
+* Load functions
+````{r load_functions}
+
+prepAnnot <- function(mapping){
+  annot <- read_delim(mapping,col_names=FALSE,show_col_types=FALSE)
+  geneID2GO <- lapply(lapply(unlist(annot[,2],use.names=FALSE),strsplit,"\\|"),unlist)
+  names(geneID2GO) <- unlist(annot[,1],use.names=FALSE)
+  return(geneID2GO)
+}
+
+# the following function gets a vector of genes with baseMean >= the one of the gene with lower expression with non NA padj
+get_background <- function(results_file) {
+  suppressMessages(
+    data <- read_csv(results_file, show_col_types = FALSE)
+  )
+  data <- data %>% rename(gene = ...1)
+  thres <- min(data[!is.na(data$padj), ]$baseMean)
+  genes <- data %>% 
+    filter(baseMean >= thres) %>% 
+    dplyr::select(gene) %>% 
+    pull()
+  return(genes)
+}
+
+````
+
+* Establish annotation and background
+
+````{r prep_annotation}
+
+#Here you should load files with the type of functional annotation that you want to test for enrichment
+mapping_GO <- here("CHANGEME...gene_to_go.tsv")
+mapping_KEGG <- here("CHANGEME...gene_to_kegg.tsv")
+mapping_IPR <- here("CHANGEME...gene_to_IPR.tsv")
+
+
+#Here, you can load as many different annotations you want (GO, KEGG, IPR, ecc...)
+annotations = list()
+
+annotations[["GO"]] <- prepAnnot(mapping_GO) %>% 
+  enframe(name = "Gene", value = "Terms") %>% 
+  unnest(Terms)
+
+annotations[["KEGG"]] <- prepAnnot(mapping_KEGG) %>% 
+  enframe(name = "Gene", value = "Terms") %>% 
+  unnest(Terms)
+
+annotations[["IPR"]] <- prepAnnot(mapping_IPR) %>% 
+  enframe(name = "Gene", value = "Terms") %>% 
+  unnest(Terms)
+
+# All annotations must be exported to a file, and you must save a list with the name and file of each annotation
+
+
+for (annotation in names(annotations)) {
+  write_tsv(annotations[[annotation]], here(paste0("data/analysis/DE/", annotation, ".txt")), col_names = FALSE)
+  annotations[[annotation]] <- here(paste0("data/analysis/DE/", annotation, ".txt"))
+}
+
+
+
+#Now we get as background all genes not excluded by the independent filtering step of DESeq2
+files <- list.files(path = here("data/analysis/DE/"), pattern = "results\\.csv$", full.names=TRUE)
+
+background <- map(files, get_background) %>% 
+  unlist() %>% 
+  base::unique()
+#The list of background genes must also be exported
+write(background, here("data/analysis/DE/background.txt"))
+
+
+#I make new folders that will be needed afterwards
+dir.create(here("data/analysis/DE/lists_DEGs"),showWarnings=FALSE)
+dir.create(here("data/analysis/DE/Enrichment_results"),showWarnings=FALSE)
+
+````
+
+
+*Initialise reticulare to run enrichment analysis in python
+````{r initialise_reticulate}
+
+library(reticulate)
+use_condaenv("enrichment_reticulate", required = TRUE)
+
+pybackground = r_to_py(background)
+
+pyannotations = r_to_py(annotations)
+
+pylists = r_to_py(results_list)
+
+
+````
+
+
+*Calculate the enrichment
+```{python}
+
+pylists = r.pylists
+pyannotations =r.pyannotations
+
+import func_e.vocabs.all as vocabs
+import pandas as pd
+from func_e.FUNC_E import FUNC_E
+from pyhere import here
+
+
+#First, let's import the term categories we are interested in
+#Only the following three annotations are default, if you are working with other ones, you must import them through a dataframe (https://github.com/SystemsGenetics/FUNC-E)
+terms = vocabs.getTerms(['GO', 'IPR', 'KEGG'])
+
+
+# First, we make a loop going through all the lists of genes that we want to test for enrichment, and we export them.
+
+results = {}
+for genes in list(pylists.keys()):
+  for condition in ["up", "dn"]:
+    
+    dataset = pylists[genes][condition]
+    with open(here(f"data/analysis/DE/lists_DEGs/list_genes_{genes}_{condition}.txt"), 'w') as f:
+      f.write('\n'.join(dataset))
+    
+    dataset_file = here(f"data/analysis/DE/lists_DEGs/list_genes_{genes}_{condition}.txt")
+      
+    # Next, instantiating a new FUNC_E object, once for each list of genes of interest
+    fe = FUNC_E()
+
+    # Next, you need to set the p-value cutoff for enrichment testing:
+    
+    fe.setEnrichmentSettings({
+        'ecut': 0.01
+    })
+    
+    # If you desire, you can change the clustering default settings as well:
+    
+    fe.setClusteringSettings({
+        'similarity_term_overlap': 3,
+        'percent_similarity': 0.50,
+        'initial_group_membership': 3,
+        'multiple_linkage_threshold': 0.50,
+        'final_group_membership':  3,
+        'similarity_threshold': 0.5
+    })
+    
+    
+    # Next, FUNC_E can import the files needed for enrichment analysis. These are the same as the example files used in the command-line example above.
+    # Here you can also load all the annotations you want to test for enrichment (GOs, KEGG, IPR, ecc...)
+    # It is also possible to load entire new terms sets (Pfams, for example) (https://github.com/SystemsGenetics/FUNC-E)
+    annotation_files = list(pyannotations.values())
+    
+    fe.importFiles({
+       'background': here("data/analysis/DE/background.txt"),
+       'query': dataset_file,
+       'terms2features': annotation_files
+    })
+    
+    fe.setTerms(terms)
+    
+    
+    fe.run(cluster=False)
+    
+    if len(fe.enrichment) > 0:
+      results[f"{genes}_{condition}"] = fe.enrichment
+      for category in fe.enrichment["ID_Space"].drop_duplicates().tolist():
+        number = len(fe.enrichment[fe.enrichment["ID_Space"]==category])
+      print(f"{number} {category} terms were enriched in {genes}_{condition}")
+      
+    else:
+      print(f"No enrichment calculated for genes in {genes}_{condition}")
+
+
+
+```
+
+```{r retrieve_results}
+GOenrich = py_to_r(py$results)
+
+#Now I save the results in separate files, depending on wich used annotations resulted in enrichments
+for (name in names(GOenrich)) {
+  enrichments <- GOenrich[[name]] %>% dplyr::select(ID_Space) %>% unique() %>% pull()
+  for (enrichment in enrichments) {
+    data <- GOenrich[[name]] %>%
+      dplyr::filter(ID_Space == enrichment) %>% 
+      dplyr::select(-Module)
+    
+    write_tsv(data, here(paste0("data/analysis/DE/Enrichment_results/", enrichment, "_enriched_", name, ".tsv")))
+    
+  }
+}
+```
+
+### GO enrichment wordclouds
+
+Note that the wordclouds can sometimes not show some of the GO terms, if their names could not be fit to the page.
+
+To see all the enriched terms it is better to check the original tables in the DE folder.
+
+
+`r emoji("point_right")` **Most significantly enriched terms appear bigger in the wordclouds.**
+
+</details>
+
+<details><summary>Wordclouds</summary>
+
+````{r wordclouds}
+library(wordcloud)
+
+for (name in names(GOenrich)) {
+  enrichments <- GOenrich[[name]] %>% dplyr::select(ID_Space) %>% unique() %>% pull()
+  for (enrichment in enrichments) {
+    print(paste0("Enriched ", enrichment, " terms in ", name))
+
+  suppressMessages(
+    data <- GOenrich[[name]] %>%
+      dplyr::filter(ID_Space == enrichment) %>% 
+    dplyr::mutate(scores = -log10(as.numeric(Benjamini))) %>% 
+                    dplyr::select(Name, scores)
+  )
+
+
+  wordcloud(words = data$Name, 
+            freq = data$scores, 
+            min.freq = 0,           
+            max.words = 200, 
+            random.order = FALSE, 
+            rot.per = 0, 
+            scale = c(2.4,.3),  
+            colors = brewer.pal(8, "Dark2"))
+  }
+}
+
+
+````
+</details>
+</details>
+
+### GO enrichment dotplots
+
+The following plots show the top 20 most significantly enriched GO terms for each of the lists of upregulated or downregulated genes.
+
+</details>
+
+<details><summary>Dotplots</summary>
+
+```{r dotplots}
+ntop <- 20
+
+for (name in names(GOenrich)) {
+  enrichments <- GOenrich[[name]] %>% dplyr::select(ID_Space) %>% unique() %>% pull()
+  for (enrichment in enrichments) {
+    print(paste0("Enriched ", enrichment, " terms in ", name))
+
+  suppressMessages(
+    data <- GOenrich[[name]] %>%
+      dplyr::filter(ID_Space == enrichment) %>% 
+    dplyr::mutate(scores = -log10(as.numeric(Benjamini))) %>% 
+                    dplyr::select(Name, scores) %>%
+      dplyr::arrange(desc(scores)) %>%
+      dplyr::slice(1:ntop)
+  )
+
+  
+  # Add this line to filter the top terms
+  data <- data %>% dplyr::arrange(desc(scores)) %>% dplyr::slice(1:ntop)
+  
+  # Convert Name to a factor and specify the levels to be in the order of descending scores
+  data$Term <- factor(data$Name, levels = data$Name[order(data$scores, decreasing = TRUE)])
+  
+p <- ggplot(data,
+  aes(x = Name, y = scores, size = scores, fill = scores)) +
+  expand_limits(y = 1) +
+  geom_point(shape = 21) +
+  scale_size(range = c(2.5,12.5), name="-log10(FDR)") +
+  scale_fill_continuous(low = 'royalblue', high = 'red4', name="-log10(FDR)") +
+  xlab('') +
+  ylab('-log10(FDR)') +
+  labs(
+    title = paste0("Enriched GOs for result ", name),
+    subtitle = paste('Top', ntop, 'terms ordered by adjustes pvalue'),
+    caption = 'Cut-off lines drawn at equivalents of p=0.05, p=0.01, p=0.001') +
+  geom_hline(yintercept = c(-log10(0.05), -log10(0.01), -log10(0.001)),
+    linetype = c("dotted", "longdash", "solid"),
+    colour = c("black", "black", "black"),
+    size = c(0.5, 1.5, 3)) +
+  theme_bw(base_size = 24) +
+  theme(
+    legend.position = 'right',
+    legend.background = element_rect(),
+    plot.title = element_text(angle = 0, size = 16, face = 'bold', vjust = 1),
+    plot.subtitle = element_text(angle = 0, size = 14, face = 'bold', vjust = 1),
+    plot.caption = element_text(angle = 0, size = 12, face = 'bold', vjust = 1),
+
+    axis.text.x = element_text(angle = 0, size = 12, face = 'bold', hjust = 1.10),
+    axis.text.y = element_text(angle = 0, size = 12, face = 'bold', vjust = 0.5),
+    axis.title = element_text(size = 12, face = 'bold'),
+    axis.title.x = element_text(size = 12, face = 'bold'),
+    axis.title.y = element_text(size = 12, face = 'bold'),
+    axis.line = element_line(colour = 'black'),
+
+    #Legend
+    legend.key = element_blank(), # removes the border
+    legend.key.size = unit(1, "cm"), # Sets overall area/size of the legend
+    legend.text = element_text(size = 14, face = "bold"), # Text size
+    title = element_text(size = 14, face = "bold")) +
+  coord_flip()
+
+print(p)
+  }
+}
+
+# ggplot2::ggsave(here("analysis/GO/A_vs_B_Fisher.pdf"),
+#                device = NULL,
+#                height = 8.5,
+#                width = 12)
+```
