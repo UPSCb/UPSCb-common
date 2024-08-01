@@ -387,8 +387,8 @@ detach("package:reshape2", unload=TRUE)
 
 
 
-## GO enrichment
-GO enrichment was run on all the groups of upregulated or downregulated genes, using a parent-child Fisher test with an FDR threshold of 0.05.
+## Functional enrichment
+Functional enrichment was run on all the groups of upregulated or downregulated genes, using a parent-child Fisher test with an FDR threshold of 0.05.
 
 The table with the names and codes of the enriched GOs can be found in the DE_results folder.
 
@@ -423,34 +423,36 @@ get_background <- function(results_file) {
 ````{r prep_annotation}
 
 #Here you should load files with the type of functional annotation that you want to test for enrichment
-mapping_GO <- here("CHANGEME...gene_to_go.tsv")
-mapping_KEGG <- here("CHANGEME...gene_to_kegg.tsv")
-mapping_IPR <- here("CHANGEME...gene_to_IPR.tsv")
+mappingGO <- here("reference/gopher/gene_to_go.tsv")
+mappingEC <- here("reference/gopher/gene_to_kegg.tsv")
+mappingPFAM <- here("reference/gopher/gene_to_pfam.tsv")
 
 
 #Here, you can load as many different annotations you want (GO, KEGG, IPR, ecc...)
-annotations = list()
 
-annotations[["GO"]] <- prepAnnot(mapping_GO) %>% 
+annotationGO <- prepAnnot(mappingGO)
+annotationGO <- annotationGO %>% 
   enframe(name = "Gene", value = "Terms") %>% 
   unnest(Terms)
 
-annotations[["KEGG"]] <- prepAnnot(mapping_KEGG) %>% 
+annotationEC <- prepAnnot(mappingEC)
+annotationEC <- annotationEC %>% 
   enframe(name = "Gene", value = "Terms") %>% 
   unnest(Terms)
 
-annotations[["IPR"]] <- prepAnnot(mapping_IPR) %>% 
+annotationPFAM <- prepAnnot(mappingPFAM)
+annotationPFAM <- annotationPFAM %>% 
   enframe(name = "Gene", value = "Terms") %>% 
   unnest(Terms)
 
 # All annotations must be exported to a file, and you must save a list with the name and file of each annotation
 
-
+annotations = list(annotationGO, annotationEC, annotationPFAM)
+names(annotations) <- c("GO", "EC", "PFAM")
 for (annotation in names(annotations)) {
-  write_tsv(annotations[[annotation]], here(paste0("data/analysis/DE/", annotation, ".txt")), col_names = FALSE)
-  annotations[[annotation]] <- here(paste0("data/analysis/DE/", annotation, ".txt"))
+  write_tsv(annotations[[annotation]], here(paste0("data/nfcore_rnaseq_Ptremula_based/analysis/DE/", annotation, ".txt")), col_names = FALSE)
+  annotations[[annotation]] <- here(paste0("data/nfcore_rnaseq_Ptremula_based/analysis/DE/", annotation, ".txt"))
 }
-
 
 
 #Now we get as background all genes not excluded by the independent filtering step of DESeq2
@@ -489,8 +491,9 @@ pylists = r_to_py(results_list)
 *Calculate the enrichment
 ```{python}
 
+
 pylists = r.pylists
-pyannotations =r.pyannotations
+pyannotations = r.pyannotations
 
 import func_e.vocabs.all as vocabs
 import pandas as pd
@@ -502,6 +505,20 @@ from pyhere import here
 #Only the following three annotations are default, if you are working with other ones, you must import them through a dataframe (https://github.com/SystemsGenetics/FUNC-E)
 terms = vocabs.getTerms(['GO', 'IPR', 'KEGG'])
 
+#Example, here I add the EC AND PFAM annotationS to the default ones:
+EC_terms = pd.read_csv(here("../Terms_databases_for_enrichment/EC_codes_terms.txt"), sep='\t')
+EC_terms.fillna("", inplace=True)
+
+PFAM_terms = pd.read_csv(here("../Terms_databases_for_enrichment/PFAM_terms.txt"), sep='\t')
+PFAM_terms.fillna("", inplace=True)
+
+
+
+# Concatenate the terms dataframes vertically
+terms = pd.concat([terms, EC_terms], axis=0)
+
+# Reset the index of the new dataframe
+terms.reset_index(drop=True, inplace=True)
 
 # First, we make a loop going through all the lists of genes that we want to test for enrichment, and we export them.
 
@@ -510,10 +527,10 @@ for genes in list(pylists.keys()):
   for condition in ["up", "dn"]:
     
     dataset = pylists[genes][condition]
-    with open(here(f"data/analysis/DE/lists_DEGs/list_genes_{genes}_{condition}.txt"), 'w') as f:
+    with open(here(f"data/nfcore_rnaseq_Ptremula_based/analysis/DE/lists_DEGs/list_genes_{genes}_{condition}.txt"), 'w') as f:
       f.write('\n'.join(dataset))
     
-    dataset_file = here(f"data/analysis/DE/lists_DEGs/list_genes_{genes}_{condition}.txt")
+    dataset_file = here(f"data/nfcore_rnaseq_Ptremula_based/analysis/DE/lists_DEGs/list_genes_{genes}_{condition}.txt")
       
     # Next, instantiating a new FUNC_E object, once for each list of genes of interest
     fe = FUNC_E()
@@ -542,7 +559,7 @@ for genes in list(pylists.keys()):
     annotation_files = list(pyannotations.values())
     
     fe.importFiles({
-       'background': here("data/analysis/DE/background.txt"),
+       'background': here("data/nfcore_rnaseq_Ptremula_based/analysis/DE/background.txt"),
        'query': dataset_file,
        'terms2features': annotation_files
     })
@@ -566,13 +583,13 @@ for genes in list(pylists.keys()):
 ```
 
 ```{r retrieve_results}
-GOenrich = py_to_r(py$results)
+enrichdf = py_to_r(py$results)
 
 #Now I save the results in separate files, depending on wich used annotations resulted in enrichments
-for (name in names(GOenrich)) {
-  enrichments <- GOenrich[[name]] %>% dplyr::select(ID_Space) %>% unique() %>% pull()
+for (name in names(enrichdf)) {
+  enrichments <- enrichdf[[name]] %>% dplyr::select(ID_Space) %>% unique() %>% pull()
   for (enrichment in enrichments) {
-    data <- GOenrich[[name]] %>%
+    data <- enrichdf[[name]] %>%
       dplyr::filter(ID_Space == enrichment) %>% 
       dplyr::select(-Module)
     
@@ -582,7 +599,7 @@ for (name in names(GOenrich)) {
 }
 ```
 
-### GO enrichment wordclouds
+### Functional enrichment wordclouds
 
 Note that the wordclouds can sometimes not show some of the GO terms, if their names could not be fit to the page.
 
@@ -598,13 +615,13 @@ To see all the enriched terms it is better to check the original tables in the D
 ````{r wordclouds}
 library(wordcloud)
 
-for (name in names(GOenrich)) {
-  enrichments <- GOenrich[[name]] %>% dplyr::select(ID_Space) %>% unique() %>% pull()
+for (name in names(enrichdf)) {
+  enrichments <- enrichdf[[name]] %>% dplyr::select(ID_Space) %>% unique() %>% pull()
   for (enrichment in enrichments) {
     print(paste0("Enriched ", enrichment, " terms in ", name))
 
   suppressMessages(
-    data <- GOenrich[[name]] %>%
+    data <- enrichdf[[name]] %>%
       dplyr::filter(ID_Space == enrichment) %>% 
     dplyr::mutate(scores = -log10(as.numeric(Benjamini))) %>% 
                     dplyr::select(Name, scores)
@@ -627,7 +644,7 @@ for (name in names(GOenrich)) {
 </details>
 </details>
 
-### GO enrichment dotplots
+### Functional enrichment dotplots
 
 The following plots show the top 20 most significantly enriched GO terms for each of the lists of upregulated or downregulated genes.
 
@@ -638,13 +655,13 @@ The following plots show the top 20 most significantly enriched GO terms for eac
 ```{r dotplots}
 ntop <- 20
 
-for (name in names(GOenrich)) {
-  enrichments <- GOenrich[[name]] %>% dplyr::select(ID_Space) %>% unique() %>% pull()
+for (name in names(enrichdf)) {
+  enrichments <- enrichdf[[name]] %>% dplyr::select(ID_Space) %>% unique() %>% pull()
   for (enrichment in enrichments) {
     print(paste0("Enriched ", enrichment, " terms in ", name))
 
   suppressMessages(
-    data <- GOenrich[[name]] %>%
+    data <- enrichdf[[name]] %>%
       dplyr::filter(ID_Space == enrichment) %>% 
     dplyr::mutate(scores = -log10(as.numeric(Benjamini))) %>% 
                     dplyr::select(Name, scores) %>%
@@ -652,6 +669,10 @@ for (name in names(GOenrich)) {
       dplyr::slice(1:ntop)
   )
 
+  # The next line removes duplicates in the Name column, keeping for each of them only the one with the highest score
+  data <- data %>%
+  group_by(Name) %>%
+  slice(which.max(scores))
   
   # Add this line to filter the top terms
   data <- data %>% dplyr::arrange(desc(scores)) %>% dplyr::slice(1:ntop)
