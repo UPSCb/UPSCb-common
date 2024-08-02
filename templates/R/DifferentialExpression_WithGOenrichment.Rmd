@@ -333,6 +333,46 @@ for (contrast in contrasts) {
 
 ````
 
+### Group DEGs in a single table
+
+````{r grouping}
+
+path <- here("data/analysis/DE/")
+  
+# Get a list of all csv files in the directory
+files <- list.files(path, pattern = "*genes.csv")
+
+# Initialize an empty data frame
+all_data <- data.frame()
+
+# Loop through the files
+for(file in files){
+  # Read the csv file
+  data <- read_csv(paste0(path, "/", file))
+  
+  
+  # Add a new column with the file name
+  data$Comparison <- file
+  
+  # Bind the data to the existing data frame
+  all_data <- bind_rows(all_data, data)
+}
+
+# Split the 'Comparison' column using 'vs' as the separator
+split_data <- strsplit(all_data$Comparison, split = "vs")
+
+# Extract 'interest' and 'control' values
+all_data$interest <- sapply(split_data, function(x) sub("DE-", "", x[1]))
+all_data$control <- sapply(split_data, function(x) sub("_genes.csv", "", x[2]))
+
+# Rename the first column
+colnames(all_data)[colnames(all_data) == "...1"] <- "Gene"
+
+write_tsv(all_data, here("data/analysis/DE/All_DEGs.tsv"))
+
+
+````
+
 </details>
 
 ### DEGs number
@@ -513,6 +553,44 @@ walk2(results, names(results), ~ write_tsv(.x, file = here(paste0("data/analysis
 
 ````
 
+### Group GO enrichments in a single table
+
+````{r grouping}
+
+path <- here("data/analysis/DE/")
+  
+# Get a list of all csv files in the directory
+files <- list.files(path, pattern = "GO-enr.*.tsv")
+
+# Initialize an empty data frame
+all_data <- data.frame()
+
+# Loop through the files
+for(file in files){
+  # Read the csv file
+  data <- read_tsv(paste0(path, "/", file))
+  
+  
+  # Add a new column with the file name
+  data$dataset <- file
+  
+  suppressMessages(
+    data <- data %>%
+    dplyr::mutate(FDR = ifelse(FDR == "< 1e-30", 0, FDR))
+  )
+  
+  data$FDR <- as.numeric(data$FDR)
+  
+  # Bind the data to the existing data frame
+  all_data <- bind_rows(all_data, data)
+}
+
+
+
+write_tsv(all_data, here("data/analysis/DE/All_DEGs_Enrichment.tsv"))
+
+
+````
 
 ### GO enrichment wordclouds
 
