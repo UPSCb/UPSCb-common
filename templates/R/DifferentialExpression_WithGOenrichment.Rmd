@@ -555,7 +555,7 @@ walk2(results, names(results), ~ write_tsv(.x, file = here(paste0("data/analysis
 
 ### Group GO enrichments in a single table
 
-````{r grouping}
+````{r grouping_enr}
 
 path <- here("data/analysis/DE/")
   
