@@ -851,3 +851,12 @@ print(p)
 #                height = 8.5,
 #                width = 12)
 ```
+
+</details>
+
+## Session Info
+<details><summary>Setup</summary>
+ ````{r session info, echo=FALSE}
+ sessionInfo()
+ ````
+</details>
