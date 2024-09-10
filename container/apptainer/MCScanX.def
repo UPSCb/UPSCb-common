@@ -1,0 +1,26 @@
+BootStrap: docker
+From: ubuntu:20.04
+
+%environment
+export LC_ALL=C
+
+%post 
+apt-get update && \
+apt-get -y install tzdata && \
+apt-get -y install \
+    build-essential \
+    default-jdk \
+    git
+apt-get clean
+
+cd ~
+git clone https://github.com/wyp1125/MCScanX.git
+cd MCScanX
+make
+cp MCScanX /usr/local/bin/
+cp MCScanX_h /usr/local/bin/
+cp duplicate_gene_classifier /usr/local/bin/
+cp downstream_analyses/* /usr/local/bin/
+
+%runscript
+MCScanX "$@"

@@ -1,0 +1,33 @@
+Bootstrap: docker
+From: fedora:31
+
+%environment
+export LC_ALL=C
+
+%post
+dnf update -y && \
+dnf -y install \
+  gcc \
+  gcc-c++ \
+  gcc-gfortran \
+  cmake \
+  git \
+  boost-devel \
+  coin-or-Clp-devel \
+  armadillo-devel \
+  zlib-devel
+dnf clean all
+
+#  glpk-devel \
+
+cd ~
+git clone --recursive https://github.com/bschiffthaler/seidr
+cd seidr
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DSEIDR_WITH_MPI=ON -DNARROMI_USE_CLP=ON ..
+make
+make install
+
+%runscript
+seidr "$@"

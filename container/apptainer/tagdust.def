@@ -1,0 +1,25 @@
+BootStrap: docker
+From: ubuntu:18.04
+
+%environment
+export LC_ALL=C
+
+%post 
+apt-get update && \
+apt-get -y install \
+    build-essential \
+    autoconf \
+    git
+apt-get clean
+
+cd ~
+git clone https://github.com/TimoLassmann/tagdust.git
+cd tagdust
+./autogen.sh
+./configure
+make
+make check
+make install
+
+%runscript
+tagdust "$@"
