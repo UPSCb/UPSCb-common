@@ -104,13 +104,9 @@ topGO <- function(set,background,annotation,
                                         topNodes=n)) %>% 
                        rename_with(function(sel){"FDR"},.cols=last_col())
       if(getgenes){
-        #Todo: fix the for loop
-        resultTable$allgenes <- resultTable$GO.ID
-        resultTable$siggenes <- resultTable$GO.ID
-        for(i in 1:length(resultTable$GO.ID)){
-          resultTable$allgenes[i] <- allGO[resultTable$GO.ID[i]]
-          resultTable$siggenes[i] <- list(unlist(resultTable$allgenes[i])[unlist(resultTable$allgenes[i]) %in% set])
-        }
+        resultTable <- resultTable %>%
+          mutate(allgenes = map(GO.ID,function(x){allGO[[x]]})) %>%
+          mutate(siggenes = map(allgenes,function(x){unlist(x)[unlist(x) %in% set]}))
       }
       resultTable
     }
