@@ -89,16 +89,107 @@ mar <- par("mar")
 }
 ````
 
+  * Get suspicious genes
+  
+````{r get_suspicious_genes}
+"get_suspicious_genes" <- function(vst,relevant_samples, threshold=10){
+  
+  vstdf <- as_tibble(vst[,unlist(relevant_samples)], rownames = "Gene")
+  
+    
+    # Convert to long format for easier manipulation
+vstdf_long <- vstdf %>%
+  pivot_longer(cols = -Gene, names_to = "sample", values_to = "expression")
+
+
+# Extract group information from relevant_samples list
+group_info <- as_tibble(relevant_samples) %>% pivot_longer(names_to="group", values_to="sample", cols=everything()) %>% arrange(group)
+
+#Add group information to vsdtdf_long
+vstdf_long <- vstdf_long %>%
+  left_join(group_info, by = "sample")
+
+
+# First, I replace zeroes with values equal to half the minimum detected values.
+# This high values of z-replacement is so genes with very low expression values and 1 or 2 zeroes do not come up as suspicious
+# Calculate the minimum non-zero value in the expression column
+min_non_zero <- min(vstdf_long$expression[vstdf_long$expression > 0])
+
+# Define the low value as a small fraction of the minimum non-zero value
+low_value <- min_non_zero * 0.5  # Adjust the fraction as needed
+
+
+
+# Function to calculate the required values
+  results <- vstdf_long %>%
+  mutate(expression = ifelse(expression == 0, low_value, expression)) %>% 
+    group_by(Gene, group) %>%
+    summarise(
+    max_expr = max(expression),
+    min_expr = min(expression),
+    avg_expr = mean(expression),
+    max_div_avg = max(expression) / mean(expression[expression != max(expression)]),
+    avg_non_min = mean(expression[expression != min(expression)]),
+    min_div_avg = avg_non_min / min(expression)
+  ) %>%
+  ungroup() %>%  
+    #As genes with only 0 values were returning NA in the max_div_avg and min_div_avg columns, I replace this values with 1
+    mutate_all(~replace_na(., 1))
+
+
+#In the end I only use max_div_avg to determine suspicious genes
+  suspicious_genes  <- results %>% 
+  filter(max_div_avg > threshold) %>% 
+  select(Gene) %>%
+  distinct() %>% 
+  pull()
+
+
+return(suspicious_genes)
+  
+}
+```` 
+
+  * Load function to find out the name of columns not identical in two dataframes
+  
+````{r compare_columns}
+
+compare_columns <- function(tibble1, tibble2) {
+  # Initialize an empty vector to store names of non-identical columns
+  non_identical_columns <- c()
+  
+  # Loop through each column in tibble1
+  for (col in colnames(tibble1)) {
+    # Check if the column exists in tibble2
+    if (col %in% colnames(tibble2)) {
+      # Compare the columns
+      if (!all(tibble1[[col]] == tibble2[[col]])) {
+        # If not identical, add the column name to the vector
+        non_identical_columns <- c(non_identical_columns, col)
+      }
+    } else {
+      # If the column does not exist in tibble2, add the column name to the vector
+      non_identical_columns <- c(non_identical_columns, col)
+    }
+  }
+  
+  return(non_identical_columns)
+}
+````
+
+
   * Extract the DE results. Default cutoffs are from Schurch _et al._, RNA, 2016
 
 ````{r function_extract_results}
-"extract_results" <- function(dds,vst,contrast,
+"extract_results" <- function(dds,vst,contrast, relevant_samples,
                               padj=0.01,lfc=0.5,
                               plot=TRUE,verbose=TRUE,
                               export=TRUE,default_dir=here("data/analysis/DE"),
                               default_prefix="DE-",
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
+                              cooks_division = 1,
+                              optimize_cook = FALSE,
                               expression_cutoff=0,
                               debug=FALSE,filter=c("median",NULL),...){
     
@@ -107,13 +198,54 @@ mar <- par("mar")
         filter <- rowMedians(counts(dds,normalized=TRUE))
         message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
     }
-    
+  
+    # Determining default cooks cutoff
+    m <- ncol(counts(dds))
+
+    p <- ncol(model.matrix(design(dds), colData(dds)))
+
+    cooks_cutoff <- qf(0.99, p, m - p)
+
+    # Setting a cooks cutoff equal to the defualt, divided by the cooks_division parameter
+
     # validation
     if(length(contrast)==1){
-        res <- results(dds,name=contrast,filter = filter)
+        res <- results(dds,name=contrast,filter = filter, cooksCutoff = cooks_cutoff/cooks_division)
     } else {
-        res <- results(dds,contrast=contrast,filter = filter)
+        res <- results(dds,contrast=contrast,filter = filter, cooksCutoff = cooks_cutoff/cooks_division)
     }
+  
+  if (optimize_cook == TRUE) {
+    
+    suspicious <- get_suspicious_genes(vst, relevant_samples, threshold=10)
+    
+    thres <- padj
+    
+    while (cooks_division < 10 &&
+      as_tibble(res, rownames="Gene") %>% 
+           filter(Gene %in% suspicious) %>% 
+           filter(log2FoldChange > 0.5 | log2FoldChange < -0.5) %>% 
+           filter(!is.na(padj)) %>% 
+           filter(padj < thres) %>% 
+           select(Gene) %>% 
+           pull() %>% 
+           length() > 0 )
+    {
+      cooks_division <- cooks_division + 1
+          if(length(contrast)==1){
+        res <- results(dds,name=contrast,filter = filter, cooksCutoff = cooks_cutoff/cooks_division)
+    } else {
+        res <- results(dds,contrast=contrast,filter = filter, cooksCutoff = cooks_cutoff/cooks_division)
+    }
+    }
+    
+    
+    
+  }
+    
+    print(paste0("Final cooks_division values is ", cooks_division, ", corresponding to a cooks cutoff values of ", cooks_cutoff/cooks_division))
+  
+  
     
     stopifnot(length(sample_sel)==ncol(vst))
     
@@ -250,22 +382,111 @@ mar <- par("mar")
 ````
 
 
-* Load data and normalisation for visualisation
+* Apply extract results in a contrast-dependent manner
 
-````{r vst}
+````{r apply_extract_results}
 
-dds <- readRDS(file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
-samples <- read_csv(here("doc/samples_merged-tech-reps.csv"),show_col_types = FALSE)
+# variables_interest must be a vector containing all the names of column in samples containing variables across which the comparisons will run.
 
-vsd <- varianceStabilizingTransformation(dds,blind=FALSE)
-vst <- assay(vsd)
-vst <- vst - min(vst)
+# For example, if you plan to run comparisons across Treatment and Time, then variables_interest shoulc be c("Treatment", "Time")
 
-dir.create(here("data/analysis/DE"),showWarnings=FALSE)
-save(vst,file=here("data/analysis/DE/vst-aware.rda"))
-write_delim(as.data.frame(vst) %>% rownames_to_column("ID"),
-            here("data/analysis/DE/vst-aware.tsv"))
+# NameConditionColumn must be the column from which you will pull the values to specify your comparison.
+# For example, if the comparison is c("T0_treated", "T0_control"), then NameConditionColumn will need to specify which samples belong to each of these two groups.
 
+
+
+"apply_extract_results" <- function(comparison,
+                                    samples,
+                                    variables_interest,
+                                    NameConditionColumn,
+                                    dds,
+                                    vst,
+                              padj=0.01,lfc=0.5,
+                              plot=TRUE,verbose=TRUE,
+                              export=TRUE,default_dir=here("data/analysis/DE"),
+                              default_prefix="DE-",
+                              labels=colnames(dds),
+                              sample_sel=1:ncol(dds),
+                              cooks_division = 1,
+                              optimize_cook = TRUE,
+                              expression_cutoff=0,
+                              debug=FALSE,filter=c("median",NULL),...)
+{
+
+
+
+  
+  print(gsub(" ", "", paste(comparison, collapse="vs")))
+  
+  #Make a new column whose value is equal to NameConditionColumn
+  
+  samples$NewCol <- samples[[NameConditionColumn]]
+  
+  # Determine the correct baseline
+  
+  values_comparison <- samples %>% filter(NewCol==comparison[1])
+  
+  values_comparison <- values_comparison[variables_interest] %>% distinct()
+
+  
+  values_baseline <- samples %>% filter(NewCol==comparison[2])
+  
+  values_baseline <- values_baseline[variables_interest] %>% distinct()
+
+  
+  difference <- compare_columns(values_comparison, values_baseline)
+  
+  comparison_name <- paste0(difference, "_", pull(values_comparison[difference]), "_vs_", pull(values_baseline[difference]))
+  
+  print(paste0("The name of the comparison is ", comparison_name))
+  print("Baseline values are:")
+  
+  for (var in variables_interest) {
+    print(values_baseline[[var]])
+  }
+
+  # Rerun deseq2 with the correct baseline
+  
+  for (variable in variables_interest)
+{
+  dds[[variable]] <- relevel(dds[[variable]], ref = values_baseline[[variable]])
+  }
+  
+
+  dds <- DESeq(dds)
+  
+  vsd <- varianceStabilizingTransformation(dds,blind=FALSE)
+  vst <- assay(vsd)
+  vst <- vst - min(vst)
+  
+  # Make list of samples that will be considered to calculate the cook distance
+  relevant <- list() 
+  
+  relevant[[comparison[1]]] <- samples %>% filter(NewCol %in% comparison[1]) %>% select(SampleID) %>% pull()
+  
+  relevant[[comparison[2]]] <- samples %>% filter(NewCol %in% comparison[2]) %>% select(SampleID) %>% pull()
+  
+  
+  # Apply the function and store the result in the list
+  return(extract_results(dds=dds,
+                          vst=vst,
+                         contrast=comparison_name,
+                         lfc= lfc,
+                         padj=padj,
+                         relevant_samples = relevant,
+                         plot=plot,verbose=verbose,
+                              export=export,default_dir=default_dir,
+                              default_prefix=default_prefix,
+                              labels=labels,
+                              sample_sel=sample_sel,
+                              cooks_division = cooks_division,
+                              optimize_cook = optimize_cook,
+                              expression_cutoff=expression_cutoff,
+                              debug=debug,filter=filter
+                         )
+  )
+  
+}
 ````
 
 
@@ -288,10 +509,23 @@ The files ending in "results.csv" contain all DE genes (without any filtering ba
 * Running the pipeline
 
 ````{r DEseq2}
-# Change the design to make contrasts along a single condition
+dds <- readRDS(file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
+
+samples <- read_csv(here("doc/samples_merged-tech-reps.csv"),show_col_types = FALSE)
+
+#Set the desired degisn
+design(dds) <- formula(~ Variable1 * Variable2)
+
+vsd <- varianceStabilizingTransformation(dds,blind=FALSE)
+vst <- assay(vsd)
+vst <- vst - min(vst)
+
+dir.create(here("data/analysis/DE"),showWarnings=FALSE)
+save(vst,file=here("data/analysis/DE/vst-aware.rda"))
+write_delim(as.data.frame(vst) %>% rownames_to_column("ID"),
+            here("data/analysis/DE/vst-aware.tsv"))
 
 dds <- DESeq(dds)
-
 resultsNames(dds)
 ````
 
@@ -309,110 +543,51 @@ plotDispEsts(dds)
 
 ### Extracting results
 ````{r contrasts}
-# Set name for coulm grouping all variables in the experiment
-# Es: column called "Condition", made of Time_Treatment
-InterestCol <- Condition
-
-# Define your contrasts as a list of vectors, each with two values of InterestCol that you wish to compare
-contrasts <- list(
+# Define your comparisons as a list of vectors, each with two values of InterestCol that you wish to compare
+comparisons <- list(
   c("Condition1",	"Condition2"),
   c("Condition1",	"Condition3"),
   c("Condition2",	"Condition3")
 )
 
+#Reload dds object
+dds <- readRDS(file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
 
-# Load function to find out the name of columns not identical in two dataframes (I will use it later)
-compare_columns <- function(tibble1, tibble2) {
-  # Initialize an empty vector to store names of non-identical columns
-  non_identical_columns <- c()
-  
-  # Loop through each column in tibble1
-  for (col in colnames(tibble1)) {
-    # Check if the column exists in tibble2
-    if (col %in% colnames(tibble2)) {
-      # Compare the columns
-      if (!all(tibble1[[col]] == tibble2[[col]])) {
-        # If not identical, add the column name to the vector
-        non_identical_columns <- c(non_identical_columns, col)
-      }
-    } else {
-      # If the column does not exist in tibble2, add the column name to the vector
-      non_identical_columns <- c(non_identical_columns, col)
-    }
-  }
-  
-  return(non_identical_columns)
-}
+#Set the desired degisn
+design(dds) <- formula(~ Variable1 * Variable2)
 
 
 # Initialize an empty list to store all result objects
 results_list <- list()
 
-# Set name for coulm grouping all variables in the experiment
-# Es: column called "Condition", made of Time_Treatment
 
-# Loop through each contrast and apply your function
-for (contrast in contrasts) {
-  # Create a dynamic variable name based on the contrast elements
-  result_name <- gsub(" ", "", paste(contrast, collapse="vs"))
+# Use map to apply the function to each comparison
+process_comparison <- function(comparison) {
+  result_name <- gsub(" ", "", paste(comparison, collapse="vs"))
   
-  print(result_name)
+  result <- apply_extract_results(
+    comparison = comparison,
+    samples = samples,
+    variables_interest = c("Variable1", "Variable2"),
+    Name_Condition_Column = "Condition",
+    dds = dds,
+    vst = vst,
+    default_prefix = paste0("DE-", result_name, "_")
+  )
   
-  # Determine the correct baseline
+  up <- tibble(Gene = result$up)
+  down <- tibble(Gene = result$dn)
   
-  # Here you should replace CHANGEME with the value of InterestCol
-  # Then, you should replace Variable1 and Variable2 with the names of the groups that made up the InterestCol
-  # An example would be replacing CHANGEME with "Condition", Variable1 with Time and Variable2 with Treatment
-  # You can increase or decrease the number of variables depending on how many variables make up InterestCol
-  values_contrast <- samples %>% filter(CHANGEME==contrast[1]) %>%
-    select(Variable1, Variable2) %>% 
-    distinct()
+  write_tsv(up, here(paste0("data/analysis/DE/DE-", result_name, "_UP.tsv")), col_names = FALSE)
+  write_tsv(down, here(paste0("data/analysis/DE/DE-", result_name, "_DOWN.tsv")), col_names = FALSE)
   
-  
-  
-  values_baseline <- samples %>% filter(CHANGEME==contrast[2]) %>%
-    select(Variable1, Variable2) %>% 
-    distinct()
-  
-  # Here we find out for which variable do the two conditions compared in the contrst differ
-  # In each contrast, the compared conditions should differ for only 1 variable
-  difference <- compare_columns(values_contrast, values_baseline)
-  
-  contrast_name <- paste0(difference, "_", pull(values_contrast[difference]), "_vs_", pull(values_baseline[difference]))
-  
-  print(paste0("The name of the contrast is ", contrast_name))
-  print(paste0("Baseline values are ", values_baseline$Variable1, " and ", values_baseline$Variable2))
-
-  # Rerun deseq2 with the correct baseline
-  
-  dds <- readRDS(file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
-  dds$Variable1 <- relevel(dds$Variable1, ref = values_baseline$Variable1)
-  dds$Variable2 <- relevel(dds$Variable2, ref = values_baseline$Variable2)
-  
-  
-  design(dds) <- formula(~ Variable1 * Variable2)
-
-  dds <- DESeq(dds)
-  
-  vsd <- varianceStabilizingTransformation(dds,blind=FALSE)
-  vst <- assay(vsd)
-  vst <- vst - min(vst)
-
-
-  # Apply the function and store the result in the list
-  results_list[[result_name]] <- extract_results(dds=dds,
-                                                 vst=vst,
-                                                 contrast=contrast_name,
-                                                 lfc= 1.5,
-                                                 default_prefix=paste0("DE-", result_name))
-  
-  
-  up <- tibble(Gene = results_list[[result_name]]$up)
-  down <- tibble(Gene = results_list[[result_name]]$dn)
-  write_tsv(up, here(paste0("data/analysis/DE/DE-", result_name, "_UP.tsv")), col_names=FALSE)
-  write_tsv(down, here(paste0("data/analysis/DE/DE-", result_name, "_DOWN.tsv")), col_names=FALSE)
-  
+  return(result)
 }
+
+# Set names for the results list
+names(results_list) <- map_chr(comparisons, function(comparison) {
+  gsub(" ", "", paste(comparison, collapse="vs"))
+})
 
 
 ````
@@ -557,8 +732,8 @@ annotationPFAM <- annotationPFAM %>%
 annotations = list(annotationGO, annotationEC, annotationPFAM)
 names(annotations) <- c("GO", "EC", "PFAM")
 for (annotation in names(annotations)) {
-  write_tsv(annotations[[annotation]], here(paste0("data/nfcore_rnaseq_Ptremula_based/analysis/DE/", annotation, ".txt")), col_names = FALSE)
-  annotations[[annotation]] <- here(paste0("data/nfcore_rnaseq_Ptremula_based/analysis/DE/", annotation, ".txt"))
+  write_tsv(annotations[[annotation]], here(paste0("data/analysis/DE/", annotation, ".txt")), col_names = FALSE)
+  annotations[[annotation]] <- here(paste0("data/analysis/DE/", annotation, ".txt"))
 }
 
 
@@ -634,10 +809,10 @@ for genes in list(pylists.keys()):
   for condition in ["up", "dn"]:
     
     dataset = pylists[genes][condition]
-    with open(here(f"data/nfcore_rnaseq_Ptremula_based/analysis/DE/lists_DEGs/list_genes_{genes}_{condition}.txt"), 'w') as f:
+    with open(here(f"data/analysis/DE/lists_DEGs/list_genes_{genes}_{condition}.txt"), 'w') as f:
       f.write('\n'.join(dataset))
     
-    dataset_file = here(f"data/nfcore_rnaseq_Ptremula_based/analysis/DE/lists_DEGs/list_genes_{genes}_{condition}.txt")
+    dataset_file = here(f"data/analysis/DE/lists_DEGs/list_genes_{genes}_{condition}.txt")
       
     # Next, instantiating a new FUNC_E object, once for each list of genes of interest
     fe = FUNC_E()
@@ -666,7 +841,7 @@ for genes in list(pylists.keys()):
     annotation_files = list(pyannotations.values())
     
     fe.importFiles({
-       'background': here("data/nfcore_rnaseq_Ptremula_based/analysis/DE/background.txt"),
+       'background': here("data/analysis/DE/background.txt"),
        'query': dataset_file,
        'terms2features': annotation_files
     })
@@ -718,7 +893,7 @@ combined_enrich <- enrichdf %>%
   select(-Module)
 
 
-write_tsv(all_data, here("data/analysis/DE/Enrichment_results/All_DEGs_Enrichment.tsv"))
+write_tsv(combined_enrich, here("data/analysis/DE/Enrichment_results/All_DEGs_Enrichment.tsv"))
 
 
 ````
