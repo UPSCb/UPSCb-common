@@ -82,7 +82,7 @@ topGO <- function(set,background,annotation,
   names(allGenes) <- background
   
   # iterate over the ontologies
-  lst <- lapply(ontology, function(o,g,a){
+  lst <- map(ontology, function(o,g,a){
     GOdata <- new("topGOdata", 
                   ontology = o, 
                   allGenes = g,
@@ -107,6 +107,8 @@ topGO <- function(set,background,annotation,
         resultTable <- resultTable %>%
           mutate(allgenes = map(GO.ID,function(x){allGO[[x]]})) %>%
           mutate(siggenes = map(allgenes,function(x){unlist(x)[unlist(x) %in% set]}))
+          mutate(allgenes = map(allgenes,function(x){paste(x,collapse = "|")}) %>% unlist(use.names = F),
+                 siggenes = map(siggenes,function(x){paste(x,collapse = "|")}) %>% unlist(use.names = F))
       }
       resultTable
     }
