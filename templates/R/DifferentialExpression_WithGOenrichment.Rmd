@@ -176,6 +176,8 @@ compare_columns <- function(tibble1, tibble2) {
 
 
   * Extract the DE results. Default cutoffs are from Schurch _et al._, RNA, 2016
+  
+  Suspicious degs are also returned now, users can autonomolusly decide if they want to keep them (they must be removed from the up and dn lists if that is the case)
 
 ````{r function_extract_results}
 "extract_results" <- function(dds,vst,contrast, relevant_samples,
@@ -242,7 +244,14 @@ compare_columns <- function(tibble1, tibble2) {
     
     print(paste0("Final cooks_division values is ", cooks_division, ", corresponding to a cooks cutoff values of ", cooks_cutoff/cooks_division))
   
-  
+  suspicious_DEGs <- as_tibble(res, rownames="Gene") %>% 
+           filter(Gene %in% suspicious) %>% 
+           filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>% 
+           filter(!is.na(padj)) %>% 
+           filter(padj < thres) %>% 
+           select(Gene) %>% 
+           pull()
+           
     
     stopifnot(length(sample_sel)==ncol(vst))
     
@@ -374,7 +383,8 @@ compare_columns <- function(tibble1, tibble2) {
     }
     return(list(all=rownames(res[sel,]),
                 up=rownames(res[sel & res$log2FoldChange > 0,]),
-                dn=rownames(res[sel & res$log2FoldChange < 0,])))
+                dn=rownames(res[sel & res$log2FoldChange < 0,]),
+                suspicious=suspicious_DEGs))
 }
 ````
 
@@ -540,6 +550,9 @@ plotDispEsts(dds)
 <details><summary>Results graphs per contrast</summary>
 
 ### Extracting results
+
+Remember to remove suspicious DEGs from the results if you do not want to keep them
+
 ````{r contrasts}
 
 # Define your comparisons as a list of vectors, each with two values of InterestCol that you wish to compare
