@@ -177,10 +177,123 @@ compare_columns <- function(tibble1, tibble2) {
 }
 ````
 
+  * Plot information about changes in differential expression depending on the cooks cutoff:
+  
+```{r}
 
+"plot_cooks_cutoffs" <- function(results_list, lfc, thres) {
+
+## Plot 1
+plotting_results <- lapply(results_list, function(x) {
+  x[setdiff(names(x), "res")]
+})
+
+# Extract percentile values
+names_list <- sapply(plotting_results, function(x) x$percentile)
+
+# Set names of results_list
+names(plotting_results) <- names_list
+
+#Make a tibble for plotting
+df <- t(as_tibble(plotting_results))
+
+colnames(df) <- c("DEGs", "Suspicious_DEGs", "Percentile")
+
+df <- df %>%
+as_tibble() %>% 
+  unnest(cols = c(DEGs, Suspicious_DEGs, Percentile))
+
+original_DEGs <- plotting_results[["0.99"]]$DEGs
+
+
+df <- df %>% mutate(Tens_lost_DEGs = (original_DEGs - DEGs)/10)
+
+# Now we plot
+
+p1 <- ggplot(df, aes(x = Percentile)) +
+  geom_line(aes(y = Suspicious_DEGs, color = "Suspicious DEGs")) +
+  geom_line(aes(y = Tens_lost_DEGs, color = "Tens of lost DEGs")) +
+  scale_x_reverse() +
+  labs(title = "Changes in suspicious DEGs and tens of lost DEGs by cooks percentile",
+       x = "Percentile",
+       y = "Gene number",
+       color = "Legend") +
+  theme_minimal()
+
+
+  print(p1)
+
+
+## Plot 2
+
+names_list <- sapply(results_list, function(x) x$percentile)
+
+expression_results <- lapply(results_list, function(x) {
+  x[setdiff(names(x), c("suspicious", "DEGs", "percentile"))]
+})
+
+names(expression_results) <- names_list
+
+expression_results <- unlist(expression_results)
+
+expression_results <- map(expression_results, ~ as_tibble(.x, rownames = "Gene"))
+
+original_DEGs <- expression_results[["0.99.res"]] %>%
+    filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>% 
+    filter(!is.na(padj)) %>% 
+    filter(padj < thres) %>% 
+    select(Gene) %>% 
+    pull()
+    
+    
+# Define function to filter tibbles
+process_tibble <- function(tibble, lfc, thres, original_DEGs) {
+  tibble %>%
+  filter(Gene %in% original_DEGs) %>% 
+    filter(is.na(padj)) %>% 
+    select(baseMean) %>%
+    pull()
+    }
+
+
+# Apply the function to each tibble in the list
+expression_results <- map2(expression_results, names(expression_results), ~setNames(list(process_tibble(.x, lfc, thres, original_DEGs)), .y))
+
+
+# Convert to a single list of vectors
+expression_results <- lapply(expression_results, function(x) setNames(unlist(x), NULL))
+
+
+# Convert the list to a data frame
+df <- melt(expression_results)
+colnames(df) <- c("baseMean", "Percentile")
+
+df$baseMean <- log(df$baseMean)
+
+chosen_percentiles <- df %>% select(Percentile) %>% distinct() %>% slice(seq(1, n(), by = 5)) %>% pull()
+
+df <- df %>% filter(Percentile %in% chosen_percentiles)
+
+# Visualize stuff
+
+p2 <- ggplot(df, aes(x = Percentile, y = baseMean)) +
+  geom_boxplot() +
+  labs(title = "Box Plot of Vectors (Logarithmic Scale)",
+       x = "Percentile",
+       y = "Log(BaseMean) of removed DEGs")
+       
+
+print(p2)
+
+}
+
+
+
+```
+  
   * Extract the DE results. Default cutoffs are from Schurch _et al._, RNA, 2016
   
-  Suspicious degs are also returned now, users can autonomolusly decide if they want to keep them (they must be removed from the up and dn lists if that is the case
+  Suspicious degs are also returned now, users can autonomolusly decide if they want to keep them (they must be removed from the up and dn lists if that is the case)
 
 ````{r function_extract_results}
 "extract_results" <- function(dds,vst,contrast, relevant_samples,
@@ -190,7 +303,7 @@ compare_columns <- function(tibble1, tibble2) {
                               default_prefix="DE-",
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
-                              cooks_division = 1,
+                              cooks_percentile = 0.99,
                               optimize_cook = FALSE,
                               expression_cutoff=0,
                               debug=FALSE,filter=c("median",NULL),...){
@@ -206,50 +319,113 @@ compare_columns <- function(tibble1, tibble2) {
 
     p <- ncol(model.matrix(design(dds), colData(dds)))
 
-    cooks_cutoff <- qf(0.99, p, m - p)
+    cooks_cutoff <- qf(cooks_percentile, p, m - p)
 
     # Setting a cooks cutoff equal to the defualt, divided by the cooks_division parameter
 
     # validation
     if(length(contrast)==1){
-        res <- results(dds,name=contrast,filter = filter, cooksCutoff = cooks_cutoff/cooks_division)
+        res <- results(dds,name=contrast,filter = filter, cooksCutoff = cooks_cutoff)
     } else {
-        res <- results(dds,contrast=contrast,filter = filter, cooksCutoff = cooks_cutoff/cooks_division)
+        res <- results(dds,contrast=contrast,filter = filter, cooksCutoff = cooks_cutoff)
     }
-  
-  if (optimize_cook == TRUE) {
     
-    suspicious <- get_suspicious_genes(vst, relevant_samples, threshold=10)
+    stopifnot(length(sample_sel)==ncol(vst))
+  
+
+    #Find suspicious genes
+    
+    
+    suspicious_genes <- get_suspicious_genes(vst, relevant_samples, threshold=10)
     
     thres <- padj
     
-    while (cooks_division < 10 &&
-      as_tibble(res, rownames="Gene") %>% 
-           filter(Gene %in% suspicious) %>% 
-           filter(log2FoldChange > 0.5 | log2FoldChange < -0.5) %>% 
+    suspicious_degs <- as_tibble(res, rownames = "Gene") %>%
+    filter(Gene %in% suspicious_genes) %>%
+    filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
+    filter(!is.na(padj)) %>%
+    filter(padj < thres) %>%
+    select(Gene) %>%
+    pull()
+    
+    
+    maximum_suspicious <- length(suspicious_degs)/5
+
+
+    #I check for cooks optimization in any case, jsut to do the plots
+        
+    # Define a function to check the condition and update results
+optimize_cooks <- function(cooks_percentile) {
+  cooks_cutoff <- qf(cooks_percentile, p, m - p)
+  res <- if (length(contrast) == 1) {
+    results(dds, name = contrast, filter = filter, cooksCutoff = cooks_cutoff)
+  } else {
+    results(dds, contrast = contrast, filter = filter, cooksCutoff = cooks_cutoff)
+  }
+  
+  suspicious_DEGs <- as_tibble(res, rownames = "Gene") %>%
+    filter(Gene %in% suspicious) %>%
+    filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
+    filter(!is.na(padj)) %>%
+    filter(padj < thres) %>%
+    select(Gene) %>%
+    pull() %>%
+    length()
+  
+  DEGs <- as_tibble(res, rownames="Gene") %>% 
+           filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>% 
            filter(!is.na(padj)) %>% 
            filter(padj < thres) %>% 
            select(Gene) %>% 
-           pull() %>% 
-           length() > 0 )
-    {
-      cooks_division <- cooks_division + 1
-          if(length(contrast)==1){
-        res <- results(dds,name=contrast,filter = filter, cooksCutoff = cooks_cutoff/cooks_division)
-    } else {
-        res <- results(dds,contrast=contrast,filter = filter, cooksCutoff = cooks_cutoff/cooks_division)
-    }
-    }
-    
-    
+           pull() %>%
+           length()
+  
+  list(res = res, DEGs=DEGs, suspicious = suspicious_DEGs, percentile = cooks_percentile)
+}
+
+  # Use map to iterate over cooks_division values
+  results_list <- map(seq(0.99, 0.50, by = -0.01), optimize_cooks)
+
+  # Extract the count of suspicious genes from results
+  counts <- map_dbl(results_list, ~ .x$suspicious)
+
+
+
+  if (optimize_cook == TRUE) {
+  # Find the index where the condition is met
+  index <- which(counts < maximum_suspicious)
+
+  #Get the less stringent threshold that meets the condition, or the most stringent one if no threshold meets it
+
+  if (length(index) > 0) {
+    res <- results_list[[index[1]]]$res
+    cooks_percentile <- results_list[[index[1]]]$percentile
+  } else {
+    res <- tail(results_list, 1)[[1]]$res
+    cooks_percentile <- tail(results_list, 1)[[1]]$percentile
+  }
+
+  suspicious_degs <- as_tibble(res, rownames = "Gene") %>%
+    filter(Gene %in% suspicious_genes) %>%
+    filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
+    filter(!is.na(padj)) %>%
+    filter(padj < thres) %>%
+    select(Gene) %>%
+    pull()
     
   }
     
-    print(paste0("Final cooks_division values is ", cooks_division, ", corresponding to a cooks cutoff values of ", cooks_cutoff/cooks_division))
-  
-  
     
-    stopifnot(length(sample_sel)==ncol(vst))
+     print(paste0("The cooks percentile was ", cooks_percentile, ", corresponding to a cooks cutoff of ", qf(cooks_percentile, p, m - p)))
+  
+  
+  # Also do plots about the cooks cutoff optimization
+  
+  if(plot){
+    plot_cooks_cutoffs(results_list=results_list, lfc=lfc, thres=padj)
+      }
+    
+    
     
     if(plot){
         par(mar=c(5,5,5,5))
@@ -335,6 +511,7 @@ compare_columns <- function(tibble1, tibble2) {
         }
     }
     
+    
     sel <- res$padj <= padj & abs(res$log2FoldChange) >= lfc & ! is.na(res$padj) & 
         res$baseMean >= expression_cutoff
     
@@ -380,8 +557,11 @@ compare_columns <- function(tibble1, tibble2) {
     return(list(all=rownames(res[sel,]),
                 up=rownames(res[sel & res$log2FoldChange > 0,]),
                 dn=rownames(res[sel & res$log2FoldChange < 0,]),
-                suspicious=suspicious_DEGs))
+                suspicious=suspicious_degs))
 }
+
+
+```
 ````
 
 
