@@ -106,7 +106,7 @@ topGO <- function(set,background,annotation,
       if(getgenes){
         resultTable <- resultTable %>%
           mutate(allgenes = map(GO.ID,function(x){allGO[[x]]})) %>%
-          mutate(siggenes = map(allgenes,function(x){unlist(x)[unlist(x) %in% set]}))
+          mutate(siggenes = map(allgenes,function(x){unlist(x)[unlist(x) %in% set]})) %>%
           mutate(allgenes = map(allgenes,function(x){paste(x,collapse = "|")}) %>% unlist(use.names = F),
                  siggenes = map(siggenes,function(x){paste(x,collapse = "|")}) %>% unlist(use.names = F))
       }
