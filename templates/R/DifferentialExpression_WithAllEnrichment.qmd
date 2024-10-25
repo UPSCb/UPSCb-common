@@ -21,7 +21,8 @@ css: style.css
 ---
 
 **This pipeline does not work for everyone at the moment. It uses reticulate to access a conda environment present only in certain accounts.**
-**If you want to use this pipeline, ask Edoardo about how to make the conda environment.**
+**If you want to use this pipeline, ask Edoardo about how to make the conda environment.
+This pipeline also does not support parent-child test for GO enrichment**
 
 
 
