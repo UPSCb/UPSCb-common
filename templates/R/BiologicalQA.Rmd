@@ -1,0 +1,630 @@
+---
+title: "Project title"
+subtitle: "Biological QA"
+author: "Edoardo Piombo"
+date: "`r Sys.Date()`"
+output:
+ html_document:
+   fig_width: 9
+   fig_height: 6
+   toc: true
+   number_sections: true
+   toc_depth: 3
+   toc_float:
+     collapsed: TRUE
+     smooth_scroll: TRUE
+   code_folding: hide
+   theme: "flatly"
+   highlight: pygments
+   includes:
+     before_body: header.html
+     after_body: footer.html
+   css: style.css
+---
+
+<hr />
+&nbsp;
+
+# Setup
+This section and the next are relevant for reproducibility purposes. For results, please skip to section 3 (Quality Control)
+
+* Libraries
+
+````{r}
+suppressPackageStartupMessages({
+  library(data.table)
+  library(DESeq2)
+  library(emoji)
+  library(gplots)
+  library(gtools)
+  library(here)
+  library(hyperSpec)
+  library(limma)
+  library(magrittr)
+  library(parallel)
+  library(patchwork)
+  library(PCAtools)
+  library(pheatmap)
+  library(plotly)
+  library(pvclust)
+  library(RColorBrewer)
+  library(tidyverse)
+  library(tximport)
+  library(vsn)
+})
+````
+
+* Helper functions
+
+````{r}
+source(here("UPSCb-common/src/R/featureSelection.R"))
+````
+
+* Graphics
+
+````{r}
+hpal <- colorRampPalette(c("blue","white","red"))(100)
+pal <- brewer.pal(9,"Blues")
+````
+
+# Data
+* Sample information
+
+````{r}
+samples <- read_tsv(here("doc/METADATA_FILE"),
+                    col_types=cols(.default=col_factor()))
+````
+
+* tx2gene translation table
+
+````{r}
+
+tx2gene <- suppressMessages(read_delim(here("TX2GENE_FILE"),delim=" ",
+                                 col_names=c("TXID","GENE")))
+````
+
+* Raw data
+
+````{r}
+filelist <- list.files(here("SALMON_FOLDER"), 
+                          recursive = TRUE, 
+                          pattern = "quant.sf",
+                          full.names = TRUE)
+````
+
+* Sanity check to ensure that the data is sorted according to the sample info
+
+````{r}
+stopifnot(all(match(basename(dirname(filelist)),
+                    samples$SampleID) == 1:nrow(samples)))
+
+````
+
+* add filelist to samples as a new column
+
+````{r}
+samples %<>% mutate(Filenames = filelist)
+````
+
+* export full rank samples
+
+````{r}
+write_tsv(samples,here("doc/samples_full_rank.txt"))
+````
+
+Read the expression at the gene level
+
+````{r}
+txi <- suppressMessages(tximport(files = samples$Filenames,
+                                 type = "salmon",
+                                 tx2gene=tx2gene))
+counts <- txi$counts
+colnames(counts) <- samples$SampleID
+````
+
+
+<hr />
+&nbsp;
+
+# Quality Control
+* "Not expressed" genes
+
+````{r}
+sel <- rowSums(counts) == 0
+sprintf("%s%% percent (%s) of %s genes are not expressed",
+        round(sum(sel) * 100/ nrow(counts),digits=1),
+        sum(sel),
+        nrow(counts))
+````
+
+## Sequencing depth
+* Let us take a look at the sequencing depth, colouring by CHANGEME
+
+````{r}
+dat <- tibble(x=colnames(counts),y=colSums(counts)) %>% 
+  bind_cols(samples)
+
+ggplot(dat,aes(x,y,fill=Condition)) + 
+  geom_col() + 
+  scale_y_continuous(name="reads") +
+  facet_grid(~ factor(Condition), scales = "free") +
+  theme_bw() + 
+  theme(axis.text.x=element_text(angle=90,size=4),
+        axis.title.x=element_blank())
+````
+
+`r emoji("point_right")` *COMMENT*
+
+## per-gene mean expression
+
+_i.e._ the mean raw count of every gene across samples is calculated
+and displayed on a log10 scale.
+
+
+````{r}
+ggplot(data.frame(value=log10(rowMeans(counts))),aes(x=value)) + 
+  geom_density(na.rm = TRUE) +
+  ggtitle("gene mean raw counts distribution") +
+  scale_x_continuous(name="mean raw counts (log10)") + 
+  theme_bw()
+````
+
+`r emoji("point_right")` **The cumulative gene coverage is as expected.**
+
+
+## Per-sample expression
+
+````{r}
+dat <- as.data.frame(log10(counts)) %>% 
+  utils::stack() %>% 
+  mutate(Condition=samples$Condition[match(ind,samples$SampleID)])
+
+ggplot(dat,aes(x=values,group=ind,col=Condition)) + 
+  geom_density(na.rm = TRUE) + 
+  ggtitle("sample raw counts distribution") +
+  scale_x_continuous(name="per gene raw counts (log10)") + 
+  theme_bw()
+````
+
+`r emoji("point_right")` **COMMENT**
+
+* Export raw expression data
+
+````{r}
+dir.create(here("data/analysis/salmon"),showWarnings=FALSE,recursive=TRUE)
+write.csv(counts,file=here("data/analysis/salmon/raw-unormalised-gene-expression_data.csv"))
+````
+
+
+<hr />
+&nbsp;
+
+# Data normalisation 
+## Preparation
+
+For visualization, the data is submitted to a variance stabilization
+transformation using _DESeq2_. The dispersion is estimated independently
+of the sample tissue and replicate. 
+ 
+
+````{r}
+samples$Time <- factor(samples$Time)
+samples$Time <- relevel(samples$Time, ref = 'T0')
+
+samples$Treatment <- factor(samples$Treatment)
+samples$Treatment <- relevel(samples$Treatment, ref = 'Control')
+
+samples$Genotype <- factor(samples$Genotype)
+samples$Genotype <- relevel(samples$Genotype, ref = 'Col0')
+
+samples$Condition <- factor(samples$Condition)
+samples$Condition <- relevel(samples$Condition, ref = 'T0_Col0_Control')
+
+
+dds <- DESeqDataSetFromTximport(
+  txi=txi,
+  colData = samples,
+  design = ~ Condition)
+
+colnames(dds) <- samples$SampleID
+
+saveRDS(dds,file=here("data/analysis/salmon/dds.rds"))
+````
+
+## size factors 
+(_i.e._ the sequencing library size effect)
+
+
+````{r}
+dds <- estimateSizeFactors(dds) %>% 
+  suppressMessages()
+
+boxplot(normalizationFactors(dds),
+        main="Sequencing libraries size factor",
+        las=2,log="y")
+abline(h=1, col = "Red", lty = 3)
+````
+
+and without outliers:
+
+````{r}
+boxplot(normalizationFactors(dds),
+        main="Sequencing libraries size factor",
+        las=2,log="y", outline=FALSE)
+abline(h=1, col = "Red", lty = 3)
+
+````
+
+`r emoji("point_right")` **The samples being assigned a lower scaling factor are technical replicates, which is normal as they had low sequencing depth.**
+
+Assess whether there might be a difference in library size linked to a
+given metadata
+
+````{r}
+boxplot(split(t(normalizationFactors(dds)),dds$Condition),las=2,
+        main="Sequencing libraries size factor by Condition",
+        outline=FALSE)
+````
+
+`r emoji("point_right")` **COMMENT.**
+
+````{r}
+plot(colMeans(normalizationFactors(dds)),
+     log10(colSums(counts(dds))),ylab="log10 raw depth",
+     xlab="average scaling factor",
+     col=rainbow(n=nlevels(dds$Condition))[as.integer(dds$Condition)],pch=19)
+legend("bottomright",fill=rainbow(n=nlevels(dds$Condition)),
+       legend=levels(dds$Condition),cex=0.6)
+````
+
+`r emoji("point_right")` **The scaling factor appear linearly proportional to the sequencing depth.**
+
+## Variance Stabilising Transformation
+
+````{r}
+vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
+vst <- assay(vsd)
+vst <- vst - min(vst)
+````
+
+## Validation
+
+let's look at standard deviations before and after VST normalization. 
+This plot is to see whether there is a dependency of SD on the mean. 
+
+Before:  
+
+````{r}
+meanSdPlot(log1p(counts(dds))[rowSums(counts(dds))>0,])
+````
+
+After:
+
+````{r}
+meanSdPlot(vst[rowSums(vst)>0,])
+````
+
+After VST normalization, the red line is almost horizontal which indicates
+no dependency of variance on mean (homoscedastic).
+
+`r emoji("point_right")` **We can conclude that the variance stabilization worked adequately**
+
+<hr />
+&nbsp;
+
+## QC on the normalised data
+### PCA
+
+````{r}
+pc <- prcomp(t(vst))
+percent <- round(summary(pc)$importance[2,]*100)
+````
+
+Using PCAtools
+
+````{r}
+p <- pca(vst,colData(dds))
+````
+
+### Scree plot
+
+We define the number of variable of the model:
+
+````{r}
+nvar <- 3
+````
+
+An the number of possible combinations
+
+````{r}
+nlevel <- nlevels(dds$Condition)
+````
+
+We devise the optimal number of components using two methods
+
+````{r}
+horn <- suppressWarnings(parallelPCA(vst))
+elbow <- findElbowPoint(p$variance)
+````
+
+We plot the percentage explained by different components and try to empirically assess whether
+the observed number of components would be in agreement with our model's assumptions.
+
+* the red line represents number of variables in the model  
+* the orange line represents number of variable combinations.
+* the black dotted, annotate lines represent the optimal number of components 
+reported by the horn and elbow methods.
+
+
+````{r}
+ggplot(tibble(x=1:length(percent),y=cumsum(percent),p=percent),aes(x=x,y=y)) +
+  geom_line() + geom_col(aes(x,p)) + scale_y_continuous("variance explained (%)",limits=c(0,100)) +
+  scale_x_continuous("Principal component",breaks=1:length(percent),minor_breaks=NULL) + 
+  geom_vline(xintercept=nvar,colour="red",linetype="dashed",linewidth=0.5) + 
+  geom_hline(yintercept=cumsum(percent)[nvar],colour="red",linetype="dashed",linewidth=0.5) +
+  geom_vline(xintercept=nlevel,colour="orange",linetype="dashed",linewidth=0.5) + 
+  geom_hline(yintercept=cumsum(percent)[nlevel],colour="orange",linetype="dashed",linewidth=0.5) +
+  geom_vline(xintercept=c(horn$n,elbow),colour="black",linetype="dotted",linewidth=0.5) +
+  geom_label(aes(x = horn$n + 1, y = cumsum(percent)[horn$n],label = 'Horn', vjust = 1)) +
+  geom_label(aes(x = elbow + 1, y = cumsum(percent)[elbow],label = 'Elbow', vjust = 1))
+````
+
+`r emoji("point_right")` **COMMENT.**
+
+
+### PCA plot
+
+In the following plots, the color is the time, the shape is the Treatment, and the fill is the genotype
+
+````{r}
+pc.dat <- bind_cols(PC1=pc$x[,1],
+                    PC2=pc$x[,2],
+                    PC3=pc$x[,3],
+                    PC4=pc$x[,4],
+                    PC5=pc$x[,5],
+                    PC6=pc$x[,6],
+                    PC7=pc$x[,7],
+                    PC8=pc$x[,8],
+                    PC9=pc$x[,9],
+                    PC10=pc$x[,10],
+                    as.data.frame(colData(dds)))
+````
+
+* PC1 vs PC2
+
+````{r}
+p1 <- ggplot(pc.dat, aes(x=PC1, y=PC2, col=Time, shape=Treatment, fill=Genotype, text=Condition)) + 
+  geom_point(size=2) + 
+  ggtitle("Principal Component Analysis", subtitle="variance stabilized counts") +
+  scale_fill_manual(values=c("aap1" = "White", "Col0" = "Black"))
+
+ggplotly(p1) %>% 
+  layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
+         yaxis=list(title=paste("PC2 (",percent[2],"%)",sep=""))) %>% suppressWarnings()
+````
+
+
+
+`r emoji("point_right")` **COMMENT**
+
+
+
+### Loadings
+Loadings, _i.e._ the individual effect of every gene in a component can be studied. Here the most important ones are visualized throughout the different PCs
+
+````{r}
+plotloadings(p,
+             rangeRetain = 0.01,
+             labSize = 4.0,
+             title = 'Loadings plot',
+             subtitle = 'PC1 to PC5',
+             caption = 'Top 1% variables',
+             drawConnectors = TRUE)
+````
+
+`r emoji("point_right")` **These could be interesting to follow up as genes influencing the most a given PC**
+
+### Correlation
+This is a plot showing the correlation between the PC and the model variables. Note that while this might be relevant 
+for a linear variable, it is less so for categorical variables. Sorting categorical variables in a linear order according to the PCs above might help.
+
+No need to edit anything in our case, as we only have to values for every variable.
+
+
+
+Plotting only the relevant variables.
+
+
+````{r}
+suppressWarnings(eigencorplot(p,metavars=c('Treatment','Time', 'Genotype')))
+````
+
+`r emoji("point_right")` **COMMENT**
+
+
+### Samples Distance
+
+````{r}
+sampleDists <- dist(t(assay(vsd)))
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- colnames(sampleDistMatrix) <- dds$SampleID
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=pal,
+         fontsize_row = 4,
+         fontsize_col = 4
+)
+
+````
+
+`r emoji("point_right")` **COMMENT.**
+
+## Expressed genes
+The figures show the number of genes expressed per condition at different expression cutoffs. The scale on the lower plot is the same as on the upper.
+
+The first plot is a heatmap showing the number of genes above a given cutoff. 
+
+The second plot shows it as a ratio of the number of genes expressed for (a)
+given variable(s) divided by the average number of genes expressed at that cutoff across all variable(s). The latter plot is of course biased at higher cutoff as the number of genes becomes smaller and smaller.
+
+The point of these two plots is to assert whether the number of genes expressed varies between conditions, as this would break some assumptions for normalisation and differential expression.
+
+````{r}
+conds <- samples %>% 
+  select(Condition) %>% pull() %>% factor()
+
+
+dev.null <- rangeSamplesSummary(counts=vst,
+                                conditions=conds,
+                                nrep=3)
+````
+
+`r emoji("point_right")` **The number of expressed genes does not seem to vary between sample groups**
+
+Plotting the number of genes that are expressed (at any level)
+
+````{r}
+(nrow(vst) - colSums(vst==0)) %>% 
+  as.data.frame() %>% 
+  rownames_to_column("SampleID") %>% 
+  rename("ExpressedGenes"=".") %>% 
+  left_join(samples,by="SampleID") %>% 
+  ggplot(aes(x=Condition, y=ExpressedGenes, fill=Condition)) + 
+  geom_dotplot(binaxis = "y", stackdir = "center") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+````
+
+`r emoji("point_right")` **COMMENT**
+
+## Heatmap
+
+Here we want to visualise all the informative genes as a heatmap. We first filter the genes to remove those below the selected noise/signal cutoff. 
+
+The method employed here is naive, and relies on observing a sharp decrease in the number of genes within the first few low level of expression.
+
+Using an independent filtering method, such as implemented in DESeq2 would be more accurate, but for the purpose of QA validation, a naive approach is sufficient.
+
+Note that a sweet spot for computation is around 20 thousand genes, as building the hierarchical clustering for the heatmap scales non-linearly.
+
+
+````{r}
+
+sels <- rangeFeatureSelect(counts=vst,
+                           conditions=conds,
+                           nrep=3) %>% 
+  suppressWarnings()
+````
+
+`r emoji("point_right")` **Here a cutoff of 1 is applied**
+
+````{r}
+vst.cutoff <- 1
+
+nn <- nrow(vst[sels[[vst.cutoff+1]],])
+tn <- nrow(vst)
+pn <- round(nn * 100/ tn, digits=1)
+````
+
+`r emoji("warning")` **`r pn`%** (`r nn`) of total `r tn` genes are plotted below:
+
+ 
+
+````{r}
+mat <- t(scale(t(vst[sels[[vst.cutoff+1]],])))
+hm <- pheatmap(mat,
+               color = hpal,
+               border_color = NA,
+               clustering_distance_rows = "correlation",
+               clustering_method = "ward.D2",
+               show_rownames = FALSE,
+               labels_col = samples$SampleID,
+               angle_col = 90,
+               legend = FALSE)
+````
+
+`r emoji("point_right")` **COMMENT.**
+
+## Clustering of samples
+
+Below we assess the previous dendrogram's reproducibility and plot the clusters with au and bp where:
+
+* __au (Approximately Unbiased): computed by multiscale bootstrap resampling__ `r emoji("point_left")` a better approximation
+* __bp (Bootstrap Probability): computed by normal bootstrap resampling__
+
+`r emoji("warning")`Clusters with AU larger than 95% are highlighted by rectangles, which are strongly supported by data
+
+
+````{r}
+hm.pvclust <- pvclust(data = t(scale(t(vst[sels[[vst.cutoff+1]],]))),
+                       method.hclust = "ward.D2", 
+                       nboot = 100, parallel = TRUE)
+
+plot(hm.pvclust, labels = conds)
+pvrect(hm.pvclust)
+````
+
+`r emoji("point_right")` **The clustering is very robust**
+
+<details><summary>bootstrapping results as a table</summary>
+</details>
+
+# Technical replicates
+This part is not necessary if there are no techincal replicates in the dataset. Set include=TRUE if you want to run it.
+
+````{r, include=FALSE}
+
+txi$counts <- sapply(split.data.frame(t(txi$counts),samples$BioID),colSums)
+txi$length <- sapply(split.data.frame(t(txi$length),samples$BioID),colMaxs)
+
+stopifnot(colnames(txi$counts) == unique(samples$BioID))
+````
+
+# Counts are now in alphabetic order, check and reorder if necessary
+
+````{r, include=FALSE}
+samples_merged <- samples[match(colnames(txi$counts),samples$BioID),] %>% 
+  mutate(SampleID=BioID) %>% 
+  select(-BioID) %>% 
+  mutate(TimeTreat = paste0(Time, "_", Treatment))
+
+
+# Recreating the dds
+#This gives an error, fix it tomorrow
+biodds <- DESeqDataSetFromTximport(
+  txi=txi,
+  colData = samples_merged,
+  design = ~ 0 + Condition)
+
+# Exporting
+saveRDS(biodds,file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
+write_csv(samples_merged,here("doc/samples_merged-tech-reps.csv"))
+````
+
+
+<hr />
+&nbsp;
+
+# Summary
+`r emoji("star")` **COMMENT1**
+
+`r emoji("star")` **COMMENT2**
+
+`r emoji("star")` **COMMENT3**
+
+
+`r emoji("star")` **COMMENT4**
+
+```{r empty,eval=FALSE,echo=FALSE}
+```
+
+# Session Info
+<details><summary>Session Info</summary>
+```{r session info}
+sessionInfo()
+```
+</details>
+  
+&nbsp;
+
