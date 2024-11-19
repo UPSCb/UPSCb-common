@@ -395,8 +395,7 @@ pc.dat <- bind_cols(PC1=pc$x[,1],
 ````{r}
 p1 <- ggplot(pc.dat, aes(x=PC1, y=PC2, col=Time, shape=Treatment, fill=Genotype, text=Condition)) + 
   geom_point(size=2) + 
-  ggtitle("Principal Component Analysis", subtitle="variance stabilized counts") +
-  scale_fill_manual(values=c("aap1" = "White", "Col0" = "Black"))
+  ggtitle("Principal Component Analysis", subtitle="variance stabilized counts")
 
 ggplotly(p1) %>% 
   layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
