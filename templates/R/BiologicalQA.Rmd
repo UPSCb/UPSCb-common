@@ -570,7 +570,7 @@ pvrect(hm.pvclust)
 </details>
 
 # Technical replicates
-This part is not necessary if there are no techincal replicates in the dataset. Set include=TRUE if you want to run it.
+This part is not necessary if there are no techincal replicates in the dataset. Remove ", include=FALSE, eval=FALSE, echo=FALSE" in the next two chunks if you want to run it.
 
 ````{r, include=FALSE}
 
