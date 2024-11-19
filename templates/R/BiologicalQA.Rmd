@@ -393,13 +393,50 @@ pc.dat <- bind_cols(PC1=pc$x[,1],
 * PC1 vs PC2
 
 ````{r}
-p1 <- ggplot(pc.dat, aes(x=PC1, y=PC2, col=Time, shape=Treatment, fill=Genotype, text=Condition)) + 
+p1 <- ggplot(pc.dat, aes(x=PC1, y=PC2, col=Condition, shape=Replicate, fill=Condition, text=Condition)) + 
   geom_point(size=2) + 
   ggtitle("Principal Component Analysis", subtitle="variance stabilized counts")
 
 ggplotly(p1) %>% 
   layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
          yaxis=list(title=paste("PC2 (",percent[2],"%)",sep=""))) %>% suppressWarnings()
+````
+
+The same as a biplot
+
+````{r}
+biplot(p,x = 'PC1', y = 'PC2',
+       colby = 'Condition',
+       colLegendTitle = 'Condition',
+       encircle = TRUE,
+       encircleFill = TRUE,
+       legendPosition = 'top', 
+       legendLabSize = 16, legendIconSize = 8.0)
+````
+
+
+* PC1 vs PC3
+
+````{r}
+p1 <- ggplot(pc.dat, aes(x=PC1, y=PC3, col=Condition, shape=Replicate, fill=Condition, text=Condition)) + 
+  geom_point(size=2) + 
+  ggtitle("Principal Component Analysis", subtitle="variance stabilized counts")
+
+ggplotly(p1) %>% 
+  layout(xaxis=list(title=paste("PC1 (",percent[1],"%)",sep="")),
+         yaxis=list(title=paste("PC3 (",percent[3],"%)",sep=""))) %>% suppressWarnings()
+````
+
+The same as a biplot
+
+````{r}
+biplot(p,x = 'PC1', y = 'PC3',
+       colby = 'Condition',
+       colLegendTitle = 'Condition',
+       encircle = TRUE,
+       encircleFill = TRUE,
+       legendPosition = 'top', 
+       legendLabSize = 16, legendIconSize = 8.0)
 ````
 
 
