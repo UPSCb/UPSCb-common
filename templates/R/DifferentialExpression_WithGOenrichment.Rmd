@@ -99,10 +99,21 @@ vstdf_long <- vstdf %>%
   pivot_longer(cols = -Gene, names_to = "sample", values_to = "expression")
 
 
-# Extract group information from relevant_samples list
-group_info <- as_tibble(relevant_samples) %>% pivot_longer(names_to="group", values_to="sample", cols=everything()) %>% arrange(group)
+# Find the maximum length of the vectors in relevant_samples
+max_length <- max(sapply(relevant_samples, length))
 
-#Add group information to vsdtdf_long
+# Pad the vectors with NA to make them the same length
+padded_samples <- lapply(relevant_samples, function(x) {
+  length(x) <- max_length
+  x
+})
+
+# Convert to tibble
+group_info <- as_tibble(padded_samples) %>%
+  pivot_longer(names_to = "group", values_to = "sample", cols = everything()) %>%
+  arrange(group)
+
+# Add group information to vstdf_long
 vstdf_long <- vstdf_long %>%
   left_join(group_info, by = "sample")
 
@@ -349,7 +360,7 @@ print(p2)
     maximum_suspicious <- length(suspicious_degs)/5
 
 
-    #I check for cooks optimization in any case, jsut to do the plots
+    #I check for cooks optimization in any case, just to do the plots
         
     # Define a function to check the condition and update results
 optimize_cooks <- function(cooks_percentile) {
@@ -361,7 +372,7 @@ optimize_cooks <- function(cooks_percentile) {
   }
   
   suspicious_DEGs <- as_tibble(res, rownames = "Gene") %>%
-    filter(Gene %in% suspicious) %>%
+    filter(Gene %in% suspicious_genes) %>%
     filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
     filter(!is.na(padj)) %>%
     filter(padj < thres) %>%
