@@ -307,7 +307,7 @@ print(p2)
 "extract_results" <- function(dds,vst,contrast, relevant_samples,
                               padj=0.01,lfc=0.5,
                               plot=TRUE,verbose=TRUE,
-                              export=TRUE,default_dir=here("data/analysis/DE"),
+                              export=TRUE,default_dir=here("data/2024/analysis/DE"),
                               default_prefix="DE-",
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
@@ -357,6 +357,11 @@ print(p2)
     pull()
     
     
+    #Set maximum number of suspicious degs that I wnat to accept after the optimization phase, only if the suspicious degs are more than 10
+    message(sprintf("The number of suspicious DEGs is %s",
+                        length(suspicious_degs)))
+
+    if (length(suspicious_degs) > 10) {
     maximum_suspicious <- length(suspicious_degs)/5
 
 
@@ -422,7 +427,7 @@ optimize_cooks <- function(cooks_percentile) {
     pull()
     
   }
-    
+  
     
      print(paste0("The cooks percentile was ", cooks_percentile, ", corresponding to a cooks cutoff of ", qf(cooks_percentile, p, m - p)))
   
@@ -433,7 +438,7 @@ optimize_cooks <- function(cooks_percentile) {
     plot_cooks_cutoffs(results_list=results_list, lfc=lfc, thres=padj)
       }
     
-    
+    }
     
     if(plot){
         par(mar=c(5,5,5,5))
