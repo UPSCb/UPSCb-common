@@ -569,7 +569,7 @@ optimize_cooks <- function(cooks_percentile) {
 }
 
 
-```
+````
 
 
 * Apply extract results in a contrast-dependent manner
