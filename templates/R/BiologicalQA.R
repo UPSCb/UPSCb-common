@@ -433,9 +433,12 @@ dev.null <- rangeSamplesSummary(counts=vst,
 #' `r emoji("point_right")` **CHANGEME**
 #' 
 #' Plotting the number of genes that are expressed (at any level)
-do.call(rbind,split(t(nrow(vst) - colSums(vst==0)),samples$CHANGEME)) %>% as.data.frame() %>% 
-  rownames_to_column("CHANGEME") %>% pivot_longer(starts_with("V")) %>% 
-  ggplot(aes(x=CHANGEME, y=value, fill=CHANGEME)) + geom_dotplot(binaxis = "y", stackdir = "center")
+(nrow(vst) - colSums(vst==0)) %>% as.data.frame() %>% 
+  rownames_to_column("SampleID") %>% 
+  rename("ExpressedGenes"=".") %>% 
+  left_join(samples,by="SampleID") %>% 
+  ggplot(aes(x=CHANGEME, y=ExpressedGenes, fill=CHANGEME)) + 
+  geom_dotplot(binaxis = "y", stackdir = "center")
 
 #' `r emoji("point_right")` **CHANGEME**
 #' 
