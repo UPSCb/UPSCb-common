@@ -64,7 +64,7 @@ pal <- brewer.pal(9,"Blues")
 #' # The csv file should contain the sample information, including the sequencing file name, 
 #' # any relevant identifier, and the metadata of importance to the study design
 #' # as columns, e.g. the SamplingTime for a time series experiment
-#'  ```
+#' ```
 samples <- read_csv(here("doc/CHANGE-ME.csv"),
                     col_types=cols(.default=col_factor()))
 
@@ -91,7 +91,7 @@ filelist <- list.files(here("data/salmon"),
 #' ```{r Instructions3,eval=FALSE,echo=FALSE}
 #' # This step is to validate that the salmon files are inthe same order as 
 #' # described in the samples object. If not, then they need to be sorted
-#' ````
+#' ```
 stopifnot(all(match(sub("_CHANGE-ME.*","",basename(dirname(filelist))),
                     samples$SampleID) == 1:nrow(samples)))
 
@@ -395,7 +395,7 @@ plotloadings(p,
 #' ```{r beffect, echo=FALSE, eval=FALSE
 #' # You could do as follows to reorder a categorial variable
 #' p$metadata$Beffect <- ifelse(as.integer(dds$Batch)==1,3,as.integer(dds$Batch)-1)
-#' ````
+#' ```
 #' 
 #' 
 #' Plotting only the relevant variables.
