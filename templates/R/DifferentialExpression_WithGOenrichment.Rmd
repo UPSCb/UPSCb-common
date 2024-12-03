@@ -307,7 +307,7 @@ print(p2)
 "extract_results" <- function(dds,vst,contrast, relevant_samples,
                               padj=0.01,lfc=0.5,
                               plot=TRUE,verbose=TRUE,
-                              export=TRUE,default_dir=here("data/2024/analysis/DE"),
+                              export=TRUE,default_dir=here("data/analysis/DE"),
                               default_prefix="DE-",
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
@@ -867,6 +867,7 @@ detach("package:reshape2", unload=TRUE)
 
 
 ### Venn diagrams to compare selected conditions
+The names of the lists must be added manually
 #### Upregulated genes {-}
 
 ````{r venn_up}
@@ -881,7 +882,10 @@ list_for_Venn <- list(results_list[["Group1vsControl"]]$up,
 grid.draw(venn.diagram(list_for_Venn,
                        NULL,
                        fill=pal[1:4],
-                       category=names(up_res.list)
+                       category=c("Group1vsControl_up",
+                                  "Group1vsControl_dn",
+                                  "Group2vsControl_up",
+                                  "Group2vsControl_dn"
 ))
 ````
 
