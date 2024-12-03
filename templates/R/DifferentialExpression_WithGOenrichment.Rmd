@@ -603,7 +603,7 @@ optimize_cooks <- function(cooks_percentile) {
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
                               cooks_division = 1,
-                              optimize_cook = TRUE,
+                              optimize_cook = FALSE,
                               expression_cutoff=0,
                               debug=FALSE,filter=c("median",NULL),...)
 {
@@ -757,8 +757,6 @@ dds <- readRDS(file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
 design(dds) <- formula(~ Variable1 * Variable2)
 
 
-# Initialize an empty list to store all result objects
-results_list <- list()
 
 
 # Use map to apply the function to each comparison
@@ -769,7 +767,7 @@ process_comparison <- function(comparison) {
     comparison = comparison,
     samples = samples,
     variables_interest = c("Variable1", "Variable2"),
-    Name_Condition_Column = "Condition",
+    NameConditionColumn = "Condition",
     dds = dds,
     vst = vst,
     default_prefix = paste0("DE-", result_name, "_")
@@ -783,6 +781,8 @@ process_comparison <- function(comparison) {
   
   return(result)
 }
+
+results_list <- map(comparisons, process_comparison)
 
 # Set names for the results list
 names(results_list) <- map_chr(comparisons, function(comparison) {
