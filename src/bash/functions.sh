@@ -12,7 +12,7 @@ usage(){
 }
 
 abort(){
-  echo >&2 $1
+  echo >&2 "$1"
   usage
 }
 
@@ -31,8 +31,8 @@ containsElement () {
 ### ---------------------------------------------------------------------------
 ## preflight functions
 isExec () {
-  tool=`which $1 2>/dev/null`
-  if [ ! -z $tool ] && [ -f $tool ] && [ -x $tool ]; then
+  tool=$(which "$1" 2>/dev/null)
+  if [ -n "$tool" ] && [ -f "$tool" ] && [ -x "$tool" ]; then
     return 0
   else
     abort "The tool $tool is not available."
@@ -40,7 +40,7 @@ isExec () {
 }
 
 isEnvVarSet () {
-  if [ ! -z $1 ]; then
+  if [ -n "$1" ]; then
     abort "The environment variable $1 is not set"
   fi
 }
