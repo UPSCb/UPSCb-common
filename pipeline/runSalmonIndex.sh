@@ -7,13 +7,15 @@
 set -eux
 
 # load helpers
-source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
+# shellcheck disable=SC1091
+source "${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh"
 
 CPU=8
 OPTIONS=
 DECOY=
 
 # usage
+# shellcheck disable=SC2034
 USAGETXT=\
 "
   $0 [options] <singularity image> <transcript file> <output dir>
@@ -31,7 +33,7 @@ while getopts d:k:t:p option
 do
   case "$option" in
       d) DECOY=$OPTARG
-        if [ ! -f $DECOY ]; then
+        if [ ! -f "$DECOY" ]; then
           abort "The genome file to extract the decoys from does not exist"
         fi
         ;;
@@ -42,14 +44,14 @@ do
 		  abort "Unknow option";;
   esac
 done
-shift `expr $OPTIND - 1`
+shift $(("$OPTIND" - 1))
 
 # test
 if [ "$#" -ne "3" ]; then
   abort "This script expects 3 arguments"
 fi
 
-if [ ! -f $1 ]; then
+if [ ! -f "$1" ]; then
   abort "The first argument should be a singularity file"
 fi
 IMG=$1
@@ -58,25 +60,25 @@ shift
 ## enforce singularity
 [[ -z ${SINGULARITY_BINDPATH:-} ]] && abort "This function relies on singularity, set the SINGULARITY_BINDPATH environment variable"
 
-if [ ! -f $1 ]; then
+if [ ! -f "$1" ]; then
   abort "The second argument should be a fasta file"
 fi
 tx=$1
 shift
 
-if [ ! -d $1 ]; then
+if [ ! -d "$1" ]; then
   abort "The output directory does not exist, create it first"
 fi
 out=$1
 shift
 
-cd $out
-if [ ! -z $DECOY ]; then
-  gunzip -c $DECOY | grep "^>" | cut -d " " -f 1 | tr -d '>' > decoys.txt
-  cat $tx $DECOY > gentrome.fa.gz
+cd "$out"
+if [ -n "$DECOY" ]; then
+  gunzip -c "$DECOY" | grep "^>" | cut -d " " -f 1 | tr -d '>' > decoys.txt
+  cat "$tx" "$DECOY" > gentrome.fa.gz
   OPTIONS="-d decoys.txt $OPTIONS"
   tx=gentrome.fa.gz
 fi
 
 # exec
-singularity exec $IMG salmon index -t $tx -i . -p $CPU $OPTIONS
+singularity exec "$IMG" salmon index -t "$tx" -i . -p "$CPU" "$OPTIONS"

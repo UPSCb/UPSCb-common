@@ -11,6 +11,7 @@ FORCE=
 METHOD="-m irp"
 
 # usage
+# shellcheck disable=SC2034
 USAGETXT=\
 "
   Usage: $0 [options] <out dir> <sf file> [sf file] ... [sf file]
@@ -23,7 +24,7 @@ USAGETXT=\
 "
 CPU=32
 
-source ${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh
+source "${SLURM_SUBMIT_DIR:-$(pwd)}/../UPSCb-common/src/bash/functions.sh"
 
 isExec seidr
 
@@ -33,12 +34,12 @@ do
     case "$option" in
         f) FORCE="-f";;
         k) DIRECTIONALITY=;;
-        k) METHOD="-m $OPTARG";;
+        m) METHOD="-m $OPTARG";;
         \?) ## unknown flag
 		    abort;;
     esac
 done
-shift `expr $OPTIND - 1`
+shift $(("$OPTIND" - 1))
 
 OPTIONS="$FORCE $DIRECTIONALITY $METHOD"
 
@@ -46,14 +47,15 @@ if [ $# -lt 2 ]; then
   abort "This script expects at least 2 arguments"
 fi
 
-if [ ! -d $1 ]; then
+if [ ! -d "$1" ]; then
   abort "The first argument needs to be an existing directory"
 fi
 
 # run
-cd $1
+cd "$1"
 shift
 export OMP_NUM_THREADS=$CPU
 #rm -f aggregated.sf
 
-seidr aggregate $OPTIONS -O $CPU $@
+# shellcheck disable=SC2068
+seidr aggregate "$OPTIONS" -O $CPU $@
