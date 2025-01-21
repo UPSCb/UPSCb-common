@@ -81,4 +81,5 @@ if [ -n "$DECOY" ]; then
 fi
 
 # exec
-singularity exec "$IMG" salmon index -t "$tx" -i . -p "$CPU" "$OPTIONS"
+# shellcheck disable=SC2086
+singularity exec "$IMG" salmon index -t "$tx" -i . -p "$CPU" $OPTIONS
