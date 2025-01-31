@@ -755,7 +755,7 @@ process_comparison <- function(comparison) {
     comparison = comparison,
     samples = samples,
     variables_interest = c("Variable1", "Variable2"),
-    Name_Condition_Column = "Condition",
+    NameConditionColumn = "Condition",
     dds = dds,
     vst = vst,
     default_prefix = paste0("DE-", result_name, "_")
