@@ -315,14 +315,13 @@ print(p2)
         message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
     }
   
-    # Determining default cooks cutoff
+    # Setting cooks cutoff according to cooks_percentile parameter
     m <- ncol(counts(dds))
 
     p <- ncol(model.matrix(design(dds), colData(dds)))
 
     cooks_cutoff <- qf(cooks_percentile, p, m - p)
 
-    # Setting a cooks cutoff equal to the defualt, divided by the cooks_division parameter
 
     # validation
     if(length(contrast)==1){
@@ -384,7 +383,7 @@ optimize_cooks <- function(cooks_percentile) {
   list(res = res, DEGs=DEGs, suspicious = suspicious_DEGs, percentile = cooks_percentile)
 }
 
-  # Use map to iterate over cooks_division values
+  # Use map to iterate over cooks_percentile values
   results_list <- map(seq(0.99, 0.50, by = -0.01), optimize_cooks)
 
   # Extract the count of suspicious genes from results
@@ -591,7 +590,7 @@ optimize_cooks <- function(cooks_percentile) {
                               default_prefix="DE-",
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
-                              cooks_division = 1,
+                              cooks_percentile = 0.99,
                               optimize_cook = TRUE,
                               expression_cutoff=0,
                               debug=FALSE,filter=c("median",NULL),...)
@@ -663,7 +662,7 @@ optimize_cooks <- function(cooks_percentile) {
                               default_prefix=default_prefix,
                               labels=labels,
                               sample_sel=sample_sel,
-                              cooks_division = cooks_division,
+                              cooks_percentile = cooks_percentile,
                               optimize_cook = optimize_cook,
                               expression_cutoff=expression_cutoff,
                               debug=debug,filter=filter
@@ -755,7 +754,7 @@ process_comparison <- function(comparison) {
     comparison = comparison,
     samples = samples,
     variables_interest = c("Variable1", "Variable2"),
-    NameConditionColumn = "Condition",
+    Name_Condition_Column = "Condition",
     dds = dds,
     vst = vst,
     default_prefix = paste0("DE-", result_name, "_")
