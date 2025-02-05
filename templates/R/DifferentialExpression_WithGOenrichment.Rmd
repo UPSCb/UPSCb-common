@@ -276,7 +276,7 @@ expression_results <- lapply(expression_results, function(x) setNames(unlist(x),
 df <- melt(expression_results)
 colnames(df) <- c("baseMean", "Percentile")
 
-df$baseMean <- log(df$baseMean)
+df$baseMean <- log10(df$baseMean)
 
 chosen_percentiles <- df %>% select(Percentile) %>% distinct() %>% slice(seq(1, n(), by = 5)) %>% pull()
 
