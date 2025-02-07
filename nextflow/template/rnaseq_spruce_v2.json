@@ -1,0 +1,15 @@
+{
+    "input": "<project>/doc/sample_sheet.csv",
+    "outdir": "data",
+    "fasta": "<reference>/Picea-abies/v2.0/fasta/Picab02_chromosomes_and_unplaced.fa.gz",
+    "gff": "<reference>/Picea-abies/v2.0/gff3/Picab02_230926_at01_all_sorted.gff.gz",
+    "transcript_fasta": "<reference>/Picea-abies/v2.0/fasta/Picab02_230926_at01_all_mRNA.fa.gz",
+    "salmon_index": "<reference>/Picea-abies/v2.0/indices/salmon/Picab02_230926_at01_all_mRNA_salmon-version-1-dot-10-dot-3",
+    "remove_ribo_rna": true,
+    "ribo_database_manifest": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/sortmerna_manifest.txt",
+    "sortmerna_index": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/idx",
+    "pseudo_aligner": "salmon",
+    "extra_salmon_quant_args": "--dumpEq --numGibbsSamples 30 --gcBias --seqBias --posBias",
+    "save_non_ribo_reads": false,
+    "skip_alignment": true
+}
