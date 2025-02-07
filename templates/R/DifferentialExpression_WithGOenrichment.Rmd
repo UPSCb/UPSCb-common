@@ -189,17 +189,17 @@ compare_columns <- function(tibble1, tibble2) {
   
 ```{r}
 
-"plot_cooks_cutoffs" <- function(results_list, lfc, thres) {
+"plot_cooks_cutoffs" <- function(results_cooks_list, lfc, thres) {
 
 ## Plot 1
-plotting_results <- lapply(results_list, function(x) {
+plotting_results <- lapply(results_cooks_list, function(x) {
   x[setdiff(names(x), "res")]
 })
 
 # Extract percentile values
 names_list <- sapply(plotting_results, function(x) x$percentile)
 
-# Set names of results_list
+# Set names of results_cooks_list
 names(plotting_results) <- names_list
 
 #Make a tibble for plotting
@@ -234,9 +234,9 @@ p1 <- ggplot(df, aes(x = Percentile)) +
 
 ## Plot 2
 
-names_list <- sapply(results_list, function(x) x$percentile)
+names_list <- sapply(results_cooks_list, function(x) x$percentile)
 
-expression_results <- lapply(results_list, function(x) {
+expression_results <- lapply(results_cooks_list, function(x) {
   x[setdiff(names(x), c("suspicious", "DEGs", "percentile"))]
 })
 
@@ -276,7 +276,7 @@ expression_results <- lapply(expression_results, function(x) setNames(unlist(x),
 df <- melt(expression_results)
 colnames(df) <- c("baseMean", "Percentile")
 
-df$baseMean <- log(df$baseMean)
+df$baseMean <- log10(df$baseMean)
 
 chosen_percentiles <- df %>% select(Percentile) %>% distinct() %>% slice(seq(1, n(), by = 5)) %>% pull()
 
@@ -322,14 +322,13 @@ print(p2)
         message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
     }
   
-    # Determining default cooks cutoff
+    # Setting a cooks_cutoff according to the cooks_percentile parameter
     m <- ncol(counts(dds))
 
     p <- ncol(model.matrix(design(dds), colData(dds)))
 
     cooks_cutoff <- qf(cooks_percentile, p, m - p)
 
-    # Setting a cooks cutoff equal to the defualt, divided by the cooks_division parameter
 
     # validation
     if(length(contrast)==1){
@@ -396,11 +395,11 @@ optimize_cooks <- function(cooks_percentile) {
   list(res = res, DEGs=DEGs, suspicious = suspicious_DEGs, percentile = cooks_percentile)
 }
 
-  # Use map to iterate over cooks_division values
-  results_list <- map(seq(0.99, 0.50, by = -0.01), optimize_cooks)
+  # Use map to iterate over cooks_percentile values
+  results_cooks_list <- map(seq(0.99, 0.50, by = -0.01), optimize_cooks)
 
   # Extract the count of suspicious genes from results
-  counts <- map_dbl(results_list, ~ .x$suspicious)
+  counts <- map_dbl(results_cooks_list, ~ .x$suspicious)
 
 
 
@@ -411,11 +410,11 @@ optimize_cooks <- function(cooks_percentile) {
   #Get the less stringent threshold that meets the condition, or the most stringent one if no threshold meets it
 
   if (length(index) > 0) {
-    res <- results_list[[index[1]]]$res
-    cooks_percentile <- results_list[[index[1]]]$percentile
+    res <- results_cooks_list[[index[1]]]$res
+    cooks_percentile <- results_cooks_list[[index[1]]]$percentile
   } else {
-    res <- tail(results_list, 1)[[1]]$res
-    cooks_percentile <- tail(results_list, 1)[[1]]$percentile
+    res <- tail(results_cooks_list, 1)[[1]]$res
+    cooks_percentile <- tail(results_cooks_list, 1)[[1]]$percentile
   }
 
   suspicious_degs <- as_tibble(res, rownames = "Gene") %>%
@@ -435,7 +434,7 @@ optimize_cooks <- function(cooks_percentile) {
   # Also do plots about the cooks cutoff optimization
   
   if(plot){
-    plot_cooks_cutoffs(results_list=results_list, lfc=lfc, thres=padj)
+    plot_cooks_cutoffs(results_cooks_list=results_cooks_list, lfc=lfc, thres=padj)
       }
     
     }
@@ -602,7 +601,7 @@ optimize_cooks <- function(cooks_percentile) {
                               default_prefix="DE-",
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
-                              cooks_division = 1,
+                              cooks_percentile = 0.99,
                               optimize_cook = FALSE,
                               expression_cutoff=0,
                               debug=FALSE,filter=c("median",NULL),...)
@@ -674,7 +673,7 @@ optimize_cooks <- function(cooks_percentile) {
                               default_prefix=default_prefix,
                               labels=labels,
                               sample_sel=sample_sel,
-                              cooks_division = cooks_division,
+                              cooks_percentile = cooks_percentile,
                               optimize_cook = optimize_cook,
                               expression_cutoff=expression_cutoff,
                               debug=debug,filter=filter
