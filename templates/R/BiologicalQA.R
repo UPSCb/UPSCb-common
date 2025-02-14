@@ -216,6 +216,16 @@ save(dds,file=here("data/analysis/salmon/dds.rda"))
 dds <- estimateSizeFactors(dds) %>% 
   suppressMessages()
 
+#' ```{r echo=FALSE,eval=FALSE}
+#' # If it takes too long to plot, replace with
+#' source(here("UPSCb-common/src/R/percentile.R"))
+#' percNF <- apply(normalizationFactors(dds),2,percentile)
+#' boxplot(percNF,
+#'         main="Sequencing libraries size factor",
+#'         las=2,log="y", outline=FALSE)
+#' abline(h=1, col = "Red", lty = 3)
+#' ```
+#'
 boxplot(normalizationFactors(dds),
         main="Sequencing libraries size factor",
         las=2,log="y")
@@ -232,6 +242,10 @@ abline(h=1, col = "Red", lty = 3)
 #' Assess whether there might be a difference in library size linked to a
 #' given metadata
 #' ```{r echo=FALSE,eval=FALSE}
+#' # If it takes too long to plot, replace with
+#' boxplot(split(t(percNF),dds$CHANGEME),las=2,
+#'        main="Sequencing libraries size factor by CHANGEME",
+#'        outline=FALSE)
 #' # Developer: This would need to be ggplot2'ed
 #' ```
 boxplot(split(t(normalizationFactors(dds)),dds$CHANGEME),las=2,
@@ -240,12 +254,16 @@ boxplot(split(t(normalizationFactors(dds)),dds$CHANGEME),las=2,
 
 #' `r emoji("point_right")` **The scaling factor distribution is (in)dependent of the CHANGEME variable.**
 
-plot(colMeans(normalizationFactors(dds)),
-     log10(colSums(counts(dds))),ylab="log10 raw depth",
-     xlab="average scaling factor",
-     col=rainbow(n=nlevels(dds$CHANGEME))[as.integer(dds$CHANGEME)],pch=19)
-legend("bottomright",fill=rainbow(n=nlevels(dds$CHANGEME)),
-       legend=levels(dds$CHANGEME),cex=0.6)
+samples %<>% mutate(scalingFactor=colMeans(normalizationFactors(dds)),
+                    log10TotalExp=log10(colSums(counts(dds))))
+
+ggplot(samples,aes(x=scalingFactor,y=log10TotalExp,colour=CHANGEME,group=CHANGEME)) +
+  geom_point() +
+  geom_smooth(method="lm",se=FALSE,formula=y~x)
+
+ggplot(samples,aes(x=scalingFactor,y=log10TotalExp,colour=CHANGEME,group=CHANGEME)) +
+  geom_point() +
+geom_smooth(method="loess",se=FALSE,formula=y~x)
 
 #' `r emoji("point_right")` **The scaling factor appear linearly proportional to the sequencing depth.**
 #' 
@@ -253,6 +271,7 @@ legend("bottomright",fill=rainbow(n=nlevels(dds$CHANGEME)),
 vsd <- varianceStabilizingTransformation(dds, blind=TRUE)
 vst <- assay(vsd)
 vst <- vst - min(vst)
+save(vst,file=here("data/analysis/salmon/vst_blind.rda"))
 
 #' ## Validation
 #' 
