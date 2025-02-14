@@ -326,13 +326,15 @@ elbow <- findElbowPoint(p$variance)
 ggplot(tibble(x=1:length(percent),y=cumsum(percent),p=percent),aes(x=x,y=y)) +
   geom_line() + geom_col(aes(x,p)) + scale_y_continuous("variance explained (%)",limits=c(0,100)) +
   scale_x_continuous("Principal component",breaks=1:length(percent),minor_breaks=NULL) + 
+  theme(axis.text.x=element_text(angle=90,size=6)) +
   geom_vline(xintercept=nvar,colour="red",linetype="dashed",linewidth=0.5) + 
   geom_hline(yintercept=cumsum(percent)[nvar],colour="red",linetype="dashed",linewidth=0.5) +
   geom_vline(xintercept=nlevel,colour="orange",linetype="dashed",linewidth=0.5) + 
   geom_hline(yintercept=cumsum(percent)[nlevel],colour="orange",linetype="dashed",linewidth=0.5) +
   geom_vline(xintercept=c(horn$n,elbow),colour="black",linetype="dotted",linewidth=0.5) +
-  geom_label(aes(x = horn$n + 1, y = cumsum(percent)[horn$n],label = 'Horn', vjust = 1)) +
-  geom_label(aes(x = elbow + 1, y = cumsum(percent)[elbow],label = 'Elbow', vjust = 1))
+  annotate("label",x = c(horn$n + 1,elbow + 1),
+           y = c(cumsum(percent)[horn$n],cumsum(percent)[elbow]),
+           label = c('Horn','Elbow'), vjust = 1)
 
 #' `r emoji("point_right")` **The first component explains 40% of the data variance. Both metrics, Horn and Elbow suggest that one or two components are those that are informative. Indeed the slope of the curve is fairly linear past PC3 and that would indicate that the remaining PCs only capture sample specific noise. While this is only empirical, the scree plot support having only few variables of importance in the dataset.**
 #'
