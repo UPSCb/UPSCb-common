@@ -145,7 +145,7 @@ low_value <- min_non_zero * 0.5  # Adjust the fraction as needed
     mutate_all(~replace_na(., 1))
 
 
-#In the end I only use max_div_avg to determine suspicious genes
+# In the end I only use max_div_avg to determine suspicious genes
   suspicious_genes  <- results %>% 
   filter(max_div_avg > threshold) %>% 
   select(Gene) %>%

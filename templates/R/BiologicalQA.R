@@ -441,11 +441,12 @@ pheatmap(sampleDistMatrix,
 #' `r emoji("point_right")` **CHANGEME**
 #' 
 #' ## Sequencing depth
-#' The figures show the number of genes expressed per condition at different expression cutoffs. The scale on the lower plot is the same as on the upper.
-#' The first plot is a heatmap showing the number of genes above a given cutoff. The second plot shows it as a ratio of the number of genes expressed for (a)
-#' given variable(s) divided by the average number of genes expressed at that cutoff across all variable(s). The latter plot is of course biased at higher cutoff 
-#' as the number of genes becomes smaller and smaller.
-#' The point of these two plots is to assert whether the number of genes expressed varies between conditions, as this would break some assumptions for normalisation and differential expression.
+#' The figure shows the number of genes expressed per condition at different expression cutoffs. 
+#' It is a heatmap showing the number of genes above a given cutoff on the VST. 
+#' The number of genes is calculated as the sum of genes with an expression being above the increasing 
+#' VST cutoff (X axis) for a least X replicates in at least one condition.
+#' The point of the plot is to assert whether the number of genes expressed varies between conditions, 
+#' as this would break some assumptions for normalisation and differential expression.
 conds <- factor(paste(dds$CHANGEME,dds$CHANGEME))
 dev.null <- rangeSamplesSummary(counts=vst,
                                 conditions=conds,

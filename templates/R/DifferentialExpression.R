@@ -220,52 +220,75 @@ mar <- par("mar")
 }
 
 #' 3. extract and plot the enrichment results
-extractEnrichmentResults <- function(enrichment,task="go",
+extractEnrichmentResults <- function(enrichment,
                                      diff.exp=c("all","up","dn"),
                                      go.namespace=c("BP","CC","MF"),
-                                     genes=NULL,export=TRUE,plot=TRUE,
-                                     default_dir=here("data/analysis/DE"),
-                                     default_prefix="DE",
-                                     url="athaliana"){
+                                     genes=NULL,export=FALSE,
+                                     plot=TRUE,export_pdf=TRUE,
+                                     default_dir=here("analysis/DE"),
+                                     default_prefix="DE"){
     # process args
     diff.exp <- match.arg(diff.exp)
     de <- ifelse(diff.exp=="all","none",
                  ifelse(diff.exp=="dn","down",diff.exp))
 
     # sanity
-    if( is.null(enrichment[[task]]) | length(enrichment[[task]]) == 0){
-        message(paste("No enrichment for",task))
+    if(is.null(unlist(enrichment)) | length(unlist(enrichment)) == 0){
+        message("No GO enrichment for",names(enrichment))
     } else {
-
         # write out
         if(export){
-            write_tsv(enrichment[[task]],
+            write_tsv(bind_rows(enrichment),
                       file=here(default_dir,
                                 paste0(default_prefix,"-genes_GO-enrichment.tsv")))
             if(!is.null(genes)){
                 write_tsv(
-                    enrichedTermToGenes(genes=genes,terms=enrichment[[task]]$id,url=url,mc.cores=16L),
+                    enrichedTermToGenes(genes=genes,terms=enrichment$id,url=url,mc.cores=16L),
                     file=here(default_dir,
                               paste0(default_prefix,"-enriched-term-to-genes.tsv"))
                 )
             }
         }
-        
-        if(plot){
-            sapply(go.namespace,function(ns){
-                titles <- c(BP="Biological Process",
-                            CC="Cellular Component",
-                            MF="Molecular Function")
-                suppressWarnings(tryCatch({plotEnrichedTreemap(enrichment,enrichment=task,
-                                                               namespace=ns,
-                                                               de=de,title=paste(default_prefix,titles[ns]))},
-                                          error = function(e) {
-                                              message(paste("Treemap plot failed for",ns, 
-                                                            "because of:",e))
-                                              return(NULL)
-                                          }))
+      if(plot){
+        gocatname <- c(BP="Biological Process",
+                       CC="Cellular Component",
+                       MF="Molecular Function")
+        degname <- c(all="all DEGs",
+                     up="up-regulated DEGs",
+                     dn="down-regulated DEGs")
+        lapply(names(enrichment),function(n){
+          lapply(names(enrichment[[n]]),function(de){
+            lapply(names(enrichment[[n]][[de]]),function(gocat){
+              dat <- enrichment[[n]][[de]][[gocat]]
+              if(is.null(dat)){
+                message("No GO enrichment for ",degname[de]," in category ",gocatname[gocat])
+              } else {
+                dat$GeneRatio <- dat$Significant/dat$Annotated
+                dat$adjustedPvalue <- parse_double(sub("<","",dat$FDR))
+                stopifnot(all(! is.na(dat$adjustedPvalue)))
+                dat$Count <- as.numeric(dat$Significant)
+                dat <- dat[order(dat$GeneRatio),]
+                dat$Term <- factor(dat$Term, levels = unique(dat$Term))
+                p <- ggplot(dat, aes(x =Term, y = GeneRatio, color = adjustedPvalue, size = Count)) + 
+                  geom_point() +
+                  scale_color_gradient(low = "red", high = "blue") +
+                  theme_bw() + 
+                  ylab("GeneRatio") + 
+                  xlab("") + 
+                  ggtitle(label=paste0("GO enrichment:",degname[de]),
+                          subtitle=(gocatname[gocat])) +
+                  coord_flip()
+                
+                print(p)
+                
+                ggsave(file=here(default_dir,
+                                 paste(default_prefix,n,de,gocat,"genes_GO-enrichment.pdf",sep="_")),
+                       p)
+              }
             })
-        }
+          })
+        })
+      }
     }
 }
 
