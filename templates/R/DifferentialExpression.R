@@ -275,7 +275,7 @@ extractEnrichmentResults <- function(enrichment,
                   theme_bw() + 
                   ylab("GeneRatio") + 
                   xlab("") + 
-                  ggtitle(label=paste0("GO enrichment:",degname[de]),
+                  ggtitle(label=paste("GO enrichment:",degname[de]),
                           subtitle=(gocatname[gocat])) +
                   coord_flip()
                 
