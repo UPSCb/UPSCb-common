@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH -J repeatmasker
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -c 8
 #SBATCH -t 7-00:00:00
 #SBATCH --mail-type=ALL

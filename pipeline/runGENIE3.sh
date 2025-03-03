@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -c 16
 #SBATCH --mail-type=ALL
 

@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -t 24:00:00
 #SBATCH --mail-type=ALL
 ## SBATCH --mem=24G

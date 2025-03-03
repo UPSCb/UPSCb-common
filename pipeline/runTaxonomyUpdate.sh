@@ -40,4 +40,4 @@ Rscript $UPSCb/src/R/updateTaxonomyDivisionTable.R
 sqlite3 taxonomy.sqlite < $UPSCb/src/sql/taxonomy-add-gi-relationship.sql
 
 # compress
-gzip gi_taxid_nucl.dmp gi_taxid_prot.dmp nodes.dmp names.dmp
+gzip gi_taxid_nucl.dmp gi_taxid_prot.dmp mains.dmp names.dmp

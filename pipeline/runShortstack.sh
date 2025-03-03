@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --mail-type=all
-#SBATCH -p node -n 16
+#SBATCH -p main -n 16
 #SBATCH --mem=128G
 #SBATCH -t 4-00:00:00
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --mail-type=all
-#SBATCH -p core -n 4
+#SBATCH -p main -n 4
 #SBATCH -t 1-00:00:00
 #SBATCH --mem=32GB
 

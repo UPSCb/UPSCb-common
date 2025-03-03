@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 #SBATCH -J arrayrepeatmasker.job
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -c 8
 #SBATCH --mail-type=ALL
 

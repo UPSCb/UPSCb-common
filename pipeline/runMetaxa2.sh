@@ -2,7 +2,7 @@
 
 #SBATCH -c 2
 #SBATCH --mem=8G
-#SBATCH -p core
+#SBATCH -p main
 
 usage(){
     echo "runMetaxa2.sh <forward_reads> <reverse_reads> <output_directory>"

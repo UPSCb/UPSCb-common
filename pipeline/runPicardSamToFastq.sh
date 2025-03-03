@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH -t 6:00:00
-#SBATCH -p core -n 2
+#SBATCH -p main -n 2
 #SBATCH --mail-type=FAIL
 
 set -eu

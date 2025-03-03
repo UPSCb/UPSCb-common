@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p node
+#SBATCH -p main
 #SBATCH -n 16
 #SBATCH --mem=100G
 #SBATCH -t 2-00:00:00

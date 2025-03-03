@@ -2,7 +2,7 @@
 
 #SBATCH -c 4
 #SBATCH --mem=8G
-#SBATCH -p core
+#SBATCH -p main
 
 usage(){
     echo "runSortmerna.sh <forward_reads> <reverse_reads> <output_directory>"

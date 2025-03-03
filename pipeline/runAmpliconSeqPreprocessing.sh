@@ -1,6 +1,6 @@
 #! /bin/env bash
 
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 1
 #SBATCH -t 7-00:00:00
 #SBATCH --mail-type=ALL

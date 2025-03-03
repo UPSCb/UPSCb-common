@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p core -n 1
+#SBATCH -p main -n 1
 #SBATCH -A snic2018-13-9
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=nicolas.delhomme@umu.se

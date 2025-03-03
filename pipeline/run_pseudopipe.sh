@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 1
 #SBATCH --mem 100G
 #SBATCH -t 7-00:00:00

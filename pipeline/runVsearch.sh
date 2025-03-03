@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#SBATCH -p node
+#SBATCH -p main
 #SBATCH --mem=16G
 #SBATCH --mail-type=ALL
 #SBATCH -n 8

@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 #SBATCH -t 4:00:00
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 1
 
 set -e

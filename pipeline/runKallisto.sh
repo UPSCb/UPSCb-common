@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p core -n 8
+#SBATCH -p main -n 8
 #SBATCH -t 3:00:00
 #SBATCH --mem=64GB
 #SBATCH --mail-type=ALL

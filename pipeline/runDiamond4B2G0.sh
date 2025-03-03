@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 20
 ## no mail at the time
 #SBATCH --mail-type=ALL

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p core
+#SBATCH -p main
 #SBACTH -n 16
 
 set -ex

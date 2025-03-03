@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -A facility
 #SBATCH -t 4:00:00
-#SBATCH -p core -n 2
+#SBATCH -p main -n 2
 #SBATCH --mail-type=ALL
 
 set -ex

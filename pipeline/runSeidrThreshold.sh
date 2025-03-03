@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -A facility
-#SBATCH -p core -n 16
+#SBATCH -p main -n 16
 #SBATCH -t 12:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --mem=96GB

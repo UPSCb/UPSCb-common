@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#SBATCH -p node
+#SBATCH -p main
 #SBATCH -n 20
 #SBATCH --mem 64000
 #SBATCH -t 2-00:00:00

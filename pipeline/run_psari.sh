@@ -9,7 +9,7 @@ set -ex
 #SBATCH -o /mnt/picea/home/mdong/Git/UPSCb/projects/spruce-pseudogene/reports/psari/pseudo.out
 #SBATCH -e /mnt/picea/home/mdong/Git/UPSCb/projects/spruce-pseudogene/reports/psari/pseudo.err
 #SBATCH -J psari.job
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -c 8
 #SBATCH -t 1-00:00:00
 #SBATCH --mail-user mickael.dong@u-psud.fr

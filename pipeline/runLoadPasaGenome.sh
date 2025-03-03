@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 62
 #SBATCH --mem 500GB
 #SBATCH	--mail-user=ALL
@@ -40,7 +40,7 @@ $PASAHOME/scripts/Launch_PASA_pipeline.pl -c $config -s 25 -R -g $fasta -t $trin
 
 echo "Done!"
 #!/bin/bash -l
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 62
 #SBATCH --mem 500GB
 #SBATCH	--mail-user=ALL

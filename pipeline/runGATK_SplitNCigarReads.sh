@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 #SBATCH -t 1-00:00:00
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 1
 #SBATCH --mem=32G
 

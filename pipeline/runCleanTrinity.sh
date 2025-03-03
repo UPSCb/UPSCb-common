@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p node
+#SBATCH -p main
 #SBATCH -n 1
 #SBATCH -t 08:00:00
 #SBATCH --mail-type=ALL

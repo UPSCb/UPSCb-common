@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH --mail-type=all
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 1
 
 module load bioinfo-tools

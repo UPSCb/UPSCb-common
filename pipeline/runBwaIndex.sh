@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH --mail-type=END,FAIL
-#SBATCH -p core -w picea
+#SBATCH -p main -w picea
 #SBATCH --mem=264GB
 #SBATCH -t 12:00:00
 

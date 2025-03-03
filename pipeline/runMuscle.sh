@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p core -n 1
+#SBATCH -p main -n 1
 #SBATCH --mail-type=ALL
 #SBATCH --mem=100G
 #SBATCH --mail-type=ALL

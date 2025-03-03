@@ -3,7 +3,7 @@
 set -eu
 
 #SBATCH -t 40:00
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 1
 #SBATCH --mail-type=ALL
 

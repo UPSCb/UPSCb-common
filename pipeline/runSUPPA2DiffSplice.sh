@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p core -n 1
+#SBATCH -p main -n 1
 #SBATCH --time=1-00:00:00
 #SBATCH --job-name="suppa2"
 #SBATCH --mail-type=END,FAIL

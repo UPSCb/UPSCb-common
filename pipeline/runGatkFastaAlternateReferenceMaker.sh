@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH -t UNLIMITED
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 1
 #SBATCH --mem 16G
 #SBATCH --mail-type=ALL

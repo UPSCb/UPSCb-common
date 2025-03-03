@@ -1,6 +1,6 @@
 #! /bin/bash
 #SBATCH -t 2-00:00:00
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 1
 #SBATCH --mail-type=END,FAIL
 set -eux

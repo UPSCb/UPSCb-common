@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -A facility
 #SBATCH -t 4:00:00
-#SBATCH -p core -n 1
+#SBATCH -p main -n 1
 #SBATCH --mem=16GB
 
 set -ex

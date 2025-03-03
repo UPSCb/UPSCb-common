@@ -1,5 +1,5 @@
 #! /bin/bash
-#SBATCH -p core -n1
+#SBATCH -p main -n1
 #SBATCH -t 6:00:00
 #SBATCH --mail-type=ALL
 #SBATCH -J snpEff-build

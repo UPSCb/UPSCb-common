@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p node
+#SBATCH -p main
 ## for large files
 ## we don't need the proc but the mem
 ## we could give that as param

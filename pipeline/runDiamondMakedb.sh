@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 1
 #SBATCH --mail-type=FAIL
 #SBATCH -t 1:00:00

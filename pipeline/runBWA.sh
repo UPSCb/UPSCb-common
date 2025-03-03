@@ -1,6 +1,6 @@
 #! /bin/bash -l
 #SBATCH -A b2010042
-#SBATCH -p node -n 16
+#SBATCH -p main -n 16
 ## 2 days for fosmidpools, 4 for diploid
 #SBATCH -t 2-00:00:00
 #SBATCH -J diginormBWAPE

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p core
+#SBATCH -p main
 #SBATCH -n 1
 #SBATCH --mail-type=ALL
 #SBATCH -t 02:00:00
