@@ -2,7 +2,7 @@
 /proj/uppstore2017112/b2017108_nobackup
 
 # count file extensions
-find GenomicSelection -type f ! -name "*.gz" ! -name "*.pdf" ! -name "*.idx" | xargs -I {} bash -c 'echo ${0##*.}' {} | sort | uniq -c
+find GenomicSelection -type f ! -name "*.gz" ! -name "*.pdf" ! -name "*.idx" -print0 | xargs -0 -I {} bash -c 'echo ${0##*.}' {} | sort | uniq -c
 
 # cleanup
 find . -type l -delete
@@ -23,7 +23,7 @@ find /proj/uppstore2017112/b2017108_nobackup/GenomicSelection -type f -name "*.t
 find /proj/uppstore2017112/b2017108_nobackup/GenomicSelection -type f -name "*.out" >> text.list 
 find /proj/uppstore2017112/b2017108_nobackup/GenomicSelection -type f -name "*.mendel" > mendel.list
 find /proj/uppstore2017112/b2017108_nobackup/GenomicSelection -type f -name "*.fa" -o -name "*.fam" > fasta.list
-find $(realpath .) -name "*bed" -o -name "*.csv" -o -name "*.dat" -o -name "*.fa" -o -name "*.fasta" -o -name "*.fna" -o -name "*.gff" -o -name "*.gff3" -o -name "*.gtf" -o -name "*.indv" -o -name "*.intervals" -o -name "*.junction" -o -name "*.log" -o -name "*.mate1" -o -name "*.mate2" -o -name "*.nosex" -o -name "*.pos" -o -name "*.sam" -o -name "*.sample" -o -name "*.snp" -o -name "*.tab" -o -name "*.text" -o -name "*.tranches" -o -name "*.tsv" -o -name "*.xml" > mix.list
+find "$(realpath .)" -name "*bed" -o -name "*.csv" -o -name "*.dat" -o -name "*.fa" -o -name "*.fasta" -o -name "*.fna" -o -name "*.gff" -o -name "*.gff3" -o -name "*.gtf" -o -name "*.indv" -o -name "*.intervals" -o -name "*.junction" -o -name "*.log" -o -name "*.mate1" -o -name "*.mate2" -o -name "*.nosex" -o -name "*.pos" -o -name "*.sam" -o -name "*.sample" -o -name "*.snp" -o -name "*.tab" -o -name "*.text" -o -name "*.tranches" -o -name "*.tsv" -o -name "*.xml" > mix.list
 
 # split large files
 split -l 1000 vcf.list vcf
@@ -40,7 +40,7 @@ find . -maxdepth 1 -name "txta[d-i]" -! -name "txta.*" -exec sbatch -A snic2019-
 find . -maxdepth 1 -name "mixa[a-h]" -! -name "mixa.*" -exec sbatch -A snic2019-8-124 -t 6:00:00 -a 0-999 -o "{}".out -e "{}".err ~/Git/UPSCb/pipeline/runAsArray.sh ~/Git/UPSCb/pipeline/runGzip.sh "{}" \;
 
 # xxhash
-find . -size +1G | xargs -P 10 -I {} ~/bin/xxhsum {} > xxhash.list &
+find . -size +1G -print0| xargs -0 -P 10 -I {} ~/bin/xxhsum {} > xxhash.list &
 
 # manual cleanup of duplicated files
 
