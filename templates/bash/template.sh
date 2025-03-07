@@ -44,4 +44,21 @@ shift $((OPTIND - 1))
 # sanity
 [[ ${ARGs} -gt 0 ]] && [[ $# -ne ${ARGs} ]] && abort "This script expects ${ARGs} arguments"
 
-# end of the boilerplate, logic goes below
+# cmds container
+cmds=()
+
+# end of the boilerplate, logic goes below - instead of running cmds, add them to the cmds list
+# e.g. 
+cmds+=("echo Hello World
+")
+
+# end of logic, start of evalution. dry-run unless -d is provided on the cmdline
+
+# shellcheck disable=SC2086
+if [ ${DO} -eq 1 ]; then
+    for j in $(seq 0 $((${#cmds[@]} - 1))); do
+        eval "${cmds[$j]}"
+    done
+else
+    echo "${cmds[@]}"
+fi
