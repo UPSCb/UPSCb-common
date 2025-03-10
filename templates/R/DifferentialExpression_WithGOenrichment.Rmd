@@ -314,7 +314,8 @@ print(p2)
                               cooks_percentile = 0.99,
                               optimize_cook = FALSE,
                               expression_cutoff=0,
-                              debug=FALSE,filter=c("median",NULL),...){
+                              debug=FALSE,filter=c("median",NULL),
+                              double_step_filter=TRUE, ...){
     
     # get the filter
     if(!is.null(match.arg(filter))){
@@ -339,6 +340,56 @@ print(p2)
     
     stopifnot(length(sample_sel)==ncol(vst))
   
+  if(double_step_filter){
+    # Remove samples not among the relevant_samples
+    dds_relevant <- dds[, colnames(dds) %in% unlist(relevant_samples)]
+    
+    #Drop empty levels
+    dds_relevant$Season <- droplevels(dds_relevant$Season)
+    
+    #Repeat dds analysis
+    
+    dds_relevant <- DESeq(dds_relevant)
+    
+    # Set filter
+    if(!is.null(match.arg(filter))){
+      filter_relevant <- rowMedians(counts(dds_relevant,normalized=TRUE))
+      message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
+    }
+    
+    
+    # Setting a cooks_cutoff for relevant samples according to the cooks_percentile parameter
+    m_relevant <- ncol(counts(dds_relevant))
+    
+    p_relevant <- ncol(model.matrix(design(dds_relevant), colData(dds_relevant)))
+    
+    cooks_cutoff_relevant <- qf(cooks_percentile, p_relevant, m_relevant - p_relevant)
+    
+    
+    # Extract the results considering only relevant samples
+    if(length(contrast)==1){
+      res_relevant <- results(dds_relevant,name=contrast,
+                              filter = filter_relevant,
+                              cooksCutoff = cooks_cutoff_relevant)
+    } else {
+      res_relevant <- results(dds_relevant,contrast=contrast,
+                              filter = filter_relevant,
+                              cooksCutoff = cooks_cutoff_relevant)
+    }
+    
+    # Where a gene was removed by the cooks distance test, its pvalue and adjusted pvalue
+    # will have been set to NA, while columns like log2FoldChange will have a value
+    
+    genes_to_remove <- as_tibble(res_relevant, rownames="Gene") %>% 
+      filter(is.na(padj) & is.na(pvalue)) %>% 
+      filter(!is.na(log2FoldChange)) %>% 
+      select(Gene) %>% 
+      pull()
+    
+    
+    res$pvalue[rownames(res) %in% genes_to_remove] <- NA
+    res$padj[rownames(res) %in% genes_to_remove] <- NA
+  }
 
     #Find suspicious genes
     
