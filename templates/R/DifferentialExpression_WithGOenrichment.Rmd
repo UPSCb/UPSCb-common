@@ -344,8 +344,15 @@ print(p2)
     # Remove samples not among the relevant_samples
     dds_relevant <- dds[, colnames(dds) %in% unlist(relevant_samples)]
     
-    #Drop empty levels
-    dds_relevant$Season <- droplevels(dds_relevant$Season)
+    #Find factor columns
+    factor_columns <- sapply(colData(dds_relevant), is.factor)
+    factor_column_names <- names(colData(dds_relevant))[factor_columns]
+
+     # Apply droplevels to each factor column
+    for (element in factor_column_names) {
+      dds_relevant[[element]] <- droplevels(dds_relevant[[element]])
+    }
+    
     
     #Repeat dds analysis
     
