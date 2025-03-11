@@ -57,6 +57,15 @@ Before **re-inventing the wheel**, check the templates directory! A number of us
 3.  `R/DifferentialExpression.R` to perform a Differential Expression (DE) of your data (follows the previous one)
 4.  `bash/runTemplate.sh` to prototype script to be run on an HPC (High Perf. Compute) using SLURM (a job manager)
 
+# Useful links
+
+The following link will bring you to a server introduction guide with tips about how to connect to our server, how to run slurm jobs properly and how to use AspSeq.
+
+It also contains a video about how to make apptainer containers if you need to install a software that we currently do not have.
+
+https://umeauniversity-my.sharepoint.com/:f:/r/personal/edpi0005_ad_umu_se/Documents/summary_server_introduction?csf=1&web=1&e=NQW9Gq
+
+
 # Troubleshooting
 
 ## Resolving Issues by yourself
