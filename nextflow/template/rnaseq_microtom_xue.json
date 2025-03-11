@@ -1,0 +1,15 @@
+{
+    "input": "<project>/doc/sample_sheet.csv",
+    "outdir": "data",
+    "fasta": "<reference>/Solanum-lycopersicum/Micro-Tom/Xue/fasta/",
+    "gff": "<reference>/Solanum-lycopersicum/Micro-Tom/Xue/gff3/",
+    "transcript_fasta": "<reference>/Solanum-lycopersicum/Micro-Tom/Xue/fasta/",
+    "salmon_index": "<reference>/Solanum-lycopersicum/Micro-Tom/Xue/indices/",
+    "remove_ribo_rna": true,
+    "ribo_database_manifest": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/sortmerna_manifest.txt",
+    "sortmerna_index": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/idx",
+    "pseudo_aligner": "salmon",
+    "extra_salmon_quant_args": "--dumpEq --numGibbsSamples 30 --gcBias --seqBias --posBias",
+    "save_non_ribo_reads": false,
+    "skip_alignment": true
+}
