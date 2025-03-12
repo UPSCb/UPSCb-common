@@ -1,8 +1,8 @@
 {
     "input": "<project>/doc/sample_sheet.csv",
     "outdir": "data",
-    "fasta": "<reference>/Solanum-lycopersicum/Micro-Tom/Xue/fasta/",
-    "gff": "<reference>/Solanum-lycopersicum/Micro-Tom/Xue/gff3/",
+    "fasta": "<reference>/Solanum-lycopersicum/Micro-Tom/Xue/fasta/microTom.genome.fa.gz",
+    "gff": "<reference>/Solanum-lycopersicum/Micro-Tom/Xue/gff3/microTom.gff.gz",
     "transcript_fasta": "<reference>/Solanum-lycopersicum/Micro-Tom/Xue/fasta/",
     "salmon_index": "<reference>/Solanum-lycopersicum/Micro-Tom/Xue/indices/",
     "remove_ribo_rna": true,
