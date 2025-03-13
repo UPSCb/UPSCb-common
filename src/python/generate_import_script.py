@@ -289,7 +289,7 @@ class scriptGenerator(object):
         gen = cmdGenerator(args, tomsimilarity)
         for arg in gen.get():
           self.cmd.append(arg)
-      elif re.search('mi', args.input, flags=re.IGNORECASE):
+      elif re.search('mi', args.input):
         gen = cmdGenerator(args, mi)
         for arg in gen.get():
           self.cmd.append(arg)
