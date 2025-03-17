@@ -1,0 +1,15 @@
+{
+    "input": "<project>/doc/sample_sheet.csv",
+    "outdir": "data",
+    "fasta": "<reference>/Populus-tremula_X_Populus-tremuloides/v2.0/fasta/all.genome.fa.gz",
+    "gff": "<reference>/Populus-tremula_X_Populus-tremuloides/v2.0/gff3/all.genome.gff.gz",
+    "transcript_fasta": "<reference>/Populus-tremula_X_Populus-tremuloides/v2.0/fasta/genome.cds.fa.gz",
+    "salmon_index": "<reference>/Populus-tremula_X_Populus-tremuloides/v2.0/indices/salmon/genome.mRNA.w.putative.pseudogene_with-decoy_salmon-version-1-dot-10-dot-3",
+    "remove_ribo_rna": true,
+    "ribo_database_manifest": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/sortmerna_manifest.txt",
+    "sortmerna_index": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/idx",
+    "pseudo_aligner": "salmon",
+    "extra_salmon_quant_args": "--dumpEq --numGibbsSamples 30 --gcBias --seqBias --posBias",
+    "save_non_ribo_reads": false,
+    "skip_alignment": true
+}
