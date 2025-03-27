@@ -307,103 +307,97 @@ print(p2)
                               cooks_percentile = 0.99,
                               optimize_cook = FALSE,
                               expression_cutoff=0,
-                              debug=FALSE,filter=c("median",NULL),...){
-    
-    # get the filter
-    if(!is.null(match.arg(filter))){
-        filter <- rowMedians(counts(dds,normalized=TRUE))
-        message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
-    }
+                              debug=FALSE,filter=c("median",NULL),
+                              double_step_filter=TRUE, ...){
+
+  # get the filter
+  # get the filter
+  if(!is.null(match.arg(filter))){
+    filter <- rowMedians(counts(dds,normalized=TRUE))
+    filtering_strategy <- "median"
+    message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
+  }
   
-    # Setting cooks cutoff according to cooks_percentile parameter
-    m <- ncol(counts(dds))
-
-    p <- ncol(model.matrix(design(dds), colData(dds)))
-
-    cooks_cutoff <- qf(cooks_percentile, p, m - p)
-
-
-    # validation
-    if(length(contrast)==1){
-        res <- results(dds,name=contrast,filter = filter, cooksCutoff = cooks_cutoff)
-    } else {
-        res <- results(dds,contrast=contrast,filter = filter, cooksCutoff = cooks_cutoff)
-    }
-    
-    stopifnot(length(sample_sel)==ncol(vst))
+  # Setting a cooks_cutoff according to the cooks_percentile parameter
+  m <- ncol(counts(dds))
   
-
-    #Find suspicious genes
-    
-    
-    suspicious_genes <- get_suspicious_genes(vst, relevant_samples, threshold=10)
-    
-    thres <- padj
-    
-    suspicious_degs <- as_tibble(res, rownames = "Gene") %>%
-    filter(Gene %in% suspicious_genes) %>%
-    filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
-    filter(!is.na(padj)) %>%
-    filter(padj < thres) %>%
-    select(Gene) %>%
-    pull()
-    
-    
-    maximum_suspicious <- length(suspicious_degs)/5
-
-
-    #I check for cooks optimization in any case, jsut to do the plots
-        
-    # Define a function to check the condition and update results
-optimize_cooks <- function(cooks_percentile) {
+  p <- ncol(model.matrix(design(dds), colData(dds)))
+  
   cooks_cutoff <- qf(cooks_percentile, p, m - p)
-  res <- if (length(contrast) == 1) {
-    results(dds, name = contrast, filter = filter, cooksCutoff = cooks_cutoff)
+  
+  
+  # validation
+  if(length(contrast)==1){
+    res <- results(dds,name=contrast,filter = filter, cooksCutoff = cooks_cutoff)
   } else {
-    results(dds, contrast = contrast, filter = filter, cooksCutoff = cooks_cutoff)
+    res <- results(dds,contrast=contrast,filter = filter, cooksCutoff = cooks_cutoff)
   }
   
-  suspicious_DEGs <- as_tibble(res, rownames = "Gene") %>%
-    filter(Gene %in% suspicious) %>%
-    filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
-    filter(!is.na(padj)) %>%
-    filter(padj < thres) %>%
-    select(Gene) %>%
-    pull() %>%
-    length()
+  stopifnot(length(sample_sel)==ncol(vst))
   
-  DEGs <- as_tibble(res, rownames="Gene") %>% 
-           filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>% 
-           filter(!is.na(padj)) %>% 
-           filter(padj < thres) %>% 
-           select(Gene) %>% 
-           pull() %>%
-           length()
-  
-  list(res = res, DEGs=DEGs, suspicious = suspicious_DEGs, percentile = cooks_percentile)
-}
+  if(double_step_filter==TRUE){
+    # Remove samples not among the relevant_samples
+    dds_relevant <- dds[, colnames(dds) %in% unlist(relevant_samples)]
+    
+    #Find factor columns
+    factor_columns <- sapply(colData(dds_relevant), is.factor)
+    factor_column_names <- names(colData(dds_relevant))[factor_columns]
+    
+    # Apply droplevels to each factor column
+    for (element in factor_column_names) {
+      dds_relevant[[element]] <- droplevels(dds_relevant[[element]])
+    }
+    
+    #Repeat dds analysis
+    
+    dds_relevant <- DESeq(dds_relevant)
+    
+    # Set filter
+    if(filtering_strategy == "median"){
+      filter_relevant <- rowMedians(counts(dds_relevant,normalized=TRUE))
+      message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
+    }
 
-  # Use map to iterate over cooks_percentile values
-  results_list <- map(seq(0.99, 0.50, by = -0.01), optimize_cooks)
 
-  # Extract the count of suspicious genes from results
-  counts <- map_dbl(results_list, ~ .x$suspicious)
+    # Setting a cooks_cutoff for relevant samples according to the cooks_percentile parameter
+    m_relevant <- ncol(counts(dds_relevant))
+
+    p_relevant <- ncol(model.matrix(design(dds_relevant), colData(dds_relevant)))
+
+    cooks_cutoff_relevant <- qf(cooks_percentile, p_relevant, m_relevant - p_relevant)
 
 
+    # Extract the results considering only relevant samples
+    if(length(contrast)==1){
+      res_relevant <- results(dds_relevant,name=contrast,
+                              filter = filter_relevant,
+                              cooksCutoff = cooks_cutoff_relevant)
+    } else {
+      res_relevant <- results(dds_relevant,contrast=contrast,
+                              filter = filter_relevant,
+                              cooksCutoff = cooks_cutoff_relevant)
+    }
 
-  if (optimize_cook == TRUE) {
-  # Find the index where the condition is met
-  index <- which(counts < maximum_suspicious)
+    # Where a gene was removed by the cooks distance test, its pvalue and adjusted pvalue
+    # will have been set to NA, while columns like log2FoldChange will have a value
 
-  #Get the less stringent threshold that meets the condition, or the most stringent one if no threshold meets it
+    genes_to_remove <- as_tibble(res_relevant, rownames="Gene") %>%
+      filter(is.na(padj) & is.na(pvalue)) %>%
+      filter(!is.na(log2FoldChange)) %>%
+      select(Gene) %>%
+      pull()
 
-  if (length(index) > 0) {
-    res <- results_list[[index[1]]]$res
-    cooks_percentile <- results_list[[index[1]]]$percentile
-  } else {
-    res <- tail(results_list, 1)[[1]]$res
-    cooks_percentile <- tail(results_list, 1)[[1]]$percentile
+
+    res$pvalue[rownames(res) %in% genes_to_remove] <- NA
+    res$padj[rownames(res) %in% genes_to_remove] <- NA
   }
+
+  #Find suspicious genes
+
+
+  suspicious_genes <- get_suspicious_genes(vst, relevant_samples, threshold=10)
+
+  thres <- padj
 
   suspicious_degs <- as_tibble(res, rownames = "Gene") %>%
     filter(Gene %in% suspicious_genes) %>%
@@ -412,152 +406,193 @@ optimize_cooks <- function(cooks_percentile) {
     filter(padj < thres) %>%
     select(Gene) %>%
     pull()
-    
-  }
-    
-    
-     print(paste0("The cooks percentile was ", cooks_percentile, ", corresponding to a cooks cutoff of ", qf(cooks_percentile, p, m - p)))
-  
-  
-  # Also do plots about the cooks cutoff optimization
-  
-  if(plot){
-    plot_cooks_cutoffs(results_list=results_list, lfc=lfc, thres=padj)
-      }
-    
-    
-    
-    if(plot){
-        par(mar=c(5,5,5,5))
-        volcanoPlot(res)
-        par(mar=mar)
-    }
-    
-    # a look at independent filtering
-    if(plot){
-        plot(metadata(res)$filterNumRej,
-             type="b", ylab="number of rejections",
-             xlab="quantiles of filter")
-        lines(metadata(res)$lo.fit, col="red")
-        abline(v=metadata(res)$filterTheta)
-    }
-    
-    if(verbose){
-        message(sprintf("The independent filtering cutoff is %s, removing %s of the data",
-                        round(metadata(res)$filterThreshold,digits=5),
-                        names(metadata(res)$filterThreshold)))
-        
-        max.theta <- metadata(res)$filterNumRej[which.max(metadata(res)$filterNumRej$numRej),"theta"]
-        message(sprintf("The independent filtering maximises for %s %% of the data, corresponding to a base mean expression of %s (library-size normalised read)",
-                        round(max.theta*100,digits=5),
-                        round(quantile(counts(dds,normalized=TRUE),probs=max.theta),digits=5)))
-    }
-    
-    if(plot){
-        qtl.exp=quantile(counts(dds,normalized=TRUE),probs=metadata(res)$filterNumRej$theta)
-        dat <- data.frame(thetas=metadata(res)$filterNumRej$theta,
-                          qtl.exp=qtl.exp,
-                          number.degs=sapply(lapply(qtl.exp,function(qe){
-                              res$padj <= padj & abs(res$log2FoldChange) >= lfc & 
-                                  ! is.na(res$padj) & res$baseMean >= qe
-                          }),sum))
-        if(debug){
-            plot(ggplot(dat,aes(x=thetas,y=qtl.exp)) + 
-                     geom_line() + geom_point() +
-                     scale_x_continuous("quantiles of expression") + 
-                     scale_y_continuous("base mean expression") +
-                     geom_hline(yintercept=expression_cutoff,
-                                linetype="dotted",col="red"))
-        
-            p <- ggplot(dat,aes(x=thetas,y=qtl.exp)) + 
-                geom_line() + geom_point() +
-                scale_x_continuous("quantiles of expression") + 
-                scale_y_log10("base mean expression") + 
-                geom_hline(yintercept=expression_cutoff,
-                           linetype="dotted",col="red")
-            suppressMessages(suppressWarnings(plot(p)))
-            
-            plot(ggplot(dat,aes(x=thetas,y=number.degs)) + 
-                     geom_line() + geom_point() +
-                     geom_hline(yintercept=dat$number.degs[1],linetype="dashed") +
-                     scale_x_continuous("quantiles of expression") + 
-                     scale_y_continuous("Number of DE genes"))
-            
-            plot(ggplot(dat,aes(x=thetas,y=number.degs[1] - number.degs),aes()) + 
-                     geom_line() + geom_point() +
-                     scale_x_continuous("quantiles of expression") + 
-                     scale_y_continuous("Cumulative number of DE genes"))
-            
-            plot(ggplot(data.frame(x=dat$thetas[-1],
-                                   y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
-                     geom_line() + geom_point() +
-                     scale_x_continuous("quantiles of expression") + 
-                     scale_y_continuous("Number of DE genes per interval"))
-            
-            plot(ggplot(data.frame(x=dat$qtl.exp[-1],
-                                   y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
-                     geom_line() + geom_point() +
-                     scale_x_continuous("base mean of expression") + 
-                     scale_y_continuous("Number of DE genes per interval"))
-            
-            p <- ggplot(data.frame(x=dat$qtl.exp[-1],
-                                   y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) + 
-                geom_line() + geom_point() +
-                scale_x_log10("base mean of expression") + 
-                scale_y_continuous("Number of DE genes per interval") + 
-                geom_vline(xintercept=expression_cutoff,
-                           linetype="dotted",col="red")
-            suppressMessages(suppressWarnings(plot(p)))
-        }
-    }
-    
-    
-    sel <- res$padj <= padj & abs(res$log2FoldChange) >= lfc & ! is.na(res$padj) & 
-        res$baseMean >= expression_cutoff
-    
-    if(verbose){
-      message(sprintf(paste(
-        ifelse(sum(sel)==1,
-               "There is %s gene that is DE",
-               "There are %s genes that are DE"),
-        "with the following parameters: FDR <= %s, |log2FC| >= %s, base mean expression > %s"),
-        sum(sel),padj,
-        lfc,expression_cutoff))
-    }
-    
-        # proceed only if there are DE genes
-    if(sum(sel) > 0){
-        val <- rowSums(vst[sel,sample_sel,drop=FALSE])==0
-        if (sum(val) >0){
-          warning(sprintf(paste(
-            ifelse(sum(val)==1,
-                   "There is %s DE gene that has",
-                   "There are %s DE genes that have"),
-            "no vst expression in the selected samples"),sum(val)))
-          sel[sel][val] <- FALSE
-        } 
 
-        if(export){
-            if(!dir.exists(default_dir)){
-                dir.create(default_dir,showWarnings=FALSE,recursive=TRUE,mode="0771")
-            }
-            write.csv(res,file=file.path(default_dir,paste0(default_prefix,"_results.csv")))
-            write.csv(res[sel,],file.path(default_dir,paste0(default_prefix,"_genes.csv")))
-        }
-        par(mar=c(0,5,5,5)+0.1)
-        if(plot & sum(sel)>1){
-            heatmap.2(t(scale(t(vst[sel,sample_sel]))),
-                      distfun = pearson.dist,
-                      hclustfun = function(X){hclust(X,method="ward.D2")}, dendrogram='row',  Rowv=TRUE,
-                      trace="none",col=hpal,labRow = FALSE, srtCol = 45, margin=c(6,6),
-                      labCol=labels[sample_sel],...
-            )
-        }
+
+  #Set maximum number of suspicious degs that I wnat to accept after the optimization phase, only if the suspicious degs are more than 10
+  message(sprintf("The number of suspicious DEGs is %s",
+                  length(suspicious_degs)))
+
+  if (length(suspicious_degs) > 10) {
+    maximum_suspicious <- length(suspicious_degs)/5
+
+
+    # Checking for cooks optimization in any case, just to do the plots
+
+    # Use map to iterate over cooks_percentile values
+    results_cooks_list <- map(seq(0.99, 0.50, by = -0.01), optimize_cooks)
+
+    # Extract the count of suspicious genes from results
+    counts <- map_dbl(results_cooks_list, ~ .x$suspicious)
+
+
+
+    if (optimize_cook == TRUE) {
+      # Find the index where the condition is met
+      index <- which(counts < maximum_suspicious)
+
+      #Get the less stringent threshold that meets the condition, or the most stringent one if no threshold meets it
+
+      if (length(index) > 0) {
+        res <- results_cooks_list[[index[1]]]$res
+        cooks_percentile <- results_cooks_list[[index[1]]]$percentile
+      } else {
+        res <- tail(results_cooks_list, 1)[[1]]$res
+        cooks_percentile <- tail(results_cooks_list, 1)[[1]]$percentile
+      }
+
+      suspicious_degs <- as_tibble(res, rownames = "Gene") %>%
+        filter(Gene %in% suspicious_genes) %>%
+        filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
+        filter(!is.na(padj)) %>%
+        filter(padj < thres) %>%
+        select(Gene) %>%
+        pull()
+
     }
-    return(list(all=rownames(res[sel,]),
-                up=rownames(res[sel & res$log2FoldChange > 0,]),
-                dn=rownames(res[sel & res$log2FoldChange < 0,]),
-                suspicious=suspicious_degs))
+
+
+    print(paste0("The cooks percentile was ", cooks_percentile, ", corresponding to a cooks cutoff of ", qf(cooks_percentile, p, m - p)))
+
+
+    # Also do plots about the cooks cutoff optimization
+
+    if(plot){
+      plot_cooks_cutoffs(results_cooks_list=results_cooks_list, lfc=lfc, thres=padj)
+    }
+
+  }
+
+  if(plot){
+    par(mar=c(5,5,5,5))
+    volcanoPlot(res)
+    par(mar=mar)
+  }
+
+  # a look at independent filtering
+  if(plot){
+    plot(metadata(res)$filterNumRej,
+         type="b", ylab="number of rejections",
+         xlab="quantiles of filter")
+    lines(metadata(res)$lo.fit, col="red")
+    abline(v=metadata(res)$filterTheta)
+  }
+
+  if(verbose){
+    message(sprintf("The independent filtering cutoff is %s, removing %s of the data",
+                    round(metadata(res)$filterThreshold,digits=5),
+                    names(metadata(res)$filterThreshold)))
+
+    max.theta <- metadata(res)$filterNumRej[which.max(metadata(res)$filterNumRej$numRej),"theta"]
+    message(sprintf("The independent filtering maximises for %s %% of the data, corresponding to a base mean expression of %s (library-size normalised read)",
+                    round(max.theta*100,digits=5),
+                    round(quantile(counts(dds,normalized=TRUE),probs=max.theta),digits=5)))
+  }
+
+  if(plot){
+    qtl.exp=quantile(counts(dds,normalized=TRUE),probs=metadata(res)$filterNumRej$theta)
+    dat <- data.frame(thetas=metadata(res)$filterNumRej$theta,
+                      qtl.exp=qtl.exp,
+                      number.degs=sapply(lapply(qtl.exp,function(qe){
+                        res$padj <= padj & abs(res$log2FoldChange) >= lfc &
+                          ! is.na(res$padj) & res$baseMean >= qe
+                      }),sum))
+    if(debug){
+      plot(ggplot(dat,aes(x=thetas,y=qtl.exp)) +
+             geom_line() + geom_point() +
+             scale_x_continuous("quantiles of expression") +
+             scale_y_continuous("base mean expression") +
+             geom_hline(yintercept=expression_cutoff,
+                        linetype="dotted",col="red"))
+
+      p <- ggplot(dat,aes(x=thetas,y=qtl.exp)) +
+        geom_line() + geom_point() +
+        scale_x_continuous("quantiles of expression") +
+        scale_y_log10("base mean expression") +
+        geom_hline(yintercept=expression_cutoff,
+                   linetype="dotted",col="red")
+      suppressMessages(suppressWarnings(plot(p)))
+
+      plot(ggplot(dat,aes(x=thetas,y=number.degs)) +
+             geom_line() + geom_point() +
+             geom_hline(yintercept=dat$number.degs[1],linetype="dashed") +
+             scale_x_continuous("quantiles of expression") +
+             scale_y_continuous("Number of DE genes"))
+
+      plot(ggplot(dat,aes(x=thetas,y=number.degs[1] - number.degs),aes()) +
+             geom_line() + geom_point() +
+             scale_x_continuous("quantiles of expression") +
+             scale_y_continuous("Cumulative number of DE genes"))
+
+      plot(ggplot(data.frame(x=dat$thetas[-1],
+                             y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) +
+             geom_line() + geom_point() +
+             scale_x_continuous("quantiles of expression") +
+             scale_y_continuous("Number of DE genes per interval"))
+
+      plot(ggplot(data.frame(x=dat$qtl.exp[-1],
+                             y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) +
+             geom_line() + geom_point() +
+             scale_x_continuous("base mean of expression") +
+             scale_y_continuous("Number of DE genes per interval"))
+
+      p <- ggplot(data.frame(x=dat$qtl.exp[-1],
+                             y=diff(dat$number.degs[1] - dat$number.degs)),aes(x,y)) +
+        geom_line() + geom_point() +
+        scale_x_log10("base mean of expression") +
+        scale_y_continuous("Number of DE genes per interval") +
+        geom_vline(xintercept=expression_cutoff,
+                   linetype="dotted",col="red")
+      suppressMessages(suppressWarnings(plot(p)))
+    }
+  }
+
+
+  sel <- res$padj <= padj & abs(res$log2FoldChange) >= lfc & ! is.na(res$padj) &
+    res$baseMean >= expression_cutoff
+
+  if(verbose){
+    message(sprintf(paste(
+      ifelse(sum(sel)==1,
+             "There is %s gene that is DE",
+             "There are %s genes that are DE"),
+      "with the following parameters: FDR <= %s, |log2FC| >= %s, base mean expression > %s"),
+      sum(sel),padj,
+      lfc,expression_cutoff))
+  }
+
+  # proceed only if there are DE genes
+  if(sum(sel) > 0){
+    val <- rowSums(vst[sel,sample_sel,drop=FALSE])==0
+    if (sum(val) >0){
+      warning(sprintf(paste(
+        ifelse(sum(val)==1,
+               "There is %s DE gene that has",
+               "There are %s DE genes that have"),
+        "no vst expression in the selected samples"),sum(val)))
+      sel[sel][val] <- FALSE
+    }
+
+    if(export){
+      if(!dir.exists(default_dir)){
+        dir.create(default_dir,showWarnings=FALSE,recursive=TRUE,mode="0771")
+      }
+      write.csv(res,file=file.path(default_dir,paste0(default_prefix,"_results.csv")))
+      write.csv(res[sel,],file.path(default_dir,paste0(default_prefix,"_genes.csv")))
+    }
+    par(mar=c(0,5,5,5)+0.1)
+    if(plot & sum(sel)>1){
+      heatmap.2(t(scale(t(vst[sel,sample_sel]))),
+                distfun = pearson.dist,
+                hclustfun = function(X){hclust(X,method="ward.D2")}, dendrogram='row',  Rowv=TRUE,
+                trace="none",col=hpal,labRow = FALSE, srtCol = 45, margins=c(6,6),
+                labCol=labels[sample_sel],...
+      )
+    }
+  }
+  return(list(all=rownames(res[sel,]),
+              up=rownames(res[sel & res$log2FoldChange > 0,]),
+              dn=rownames(res[sel & res$log2FoldChange < 0,]),
+              suspicious=suspicious_degs))
 }
 
 
