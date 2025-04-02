@@ -317,49 +317,49 @@ print(p2)
                               debug=FALSE,filter=c("median",NULL),
                               double_step_filter=TRUE, ...){
     
-    # get the filter
-    if(!is.null(match.arg(filter))){
-        filter <- rowMedians(counts(dds,normalized=TRUE))
-        message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
-    }
-  
-    # Setting a cooks_cutoff according to the cooks_percentile parameter
-    m <- ncol(counts(dds))
+  # get the filter
+  if(!is.null(match.arg(filter))){
+    filter <- rowMedians(counts(dds,normalized=TRUE))
+    filtering_strategy <- "median"
+    message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
+  }
 
-    p <- ncol(model.matrix(design(dds), colData(dds)))
+  # Setting a cooks_cutoff according to the cooks_percentile parameter
+  m <- ncol(counts(dds))
 
-    cooks_cutoff <- qf(cooks_percentile, p, m - p)
+  p <- ncol(model.matrix(design(dds), colData(dds)))
+
+  cooks_cutoff <- qf(cooks_percentile, p, m - p)
 
 
-    # validation
-    if(length(contrast)==1){
-        res <- results(dds,name=contrast,filter = filter, cooksCutoff = cooks_cutoff)
-    } else {
-        res <- results(dds,contrast=contrast,filter = filter, cooksCutoff = cooks_cutoff)
-    }
-    
-    stopifnot(length(sample_sel)==ncol(vst))
-  
-  if(double_step_filter){
+  # validation
+  if(length(contrast)==1){
+    res <- results(dds,name=contrast,filter = filter, cooksCutoff = cooks_cutoff)
+  } else {
+    res <- results(dds,contrast=contrast,filter = filter, cooksCutoff = cooks_cutoff)
+  }
+
+  stopifnot(length(sample_sel)==ncol(vst))
+
+  if(double_step_filter==TRUE){
     # Remove samples not among the relevant_samples
     dds_relevant <- dds[, colnames(dds) %in% unlist(relevant_samples)]
-    
+
     #Find factor columns
     factor_columns <- sapply(colData(dds_relevant), is.factor)
     factor_column_names <- names(colData(dds_relevant))[factor_columns]
 
-     # Apply droplevels to each factor column
+    # Apply droplevels to each factor column
     for (element in factor_column_names) {
       dds_relevant[[element]] <- droplevels(dds_relevant[[element]])
     }
-    
-    
+
     #Repeat dds analysis
-    
+
     dds_relevant <- DESeq(dds_relevant)
-    
+
     # Set filter
-    if(!is.null(match.arg(filter))){
+    if(filtering_strategy == "median"){
       filter_relevant <- rowMedians(counts(dds_relevant,normalized=TRUE))
       message("Using the median normalized counts as default, set filter=NULL to revert to using the mean")
     }
