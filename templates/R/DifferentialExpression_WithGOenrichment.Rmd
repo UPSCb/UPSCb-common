@@ -752,7 +752,7 @@ The pre-processing was performed using the nfcore rnaseq pipeline v. 3.14.0, usi
 
 ## DESeq2
 
-All output files can be found in the DE_results folder, where files ending in "genes.csv" contain gene list which have been filtered based on a FDR threshold of 0.01 and a minumum log2FC of 1.5.
+All output files can be found in the DE_results folder, where files ending in "genes.csv" contain gene list which have been filtered based on a FDR threshold of 0.01 and a minumum log2FC of 0.5.
 
 This stringent threshold was chosen due to the high number of differentially expressed genes.
 
@@ -966,7 +966,7 @@ get_background <- function(results_file) {
   suppressMessages(
     data <- read_csv(results_file, show_col_types = FALSE)
   )
-  data <- data %>% rename(gene = ...1)
+  data <- data %>% dplyr::rename(gene = ...1)
   thres <- min(data[!is.na(data$padj), ]$baseMean)
   genes <- data %>% 
     filter(baseMean >= thres) %>% 
