@@ -255,7 +255,7 @@ abline(h=1, col = "Red", lty = 3)
 
 ````
 
-`r emoji("point_right")` **The samples being assigned a lower scaling factor are technical replicates, which is normal as they had low sequencing depth.**
+`r emoji("point_right")` **COMMENT**
 
 Assess whether there might be a difference in library size linked to a
 given metadata
