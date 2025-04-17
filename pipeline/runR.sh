@@ -67,8 +67,8 @@ shift $((OPTIND - 1))
 cmds=()
 
 # end of the boilerplate, logic goes below - instead of running cmds, add them to the cmds list
-# e.g. 
-cmds+=("apptainer exec -B /mnt:/mnt $RLIB $CONTAINER Rscript --vanilla $@
+script=${1} && shift
+cmds+=("apptainer exec -B /mnt:/mnt $RLIB $CONTAINER Rscript --vanilla $script --args $@
 ")
 
 # end of logic, start of evalution. dry-run unless -d is provided on the cmdline
