@@ -21,7 +21,7 @@ export USAGETXT=\
 "
 Usage: $0 [options] <arguments>
 
-Purpose: The script will use R --vanilla to run the provided R script
+Purpose: The script will use Rscript to run the provided R script
 
 Options:
     -b use the base R installation only. Mutually exclusive with -l. Default is off.
@@ -33,8 +33,7 @@ Options:
 Note:
     * The script expects to have a directory in the parent directory of this script called _singularity_ that contains the singularity container to use. Ideally you would copy this script from the UPSCb-common template collection to your project pipeline directory.
     * The script similarly expects the UPSCb-common helper file found in UPSCb-common/src/bash/functions.sh to be copied in the same directory as this script.
-    * If your R script expects arguments pass them as extra arguments to this script and make sure to update the ARGS variable accordingly line 8, _i.e._ the total number is the number of arguments + 1 (the first is the R script itself)
-    * The script will handle the extra --args for you"
+    * If your R script expects arguments pass them as extra arguments to this script and make sure to update the ARGS variable accordingly line 8, _i.e._ the total number is the number of arguments + 1 (the first is the R script itself)"
 
 # helper function
 # shellcheck disable=SC1091
@@ -68,10 +67,8 @@ shift $((OPTIND - 1))
 cmds=()
 
 # end of the boilerplate, logic goes below - instead of running cmds, add them to the cmds list
-params=( $@ )
-script=${1} && shift
-[[ $# -gt 0 ]] && params[0]="--args"
-cmds+=("apptainer exec -B /mnt:/mnt $RLIB $CONTAINER R --vanilla $script ${params[*]}
+[[ ! -f ${1} ]] && abort "The first parameter needs to be an existing R script"
+cmds+=("apptainer exec -B /mnt:/mnt $RLIB $CONTAINER Rscript --vanilla $*
 ")
 
 # end of logic, start of evalution. dry-run unless -d is provided on the cmdline
