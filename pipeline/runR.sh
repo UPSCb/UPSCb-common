@@ -49,7 +49,7 @@ do
         d) DO=1;;
         h) usage;;
         l) RLIB=${OPTARG};;
-		\?) ## unknown flag
+		    \?) ## unknown flag
 		usage;;
         esac
 done
