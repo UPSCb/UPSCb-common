@@ -713,9 +713,8 @@ print(p2)
   return(extract_results(dds=dds,
                          vst=vst,
                          contrast=comparison_name,
-                         lfc= lfc,
-                         padj=padj,
-                         relevant_samples = relevant
+                         relevant_samples = relevant,
+                         ...
   )
   )
   
