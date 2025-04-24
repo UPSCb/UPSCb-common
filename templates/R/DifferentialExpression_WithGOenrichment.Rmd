@@ -35,7 +35,7 @@ knitr::opts_chunk$set(warning = FALSE)
 suppressPackageStartupMessages({
     library(data.table)
     library(DESeq2)
-  library(emoji)
+    library(emoji)
     library(gplots)
     library(here)
     library(hyperSpec)
@@ -52,7 +52,6 @@ suppressMessages({
     source(here("UPSCb-common/Rtoolbox/src/plotEnrichedTreemap.R"))
     source(here("UPSCb-common/src/R/featureSelection.R"))
     source(here("UPSCb-common/src/R/volcanoPlot.R"))
-    source(here("UPSCb-common/src/R/gopher.R"))
 })
 ````
 
@@ -189,7 +188,7 @@ compare_columns <- function(tibble1, tibble2) {
 
 ````{r compare_columns}
 
-process_comparison <- function(comparison, Interest_Col, variables_interest) {
+process_comparison <- function(comparison, Interest_col, variables_interest) {
   result_name <- gsub(" ", "", paste(comparison, collapse="vs"))
   
   result <- apply_extract_results(
@@ -453,6 +452,35 @@ print(p2)
 
     # Checking for cooks optimization in any case, just to do the plots
 
+    # Define a function to check the condition and update results
+    optimize_cooks <- function(cooks_percentile) {
+      cooks_cutoff <- qf(cooks_percentile, p, m - p)
+      res <- if (length(contrast) == 1) {
+        results(dds, name = contrast, filter = filter, cooksCutoff = cooks_cutoff)
+      } else {
+        results(dds, contrast = contrast, filter = filter, cooksCutoff = cooks_cutoff)
+      }
+    
+      suspicious_DEGs <- as_tibble(res, rownames = "Gene") %>%
+        filter(Gene %in% suspicious_genes) %>%
+        filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
+        filter(!is.na(padj)) %>%
+        filter(padj < thres) %>%
+        select(Gene) %>%
+        pull() %>%
+        length()
+    
+      DEGs <- as_tibble(res, rownames="Gene") %>%
+        filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
+        filter(!is.na(padj)) %>%
+        filter(padj < thres) %>%
+        select(Gene) %>%
+        pull() %>%
+        length()
+    
+      list(res = res, DEGs=DEGs, suspicious = suspicious_DEGs, percentile = cooks_percentile)
+    }
+    
     # Use map to iterate over cooks_percentile values
     results_cooks_list <- map(seq(0.99, 0.50, by = -0.01), optimize_cooks)
 
@@ -830,7 +858,7 @@ comparisons <- list(
 )
 
 
-results_list <- map(comparisons, process_comparison(.x, "INTEREST_COL", c("VARIABLE1", "VARIABLE2")))
+results_list <- map(comparisons, ~ process_comparison(.x, "INTEREST_COL", c("VARIABLE1", "VARIABLE2")))
 
 
 # Set names for the results list
@@ -856,7 +884,7 @@ all_data <- data.frame()
 # Loop through the files
 for(file in files){
   # Read the csv file
-  data <- read_csv(paste0(path, "/", file))
+  data <- read_csv(paste0(path, "/", file), show_col_types = FALSE)
   
   
   # Add a new column with the file name
@@ -935,7 +963,7 @@ grid.draw(venn.diagram(list_for_Venn,
                                   "Group1vsControl_dn",
                                   "Group2vsControl_up",
                                   "Group2vsControl_dn"
-))
+)))
 ````
 
 
