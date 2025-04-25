@@ -743,7 +743,7 @@ print(p2)
   # Apply the function and store the result in the list
   return(extract_results(dds=dds,
                          vst=vst,
-                         contrast=comparison_name,
+                         contrast=str_replace_all(comparison_name, "-", "."),
                          relevant_samples = relevant,
                          ...
   )
