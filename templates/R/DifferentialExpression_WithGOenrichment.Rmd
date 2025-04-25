@@ -188,17 +188,15 @@ compare_columns <- function(tibble1, tibble2) {
 
 ````{r process_comparison}
 
-process_comparison <- function(comparison, Interest_col, variables_interest) {
+process_comparison <- function(comparison, Interest_col, variables_interest, ...) {
   result_name <- gsub(" ", "", paste(comparison, collapse="vs"))
   
   result <- apply_extract_results(
     comparison = comparison,
-    samples = samples,
     variables_interest = variables_interest,
     NameConditionColumn = Interest_col,
-    dds = dds,
-    vst = vst,
-    default_prefix = paste0("DE-", result_name, "_")
+    default_prefix = paste0("DE-", result_name, "_"),
+    ...
   )
   
   up <- tibble(Gene = result$up)
@@ -676,7 +674,6 @@ print(p2)
 
 
 "apply_extract_results" <- function(dds,
-                                    vst,
                                     samples,
                                     NameConditionColumn,
                                     comparison,
@@ -861,7 +858,7 @@ comparisons <- list(
 )
 
 
-results_list <- map(comparisons, ~ process_comparison(.x, "INTEREST_COL", c("VARIABLE1", "VARIABLE2")))
+results_list <- map(comparisons, ~ process_comparison(.x, "INTEREST_COL", c("VARIABLE1", "VARIABLE2"), dds=dds, vst=vst, samples=samples))
 
 
 # Set names for the results list
