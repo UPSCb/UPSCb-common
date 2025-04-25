@@ -186,7 +186,7 @@ compare_columns <- function(tibble1, tibble2) {
 
   * Process a comparison of interest
 
-````{r compare_columns}
+````{r process_comparison}
 
 process_comparison <- function(comparison, Interest_col, variables_interest) {
   result_name <- gsub(" ", "", paste(comparison, collapse="vs"))
@@ -197,6 +197,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest) {
     variables_interest = variables_interest,
     NameConditionColumn = Interest_col,
     dds = dds,
+    vst = vst,
     default_prefix = paste0("DE-", result_name, "_")
   )
   
@@ -675,6 +676,7 @@ print(p2)
 
 
 "apply_extract_results" <- function(dds,
+                                    vst,
                                     samples,
                                     NameConditionColumn,
                                     comparison,
@@ -716,11 +718,13 @@ print(p2)
   
   # Rerun deseq2 with the correct baseline
   
-  for (variable in variables_interest)
-  {
-    dds[[variable]] <- relevel(dds[[variable]], ref = values_baseline[[variable]])
+  for (variable in variables_interest) {
+    if (is.factor(values_baseline[[variable]])) {
+      dds[[variable]] <- relevel(dds[[variable]], ref = as.character(values_baseline[[variable]]))
+    } else {
+      dds[[variable]] <- relevel(dds[[variable]], ref = values_baseline[[variable]])
+    }
   }
-  
   
   dds <- DESeq(dds)
   
@@ -1116,7 +1120,7 @@ all_data <- data.frame()
 # Loop through the files
 for(file in files){
   # Read the csv file
-  data <- read_tsv(paste0(path, "/", file))
+  data <- read_tsv(paste0(path, "/", file), show_col_types = FALSE)
   
   
   # Add a new column with the file name
@@ -1193,14 +1197,14 @@ for (name in names(results)) {
 
 <details><summary>Dotplots</summary>
 
-```{r dotplots}
+````{r dotplots}
 ntop <- 20
 
 for (name in names(results)) {
   
   suppressMessages(
     data <- results[[name]] %>%
-    dplyr::mutate(FDR = ifelse(FDR == "< 1e-30", "1e-30", FDR)) %>%
+    dplyr::mutate(FDR = parse_double(sub("<","",FDR))) %>%
     dplyr::mutate(scores = -log10(as.numeric(FDR))) %>% 
                     dplyr::select(Term, scores)
   )
@@ -1257,7 +1261,47 @@ print(p)
 #                device = NULL,
 #                height = 8.5,
 #                width = 12)
-```
+````
+</details>
+
+
+**Below are plot from top 20 most significantly enriched GO terms in each category:**
+
+* BP: Biological Process
+
+* CC: Cellular Component
+
+* MF: Molecular Function
+ 
+</details>
+
+<details><summary>Dotplots</summary>
+
+````{r dotplots2}
+ntop <- 20
+
+iwalk(results, function(e,r){
+  dat <- e %>%
+    mutate(FDR = parse_double(sub("<","",FDR)),
+           GeneRatio = Significant/Annotated,
+           Count = as.numeric(Significant)) %>%
+    group_by(`GO category`) %>%
+    arrange(FDR) %>%
+    slice(1:ntop) %>%
+    ungroup() %>%
+    mutate(Term = factor(Term, levels = Term[order(GeneRatio)]))
+  p <- ggplot(dat, aes(x =Term, y = GeneRatio, color = FDR, size = Count)) + 
+    geom_point() +
+    scale_color_gradient(low = "red", high = "blue") +
+    theme_bw() + 
+    ylab("GeneRatio") + 
+    xlab("") + 
+    facet_grid(`GO category` ~ ., scales = "free", space = "free") +
+    ggtitle(paste0(r, ": "," GO enrichment")) +
+    coord_flip()
+  plot(p)
+})
+````
 </details>
 
 ## Session Info
