@@ -197,7 +197,6 @@ process_comparison <- function(comparison, Interest_col, variables_interest) {
     variables_interest = variables_interest,
     NameConditionColumn = Interest_col,
     dds = dds,
-    vst = vst,
     default_prefix = paste0("DE-", result_name, "_")
   )
   
