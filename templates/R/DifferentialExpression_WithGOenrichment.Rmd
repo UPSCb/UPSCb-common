@@ -147,7 +147,7 @@ mar <- par("mar")
   # In the end I only use max_div_avg to determine suspicious genes
   suspicious_genes  <- results %>%
     filter(max_div_avg > threshold) %>%
-    select(Gene) %>%
+    dplyr::select(Gene) %>%
     distinct() %>%
     pull()
 
@@ -275,7 +275,7 @@ original_DEGs <- expression_results[["0.99.res"]] %>%
     filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>% 
     filter(!is.na(padj)) %>% 
     filter(padj < thres) %>% 
-    select(Gene) %>% 
+    dplyr::select(Gene) %>% 
     pull()
     
     
@@ -284,7 +284,7 @@ process_tibble <- function(tibble, lfc, thres, original_DEGs) {
   tibble %>%
   filter(Gene %in% original_DEGs) %>% 
     filter(is.na(padj)) %>% 
-    select(baseMean) %>%
+    dplyr::select(baseMean) %>%
     pull()
     }
 
@@ -303,7 +303,7 @@ colnames(df) <- c("baseMean", "Percentile")
 
 df$baseMean <- log10(df$baseMean)
 
-chosen_percentiles <- df %>% select(Percentile) %>% distinct() %>% slice(seq(1, n(), by = 5)) %>% pull()
+chosen_percentiles <- df %>% dplyr::select(Percentile) %>% distinct() %>% slice(seq(1, n(), by = 5)) %>% pull()
 
 df <- df %>% filter(Percentile %in% chosen_percentiles)
 
@@ -416,7 +416,7 @@ print(p2)
     genes_to_remove <- as_tibble(res_relevant, rownames="Gene") %>%
       filter(is.na(padj) & is.na(pvalue)) %>%
       filter(!is.na(log2FoldChange)) %>%
-      select(Gene) %>%
+      dplyr::select(Gene) %>%
       pull()
 
 
@@ -436,7 +436,7 @@ print(p2)
     filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
     filter(!is.na(padj)) %>%
     filter(padj < thres) %>%
-    select(Gene) %>%
+    dplyr::select(Gene) %>%
     pull()
 
 
@@ -464,7 +464,7 @@ print(p2)
         filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
         filter(!is.na(padj)) %>%
         filter(padj < thres) %>%
-        select(Gene) %>%
+        dplyr::select(Gene) %>%
         pull() %>%
         length()
     
@@ -472,7 +472,7 @@ print(p2)
         filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
         filter(!is.na(padj)) %>%
         filter(padj < thres) %>%
-        select(Gene) %>%
+        dplyr::select(Gene) %>%
         pull() %>%
         length()
     
@@ -506,7 +506,7 @@ print(p2)
         filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
         filter(!is.na(padj)) %>%
         filter(padj < thres) %>%
-        select(Gene) %>%
+        dplyr::select(Gene) %>%
         pull()
 
     }
@@ -732,9 +732,9 @@ print(p2)
   # Make list of samples that will be considered to calculate the cook distance
   relevant <- list() 
   
-  relevant[[comparison[1]]] <- samples %>% filter(NewCol == comparison[1]) %>% select(SampleID) %>% pull()
+  relevant[[comparison[1]]] <- samples %>% filter(NewCol == comparison[1]) %>% dplyr::select(SampleID) %>% pull()
   
-  relevant[[comparison[2]]] <- samples %>% filter(NewCol == comparison[2]) %>% select(SampleID) %>% pull()
+  relevant[[comparison[2]]] <- samples %>% filter(NewCol == comparison[2]) %>% dplyr::select(SampleID) %>% pull()
   
   
   # Apply the function and store the result in the list
