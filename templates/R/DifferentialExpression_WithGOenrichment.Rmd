@@ -375,13 +375,23 @@ print(p2)
     factor_columns <- sapply(colData(dds_relevant), is.factor)
     factor_column_names <- names(colData(dds_relevant))[factor_columns]
     
+    # Read design to remove irrelevant variable in our small subset dds
+    vars <- all.vars(design(dds_relevant))
+
     # Apply droplevels to each factor column
     for (element in factor_column_names) {
       dds_relevant[[element]] <- droplevels(dds_relevant[[element]])
+      if (element %in% vars & length(levels(dds_relevant[[element]])) == 1) {
+        vars <- setdiff(vars, element)}
     }
     
+    # Put design to the only relevant variable
+    if (length(vars) > 1) {
+      print(paste0("Number of relevent variables in the comparison is more than one: ",
+                   vars,", please reconsider your comparison pair."))}
+    design(dds_relevant) <- as.formula(paste("~", vars))
+
     #Repeat dds analysis
-    
     dds_relevant <- DESeq(dds_relevant)
     
     # Set filter
