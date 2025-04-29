@@ -1089,6 +1089,7 @@ library(purrr)
 # By default, the upregulated and downregulated genes from every contrast are tested.
 res <- list()
 for (name in names(results_list)) {
+  res[[paste0(name, "_all")]] <- results_list[[name]]$all
   res[[paste0(name, "_up")]] <- results_list[[name]]$up
   res[[paste0(name, "_dn")]] <- results_list[[name]]$dn
 }
