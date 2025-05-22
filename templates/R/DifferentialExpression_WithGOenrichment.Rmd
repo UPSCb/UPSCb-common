@@ -280,7 +280,7 @@ original_DEGs <- expression_results[["0.99.res"]] %>%
     
     
 # Define function to filter tibbles
-process_tibble <- function(tibble, lfc, thres, original_DEGs) {
+process_tibble <- function(tibble, original_DEGs) {
   tibble %>%
   filter(Gene %in% original_DEGs) %>% 
     filter(is.na(padj)) %>% 
@@ -647,8 +647,8 @@ print(p2)
       if(!dir.exists(default_dir)){
         dir.create(default_dir,showWarnings=FALSE,recursive=TRUE,mode="0771")
       }
-      write.csv(res,file=file.path(default_dir,paste0(default_prefix,"_results.csv")))
-      write.csv(res[sel,],file.path(default_dir,paste0(default_prefix,"_genes.csv")))
+      write.csv(res,file=file.path(default_dir,paste0(default_prefix,"_results.csv")), quote=FALSE)
+      write.csv(res[sel,],file.path(default_dir,paste0(default_prefix,"_genes.csv")),quote=FALSE)
     }
     par(mar=c(0,5,5,5)+0.1)
     if(plot & sum(sel)>1){
