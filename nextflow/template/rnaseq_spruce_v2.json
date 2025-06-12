@@ -10,6 +10,6 @@
     "sortmerna_index": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/idx",
     "pseudo_aligner": "salmon",
     "extra_salmon_quant_args": "--dumpEq --numGibbsSamples 30 --gcBias --seqBias --posBias",
-    "save_non_ribo_reads": false,
+    "save_non_ribo_reads": true,
     "skip_alignment": true
 }
