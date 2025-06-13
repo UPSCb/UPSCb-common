@@ -139,7 +139,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
     comparison = comparison,
     variables_interest = variables_interest,
     NameConditionColumn = Interest_col,
-    default_prefix = paste0("DE-", result_name, "_"),
+    default_prefix = paste0("DE-", result_name),
     ...
   )
   
