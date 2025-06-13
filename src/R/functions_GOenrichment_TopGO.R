@@ -70,6 +70,7 @@ topGO_combined <- function(set,background,annotation,
                                         topNodes=n)) %>% 
         rename_with(function(sel){"FDR"},.cols=last_col())
       if(getgenes){
+        allGO <- genesInTerm(GOdata)
         resultTable <- resultTable %>%
           mutate(allgenes = map(GO.ID,function(x){allGO[[x]]})) %>%
           mutate(siggenes = map(allgenes,function(x){unlist(x)[unlist(x) %in% set]}))  %>%
