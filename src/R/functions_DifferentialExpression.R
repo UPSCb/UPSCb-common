@@ -83,9 +83,9 @@ suppressPackageStartupMessages({
       avg_expr = mean(expression),
       max_div_avg = max(expression) / mean(expression[expression != max(expression)]),
       avg_non_min = mean(expression[expression != min(expression)]),
-      min_div_avg = avg_non_min / min(expression)
+      min_div_avg = avg_non_min / min(expression),
+      .groups = "drop"
     ) %>%
-    ungroup() %>%
     #As genes with only 0 values were returning NA in the max_div_avg and min_div_avg columns, I replace this values with 1
     mutate_all(~replace_na(., 1))
   
@@ -161,15 +161,16 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
 "plot_cooks_cutoffs" <- function(results_cooks_list, lfc, thres) {
   
   ## Plot 1
+  #Remove complete DESeq2 results from the object to plot
   plotting_results <- lapply(results_cooks_list, function(x) {
     x[setdiff(names(x), "res")]
   })
   
   # Extract percentile values
-  names_list <- sapply(plotting_results, function(x) x$percentile)
+  percentile_list <- sapply(plotting_results, function(x) x$percentile)
   
   # Set names of results_cooks_list
-  names(plotting_results) <- names_list
+  names(plotting_results) <- percentile_list
   
   #Make a tibble for plotting
   df <- t(as_tibble(plotting_results))
@@ -203,13 +204,13 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
   
   ## Plot 2
   
-  names_list <- sapply(results_cooks_list, function(x) x$percentile)
+  percentile_list <- sapply(results_cooks_list, function(x) x$percentile)
   
   expression_results <- lapply(results_cooks_list, function(x) {
     x[setdiff(names(x), c("suspicious", "DEGs", "percentile"))]
   })
   
-  names(expression_results) <- names_list
+  names(expression_results) <- percentile_list
   
   expression_results <- unlist(expression_results)
   
@@ -232,20 +233,26 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
       pull()
   }
   
+  # Remove expression results of 0.99 as no original DEGs will have been removed there
+  expression_results[["0.99.res"]] <- NULL
   
   # Apply the function to each tibble in the list
-  expression_results <- map2(expression_results, names(expression_results), ~setNames(list(process_tibble(.x, lfc, thres, original_DEGs)), .y))
+  plottable_results <- map2(expression_results, names(expression_results), ~setNames(list(process_tibble(.x, original_DEGs)), .y))
   
   
   # Convert to a single list of vectors
-  expression_results <- lapply(expression_results, function(x) setNames(unlist(x), NULL))
+  plottable_results <- lapply(plottable_results, function(x) setNames(unlist(x), NULL))
   
   
   # Convert the list to a data frame
-  df <- melt(expression_results)
+  df <- reshape2::melt(plottable_results)
   colnames(df) <- c("baseMean", "Percentile")
   
-  df$baseMean <- log10(df$baseMean)
+  
+  df <- df  %>%
+    mutate(LogBaseMean=log10(baseMean),
+           Percentile=str_replace(Percentile, ".res", ""))
+  
   
   chosen_percentiles <- df %>% dplyr::select(Percentile) %>% distinct() %>% slice(seq(1, n(), by = 5)) %>% pull()
   
@@ -253,7 +260,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
   
   # Visualize stuff
   
-  p2 <- ggplot(df, aes(x = Percentile, y = baseMean)) +
+  p2 <- ggplot(df, aes(x = Percentile, y = LogBaseMean)) +
     geom_boxplot() +
     labs(title = "Box Plot of Vectors (Logarithmic Scale)",
          x = "Percentile",
@@ -435,13 +442,13 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
     results_cooks_list <- map(seq(0.99, 0.50, by = -0.01), optimize_cooks)
     
     # Extract the count of suspicious genes from results
-    counts <- map_dbl(results_cooks_list, ~ .x$suspicious)
+    counts_suspicious <- map_dbl(results_cooks_list, ~ .x$suspicious)
     
     
     
     if (cook_optimization == TRUE) {
       # Find the index where the condition is met
-      index <- which(counts < maximum_suspicious)
+      index <- which(counts_suspicious < maximum_suspicious)
       
       #Get the less stringent threshold that meets the condition, or the most stringent one if no threshold meets it
       
