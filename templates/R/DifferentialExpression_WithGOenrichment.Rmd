@@ -76,8 +76,6 @@ The pre-processing was performed using the nfcore rnaseq pipeline v. 3.14.0, usi
 
 All output files can be found in the DE_results folder, where files ending in "genes.csv" contain gene list which have been filtered based on a FDR threshold of 0.01 and a minumum log2FC of 0.5.
 
-This stringent threshold was chosen due to the high number of differentially expressed genes.
-
 The files ending in "results.csv" contain all DE genes (without any filtering based on quality criteria). 
 
 * Running the pipeline
