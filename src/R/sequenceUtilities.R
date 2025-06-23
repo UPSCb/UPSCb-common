@@ -253,7 +253,7 @@ setMethod(f = "getProteinState",
             })
 
 #' ### Internal functions
-".select" <-
+# ".select" <-
 
 
 ".validate" <- function(gff3,genome,narrowOutOfSequenceRangeIntervals){
