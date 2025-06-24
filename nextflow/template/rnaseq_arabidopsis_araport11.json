@@ -3,13 +3,13 @@
     "outdir": "data",
     "fasta": "<reference>/Arabidopsis-thaliana/TAIR10/fasta/genome.fa.gz",
     "gtf": "<reference>/Arabidopsis-thaliana/ARAPORT11/gtf/Araport11_GFF3_genes_transposons.Sep2022.gtf.gz",
-    "transcript_fasta": "<reference>/Arabidopsis-thaliana/ARAPORT11/fasta/Araport11_cdna_20220914.fasta.gz",
+    "transcript_fasta": "<reference>/Arabidopsis-thaliana/ARAPORT11/fasta/Araport11_cdna_20220914_from_gtf.fasta.gz",
     "salmon_index": "<reference>/Arabidopsis-thaliana/ARAPORT11/indices/salmon/Araport11_cdna_20220914_with-decoy_salmon-v1dot10dot3",
     "remove_ribo_rna": true,
     "ribo_database_manifest": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/sortmerna_manifest.txt",
     "sortmerna_index": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/idx",
     "pseudo_aligner": "salmon",
     "extra_salmon_quant_args": "--dumpEq --numGibbsSamples 30 --gcBias --seqBias --posBias",
-    "save_non_ribo_reads": false,
+    "save_non_ribo_reads": true,
     "skip_alignment": true
 }
