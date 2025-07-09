@@ -53,7 +53,6 @@ suppressMessages({
     source(here("UPSCb-common/src/R/featureSelection.R"))
     source(here("UPSCb-common/src/R/volcanoPlot.R"))
     source(here("UPSCb-common/src/R/functions_DifferentialExpression.R"))
-    source(here("UPSCb-common/src/R/functions_GOenrichment_TopGO.R"))
 })
 ````
 
@@ -303,6 +302,8 @@ background <- map(files, get_background) %>%
 library(topGO)
 library(purrr)
 
+# Loading functions necessary for TopGO run
+source(here("UPSCb-common/src/R/functions_GOenrichment_TopGO.R"))
 
 # Making a list of the vectors I want to test for enrichment
 # By default, the upregulated and downregulated genes from every contrast are tested.
