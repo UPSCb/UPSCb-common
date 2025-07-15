@@ -335,10 +335,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
     }
     
     # Put design to the only relevant variable
-    if (length(vars) > 1) {
-      print(paste0("Number of relevent variables in the comparison is more than one: ",
-                   vars,", please reconsider your comparison pair."))}
-    design(dds_relevant) <- as.formula(paste("~", vars))
+    design(dds_relevant) <- as.formula(paste("~", paste(vars, collapse = " + "), sep=" "))
     
     #Repeat dds analysis
     dds_relevant <- DESeq(dds_relevant)

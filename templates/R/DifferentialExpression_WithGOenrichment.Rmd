@@ -286,6 +286,9 @@ GO enrichment is run on all the groups of upregulated or downregulated genes, us
 
 ````{r prep_annotation}
 
+# Loading functions necessary for TopGO run
+source(here("UPSCb-common/src/R/functions_GOenrichment_TopGO.R"))
+
 mapping <- "/mnt/picea/storage/reference/Arabidopsis-thaliana/TAIR10/gopher/tair10_gene_to_go.tsv"
 annotation <- prepAnnot(mapping)
 files <- list.files(path = here("data/analysis/DE/"), pattern = "results\\.csv$", full.names=TRUE)
@@ -301,9 +304,6 @@ background <- map(files, get_background) %>%
 ````{r enrichment}
 library(topGO)
 library(purrr)
-
-# Loading functions necessary for TopGO run
-source(here("UPSCb-common/src/R/functions_GOenrichment_TopGO.R"))
 
 # Making a list of the vectors I want to test for enrichment
 # By default, the upregulated and downregulated genes from every contrast are tested.
