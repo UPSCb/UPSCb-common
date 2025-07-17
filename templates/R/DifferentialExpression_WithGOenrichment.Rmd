@@ -254,11 +254,11 @@ detach("package:reshape2", unload=TRUE)
 ````
 
 
-### Venn diagrams to compare selected conditions
-The names of the lists must be added manually
-#### Upregulated genes {-}
+### Compare selected conditions with venn diagrams and upset plots
+The names of the lists must be added manually.
+#### Veen diagram 1 {-}
 
-````{r venn_up}
+````{r }
 grid.newpage()
 
 list_for_Venn <- list(results_list[["Group1vsControl"]]$up,
@@ -277,6 +277,62 @@ grid.draw(venn.diagram(list_for_Venn,
 )))
 ````
 
+#### Upset plot 1 {-}
+Upset plots are alternatives to Venn diagrams, able to efficiently compare a higher number of conditions.
+Use the nintersects option to set how many intersections you want to visualize (by default it is all of them). The intersections with the highest number of elements will be presented first, unless you change the order.by option
+
+````{r }
+library(UpSetR)
+
+# Combine all DEG genes into a unique set
+all_genes <- unique(all_data$Gene)
+
+
+gene_matrix <- data.frame(
+  gene = all_genes,
+  C_T89vsSD_T89 = all_genes %in% results_list[["Group1vsControl"]]$up,
+  LD_T89vsC_T89 = all_genes %in% results_list[["Group1vsControl"]]$dn,
+  C_FPF1KOvsSD_FPF1KO = all_genes %in% results_list[["Group2vsControl"]]$up,
+  LD_FPF1KOvsC_FPF1KO = all_genes %in% results_list[["Group2vsControl"]]$dn,
+  C_FPF1OEvsSD_FPF1OE = all_genes %in% results_list[["Group2vsGroup1"]]$up,
+  LD_FPF1OEvsC_FPF1OE = all_genes %in% results_list[["Group2vsGroup1"]]$dn
+)
+
+
+num_df <- gene_matrix %>% 
+  dplyr::select(-gene) %>% 
+  mutate(across(everything(), as.integer))
+
+# Identify all-zero columns
+all_zero_cols <- num_df %>%
+  select(where(~ all(. == 0))) %>%
+  names()
+
+# Drop them
+num_df <- num_df %>%
+  select(where(~ any(. != 0)))
+
+# Print them
+if (length(all_zero_cols) > 0) {
+cat("Dropped comparisons with no DEGs:", paste(all_zero_cols, collapse = ", "), "\n")
+}
+
+
+upset(num_df, 
+      sets = colnames(num_df),   # Use column names as sets
+      keep.order = TRUE,
+      order.by = "freq",             # Order by frequency of intersection
+      matrix.color = "#125223",     # Color for matrix points
+      sets.bar.color = "#72b083",
+      sets.x.label = "Comparisons",
+      mainbar.y.label = "DEGs",
+      nintersects = NA,
+      point.size = 2.3,                # Adjust point size
+      line.size = 0.8               # Adjust line size
+)
+
+
+````
 
 ## GO enrichment
 GO enrichment is run on all the groups of upregulated or downregulated genes, using a parent-child Fisher test with an FDR threshold of 0.05.
