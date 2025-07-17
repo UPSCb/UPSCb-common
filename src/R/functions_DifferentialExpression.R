@@ -481,7 +481,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
   
   if(plot){
     par(mar=c(5,5,5,5))
-    volcanoPlot(res)
+    volcanoPlot(res, alpha=padj, lfc=lfc)
     par(mar=mar)
   }
   
