@@ -617,7 +617,7 @@ txi$length <- sapply(split.data.frame(t(txi$length),samples$BioID),colMaxs)
 stopifnot(colnames(txi$counts) == unique(samples$BioID))
 ````
 
-# Counts are now in alphabetic order, check and reorder if necessary
+## Counts are now in alphabetic order, check and reorder if necessary
 
 ````{r, include=FALSE}
 samples_merged <- samples[match(colnames(txi$counts),samples$BioID),] %>% 
@@ -638,6 +638,61 @@ saveRDS(biodds,file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
 write_csv(samples_merged,here("doc/samples_merged-tech-reps.csv"))
 ````
 
+# Adjust SizeFactors depending on number of expressed genes
+
+This part may be necessary if the difference in the number of expressed genes is very high.
+It assumes that if many genes are expressed then their average expression will be lower, and therefore it increases it in the final count to correct this bias.
+Basically, each sampls will be assigned a gene factor equal to the number of expressed genes, divided by the number of genes expressed on average in the experiment.
+Then, the size factors assigned by DESeq2 to the sample will be divided by the gene factor. In this way, if a sample has more genes than the average, its size factors will become lower, therefore increasing the normalized expression of its genes when DESeq2 calculates the differential expression.
+
+IMPORTANT: if you are already blocking a batch effect (design= something + Batch), and the difference in the number of expressed genes is part of the batch effect (all the samples of Batch1 have more expressed genes than Batch2, or viceversa), then DESeq2 will already correct for this just by using the "something + Batch" design, and therefore you do not need to use the following code.
+
+````{r, include=FALSE}
+# Plotting the number of genes that are expressed (at any level)
+expressed_genes <- (nrow(vst) - colSums(vst==0)) %>% 
+  as.data.frame() %>% 
+  rownames_to_column("SampleID") %>% 
+  rename("ExpressedGenes"=".") %>% 
+  left_join(samples,by="SampleID") 
+
+  expressed_genes %>% 
+  ggplot(aes(x=Condition, y=ExpressedGenes, fill=Condition)) + 
+  geom_dotplot(binaxis = "y", stackdir = "center") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+````
+
+
+
+````{r, include=FALSE}
+# Assigning gene factors depending on number of expressed genes (the assumption being that if there are less expressed genes then they will be expressed at higher levels)
+average_expressed_genes <- mean(expressed_genes$ExpressedGenes)
+
+expressed_genes <- expressed_genes %>% 
+  mutate(GeneFactor = ExpressedGenes/average_expressed_genes)
+
+````
+
+
+
+
+````{r, include=FALSE}
+# Adjusting the dds size factors according to the calculated gene functions
+# Check that samples are in the same order
+identical(expressed_genes$SampleID, colnames(normalizationFactors(dds)))
+
+new <- map2_dfc(as.data.frame(normalizationFactors(dds)), expressed_genes$GeneFactor, ~ .x / .y)
+
+new <- as.data.frame(new)
+
+rownames(new) <- rownames(normalizationFactors(dds)) 
+
+normalizationFactors(dds) <- as.matrix(new)
+
+## Saving the new dds
+
+saveRDS(dds,file=here("data/analysis/salmon/dds_merged-tech-reps_adjusted-size-factors.rds"))
+````
 
 <hr />
 &nbsp;
