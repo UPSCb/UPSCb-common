@@ -65,13 +65,7 @@ mar <- par("mar")
 ````
 
 
-# Methods
-
-The pre-processing was performed using the nfcore rnaseq pipeline v. 3.14.0, using the "--skip_alignment" and "--pseudo-alignment salmon" options.
-
-# Results
-
-## DESeq2
+# DESeq2
 
 All output files can be found in the DE_results folder, where files ending in "genes.csv" contain gene list which have been filtered based on a FDR threshold of 0.01 and a minumum log2FC of 0.5.
 
@@ -113,7 +107,7 @@ plotDispEsts(dds)
 
 <details><summary>Results graphs per contrast</summary>
 
-### Extracting results
+## Extracting results
 
 Remember to remove suspicious DEGs from the results if you do not want to keep them
 
@@ -180,7 +174,7 @@ names(results_list) <- map_chr(comparisons, function(comparison) {
 
 ````
 
-### Group DEGs in a single table
+## Group DEGs in a single table
 
 ````{r grouping}
 
@@ -222,7 +216,7 @@ write_tsv(all_data, here("data/analysis/DE/All_DEGs.tsv"))
 
 </details>
 
-### DEGs number
+## DEGs number
 
 This graph shows the number of differentially expressed genes in every situation.
 
@@ -254,11 +248,11 @@ detach("package:reshape2", unload=TRUE)
 ````
 
 
-### Compare selected conditions with venn diagrams and upset plots
+## Compare selected conditions with venn diagrams and upset plots
 
-#### {.tabset .tabset-pills .unlisted .unnumbered}
+### {.tabset .tabset-pills .unlisted .unnumbered}
 
-##### Venn diagram 1 {-}
+#### Venn diagram 1 {-}
 
 ````{r }
 grid.newpage()
@@ -279,7 +273,7 @@ grid.draw(venn.diagram(list_for_Venn,
 )))
 ````
 
-##### Upset plot 1 {-}
+#### Upset plot 1 {-}
 
 Upset plots are alternatives to Venn diagrams, able to efficiently compare a higher number of conditions.
 Use the nintersects option to set how many intersections you want to visualize (by default it is all of them). The intersections with the highest number of elements will be presented first, unless you change the order.by option
@@ -337,7 +331,7 @@ upset(num_df,
 
 ````
 
-## GO enrichment
+# GO enrichment
 For each comparison, GO enrichment is run on all the differentially expressed genes, but also on just the upregulated and the  downregulated ones, using a parent-child Fisher test with an FDR threshold of 0.05.
 
 
@@ -392,7 +386,7 @@ walk2(results, names(results), ~ write_tsv(.x, file = here(paste0("data/analysis
 
 ````
 
-### Group GO enrichments in a single table
+## Group GO enrichments in a single table
 
 ````{r grouping_enr}
 
@@ -431,7 +425,7 @@ write_tsv(all_data, here("data/analysis/DE/All_DEGs_Enrichment.tsv"))
 
 ````
 
-### GO enrichment wordclouds
+## GO enrichment wordclouds
 
 Note that the wordclouds can sometimes not show some of the GO terms, if their names could not be fit to the page.
 
@@ -440,7 +434,6 @@ To see all the enriched terms it is better to check the original tables in the D
 
 `r emoji("point_right")` **Most significantly enriched terms appear bigger in the wordclouds.**
 
-</details>
 
 <details><summary>Wordclouds</summary>
 
@@ -473,14 +466,13 @@ for (name in names(results)) {
 
 ````
 </details>
-</details>
 
-### GO enrichment dotplots
+
+## GO enrichment dotplots
 
 `r emoji("point_right")` **The following plots show the top 20 most significantly enriched GO terms for each of the lists of upregulated or downregulated genes.**
 
 
-</details>
 
 <details><summary>Dotplots</summary>
 
@@ -560,7 +552,6 @@ print(p)
 
 * MF: Molecular Function
  
-</details>
 
 <details><summary>Dotplots</summary>
 
@@ -591,7 +582,7 @@ iwalk(results, function(e,r){
 ````
 </details>
 
-## Session Info
+# Session Info
 <details><summary>Setup</summary>
  ````{r session info, echo=FALSE}
  sessionInfo()
