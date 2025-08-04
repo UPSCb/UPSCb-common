@@ -269,7 +269,7 @@ setMethod(f = "getProteinState",
   stopifnot(length(genome)>0)
   
   # combined
-  stopifnot(any(seqnames(gff3) %in% names(genome)))
+  stopifnot(all(seqnames(gff3) %in% names(genome)))
 
   coordTest <- gff3[,2] > width(genome)[match(seqnames(gff3),names(genome))]
   if(any(coordTest)){
