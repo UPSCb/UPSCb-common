@@ -255,8 +255,10 @@ detach("package:reshape2", unload=TRUE)
 
 
 ### Compare selected conditions with venn diagrams and upset plots
-The names of the lists must be added manually.
-#### Veen diagram 1 {-}
+
+#### {.tabset .tabset-pills .unlisted .unnumbered}
+
+##### Venn diagram 1 {-}
 
 ````{r }
 grid.newpage()
@@ -277,7 +279,8 @@ grid.draw(venn.diagram(list_for_Venn,
 )))
 ````
 
-#### Upset plot 1 {-}
+##### Upset plot 1 {-}
+
 Upset plots are alternatives to Venn diagrams, able to efficiently compare a higher number of conditions.
 Use the nintersects option to set how many intersections you want to visualize (by default it is all of them). The intersections with the highest number of elements will be presented first, unless you change the order.by option
 
@@ -335,7 +338,7 @@ upset(num_df,
 ````
 
 ## GO enrichment
-GO enrichment is run on all the groups of upregulated or downregulated genes, using a parent-child Fisher test with an FDR threshold of 0.05.
+For each comparison, GO enrichment is run on all the differentially expressed genes, but also on just the upregulated and the  downregulated ones, using a parent-child Fisher test with an FDR threshold of 0.05.
 
 
 * Establish annotation and background
