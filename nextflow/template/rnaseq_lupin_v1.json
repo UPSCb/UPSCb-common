@@ -1,0 +1,17 @@
+{
+    "input": "<project>/doc/sample_sheet.csv",
+    "outdir": "data",
+    "fasta": "<reference>/Lupinus-albus/v1.0/fasta/Lalbus-20171117r1.genome_N-to-A.fasta.gz",
+    "gtf": "<reference>/Lupinus-albus/v1.0/gtf/Lalbus-20171117r1-v1.annot-all-features_addedUTRs.filtered.gtf.gz",
+    "transcript_fasta": "<reference>/Lupinus-albus/v1.0/fasta/Lalbus-20171117r1-v1.annot-all-features_addedUTRs.transcripts.fa.gz",
+    "salmon_index": "<reference>/Lupinus-albus/v1.0/indices/salmon/Lalbus-20171117r1-v1.annot-all-features_addedUTRs.transcripts_with-decoy_salmon-1-dot-10-dot-3",
+    "remove_ribo_rna": true,
+    "ribo_database_manifest": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/sortmerna_manifest.txt",
+    "sortmerna_index": "<reference>/rRNA/sortmerna/v4.3.4/nextflow/idx",
+    "pseudo_aligner": "salmon",
+    "extra_salmon_quant_args": "--dumpEq --numGibbsSamples 30 --gcBias --seqBias --posBias",
+    "save_non_ribo_reads": true,
+    "skip_alignment": true,
+    "skip_gtf_filter": true,
+    "skip_gtf_transcript_filter": true
+}
