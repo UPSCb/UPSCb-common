@@ -24,7 +24,7 @@ suppressPackageStartupMessages({
 
 #' * Helper files
 suppressMessages({
-    source(here("UPSCb-common/Rtoolbox/src/plotEnrichedTreemap.R"))
+    source(here("UPSCb-common/src/R/plotEnrichedTreemap.R"))
     source(here("UPSCb-common/src/R/featureSelection.R"))
     source(here("UPSCb-common/src/R/volcanoPlot.R"))
     source(here("UPSCb-common/src/R/gopher.R"))

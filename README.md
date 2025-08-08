@@ -75,3 +75,7 @@ https://umeauniversity-my.sharepoint.com/:f:/r/personal/edpi0005_ad_umu_se/Docum
 ## Contact us
 
 For UPSC members, ask us to be added to our Slack channel as well as mailing list. These are the two channels we use to communicate about server updates and downtime (as well as other technical issues), but also those we use to discuss projects, provide support, *etc.*
+
+## Acknowledgments
+
+Special thanks to [loalon](https://github.com/loalon) for some contributed code over the years.
