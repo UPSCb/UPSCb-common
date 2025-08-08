@@ -1,6 +1,3 @@
-[submodule "kogia"]
-	path = kogia
-	url = https://github.com/bschiffthaler/kogia.git
 [submodule "Rtoolbox"]
 	path = Rtoolbox
 	url = https://github.com/loalon/Rtoolbox.git
