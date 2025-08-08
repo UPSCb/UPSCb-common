@@ -76,6 +76,8 @@ The files ending in "results.csv" contain all DE genes (without any filtering ba
 ````{r DEseq2, include=FALSE}
 dds <- readRDS(file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
 
+## IMPORTANT NOTE: the samples dataframe must have a column called "SampleID" and the values in SampleID must be the same of colnames(dds)
+
 samples <- read_csv(here("doc/samples_merged-tech-reps.csv"),show_col_types = FALSE)
 
 #Set the desired degisn
