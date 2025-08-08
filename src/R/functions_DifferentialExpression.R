@@ -132,7 +132,7 @@ compare_columns <- function(tibble1, tibble2) {
 
 ## Process a comparison of interest
 
-process_comparison <- function(comparison, Interest_col, variables_interest, ...) {
+process_comparison <- function(comparison, Interest_col, variables_interest, output_dir= here("data/analysis/DE"), ...) {
   result_name <- gsub(" ", "", paste(comparison, collapse="vs"))
   
   result <- apply_extract_results(
@@ -140,14 +140,15 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
     variables_interest = variables_interest,
     NameConditionColumn = Interest_col,
     default_prefix = paste0("DE-", result_name),
+    default_dir=output_dir,
     ...
   )
   
   up <- tibble(Gene = result$up)
   down <- tibble(Gene = result$dn)
   
-  write_tsv(up, here(paste0("data/analysis/DE/DE-", result_name, "_UP.tsv")), col_names = FALSE)
-  write_tsv(down, here(paste0("data/analysis/DE/DE-", result_name, "_DOWN.tsv")), col_names = FALSE)
+  write_tsv(up, here(paste0(output_dir, "/DE-", result_name, "_UP.tsv")), col_names = FALSE)
+  write_tsv(down, here(paste0(output_dir, "/DE-", result_name, "_DOWN.tsv")), col_names = FALSE)
   
   return(result)
 }
@@ -156,7 +157,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
 
 
 ## Plot information about changes in differential expression depending on the cooks cutoff:
-  
+
 
 "plot_cooks_cutoffs" <- function(results_cooks_list, lfc, thres) {
   
@@ -287,6 +288,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
                               sample_sel=1:ncol(dds),
                               cooks_percentile = 0.99,
                               cook_optimization = FALSE,
+                              plot_cooks_threshold_effect = FALSE,
                               expression_cutoff=0,
                               debug=FALSE,filter=c("median",NULL),
                               double_step_filter=TRUE, ...){
@@ -335,10 +337,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
     }
     
     # Put design to the only relevant variable
-    if (length(vars) > 1) {
-      print(paste0("Number of relevent variables in the comparison is more than one: ",
-                   vars,", please reconsider your comparison pair."))}
-    design(dds_relevant) <- as.formula(paste("~", vars))
+    design(dds_relevant) <- as.formula(paste("~", paste(vars, collapse = " + "), sep=" "))
     
     #Repeat dds analysis
     dds_relevant <- DESeq(dds_relevant)
@@ -403,7 +402,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
   message(sprintf("The number of suspicious DEGs is %s",
                   length(suspicious_degs)))
   
-  if (length(suspicious_degs) > 10) {
+  if (length(suspicious_degs) > 10 & plot_cooks_threshold_effect == TRUE) {
     maximum_suspicious <- length(suspicious_degs)/5
     
     
@@ -484,7 +483,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, ...
   
   if(plot){
     par(mar=c(5,5,5,5))
-    volcanoPlot(res)
+    volcanoPlot(res, alpha=padj, lfc=lfc)
     par(mar=mar)
   }
   
