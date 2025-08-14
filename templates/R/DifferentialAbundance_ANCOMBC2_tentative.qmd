@@ -1,0 +1,392 @@
+---
+title: "ANCOMBC2 differential abundance analysis"
+author: "Edoardo Piombo"
+date: "`r Sys.Date()`"
+format:
+  html:
+    fig-width: 9
+    fig-height: 6
+    toc: true
+    number-sections: true
+    toc-depth: 3
+    toc-float: 
+      collapsed: true
+      smooth-scroll: true
+    code-fold: true
+    theme: flatly
+    highlight-style: pygments
+    include-in-header: header.html
+    include-after-body: footer.html
+    css: style.css
+    self-contained: true
+---
+
+
+## Setup
+
+### Libraries
+
+```{r}
+#| warning: false
+library(microbiome)
+library(ANCOMBC)
+library(tidyverse)
+library(DT)
+library(here)
+library(magrittr)
+library(rlang)
+library(pheatmap)
+library(svglite)
+library(grid)
+library(glue)
+library(future)
+library(furrr)
+```
+
+### Load functions
+
+
+```{r}
+#| warning: false
+source(here("src/R/functions_ancombc.R"))
+```
+
+### Load phyloseq data
+
+We have two chunks of code: one loads an already existing phyloseq file, for example obtained by nf-core ampliseq. The other makes a new phyloseq object from qiime data. Choose the chunk you prefer and remove ",include=FALSE, echo=FALSE, eval=FALSE" to activate it.
+
+```{r,include=FALSE, echo=FALSE, eval=FALSE}
+phyloseq_data <- readRDS(here("NF-AMPLISEQ-RESULTS/phyloseq/qiime2_phyloseq.rds"))
+
+
+```
+
+```{r,include=FALSE, echo=FALSE, eval=FALSE}
+phyloseq_data <- qza_to_phyloseq(
+    features=here("QIIME_FEATURE_TABLE.qza"),
+    taxonomy=here("QIIME-TAXONOMY.qza"),
+    metadata = here("doc/metadata.tsv")
+    )
+```
+
+### Set metadata
+
+Metadata is extracted from the phyloseq object so that the relevant columns can be set as factors with the desired baseline.
+Moreover, a column must be added to contain all values of the columns that will be present in the formula, separated by a "_".
+By default the code uses variables TIME and TREATMENT, but you should change them/remove them/add more variables so that they represent the variables of interest for your analysis.
+
+```{r}
+meta_data = microbiome::meta(phyloseq_data)
+
+meta_data <-  meta_data %>% 
+  mutate(Condition = paste(TIME, TREATMENT, sep="_"))
+
+meta_data$TIME = factor(meta_data$TIME, levels = c("T1", "T2", "T3", "T4"))
+meta_data$TREATMENT = factor(meta_data$TREATMENT, levels = c("Control", "Treatment1", "Treatment2", "Treatment3"))
+meta_data$Condition = relevel(factor(meta_data$Condition), ref = "T1_Control")
+
+phyloseq::sample_data(phyloseq_data) = meta_data
+```
+
+
+### Set taxon names
+Bu default ampliseq includes a Confidence column in the taxonomy section of the phyloseq object. We need to remove it because it prevents ancombc2 from correctly merging ASVs by genus.
+
+```{r}
+taxtable <-tax_table(phyloseq_data)
+colnames(taxtable) <- c("Confidence", "Kingdom", "Phylum", "Class", "Order", "Family", "Genus")
+taxtable <- subset(taxtable, select= -Confidence)
+tax_table(phyloseq_data) <- taxtable
+
+
+```
+
+
+### Checking which conditions have less than 5 samples
+
+It can happen that the ampliseq pipeline removes some samples if they do not have enough reads (dependin on the options you set). This chunk will simply print out the names of the conditions not having at least 5 biological replicates at the time of the differential abundance analysis.
+
+```{r}
+meta_data %>%  count(Condition) %>% filter(n!=5)
+```
+
+
+### Obtain bias-corrected abundances
+
+This chunk will extract the bias-corrected abundance table processed by ancombc2. One table per specified taxon_level will be extracted, and they will all be saved in a single rds file.
+
+Here, we are also introducing the concept of fix_formula and group variable (read the ancombc2 documentation to have more information about them).
+
+Basically, the fix_formula is similar to the design formula of DESeq2, including all the factors that you expect to affect the abundance values. The group variable, on the other hand, is the metadata column that groups samples by biological replicates (such as the Condition column we made before). Unfortunately, the group variable must also be in the design formula, so you cannot use Condition here. After doing some tests on a specific dataset I arrived to the conclusion that the best results are present when you set as group formula the variable that you expevt to drive msot of the variability, but do no hesitate to test how the results change with different group variables.
+
+For example, as a default we set "TIME*TREATMENT" as fix_formula and TREATMENT as group variable.
+
+Note that for the purposes of our template the group variable is only used to detect structural zeroes. Basically, this means that if a taxon has mostly zeroes and occasional very low values throughout one group, that taxon will be considered to be absent in that group and it will result differentially abundant between the considred group and all others. 
+
+```{r}
+set.seed(123)
+
+# Define the taxon levels
+taxon_levels <- c("Phylum", "Order", "Family", "Genus")
+
+
+# Function to run ancombc2 for a given taxon level
+Get_table_ancombc2 <- function(taxon_level, phylodata) {
+  set.seed(123)
+  output <- ancombc2(data = phylodata, tax_level = taxon_level,
+                     fix_formula = "TIME*TREATMENT",
+                     rand_formula = NULL,
+                     p_adj_method = "holm", pseudo_sens = TRUE,
+                     prv_cut = 0.10, lib_cut = 0, s0_perc = 0.05,
+                     group = "TREATMENT", struc_zero = TRUE, neg_lb = FALSE,
+                     alpha = 0.05, n_cl = 2, verbose = TRUE,
+                     global = FALSE, pairwise = FALSE, dunnet = FALSE, trend = FALSE,
+                     iter_control = list(tol = 1e-5, max_iter = 20, 
+                                         verbose = FALSE),
+                     em_control = list(tol = 1e-5, max_iter = 100),
+                     lme_control = NULL, 
+                     mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
+                     trend_control = NULL)
+  
+  bias_correct_log_table = output$bias_correct_log_table
+  bias_correct_log_table[is.na(bias_correct_log_table)] = 0
+  
+  
+  return(bias_correct_log_table)
+}
+
+
+# Apply the function to each taxon level
+abundances <- map(taxon_levels, function(x) {
+  Get_table_ancombc2(x, phyloseq_data)
+})
+
+
+names(abundances) <- taxon_levels
+
+
+saveRDS(abundances, file = here("data/ancombc2/bias-corrected_abundances.rds"))
+
+```
+
+## Differential abundance analysis
+
+Here we will first set a list of comparisons, and then repeat the analysis many times, each time setting as baseline the second element of one of the comparisons.
+
+
+### Set comparison list
+
+You can input comparisons manually, or use the following code to generate all possible informative comparisons of the Condition column. With "informative comparisons" we mean comparison were only one of the variables in the fix_formula changes. For example, the comparisons c("T2_Treatment1", "T1_Treatment1") and c("T1_Treatment2", "T1_Treatment1") are considered to be informative, while the comparison c("T2_Treatment2", "T1_Treatment1") is not.
+
+As with before, remove ", include=FALSE, eval=FALSE, echo=FALSE" from the chunk that you want to run, depending on if you want to specify comparisons manually or generate them automatically.
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+# Automatically set informative comparisons based on the Condition column
+# READ THE CHUNK UNTIL THE END
+# As the comparisons are made automatically at the end there is a step where you can insert keywords of interest, and make it so that a sample with that keyword is always the second element (baseline) of a comparison. This is to avoid comparing the Control to a treatment and have the treatment be the baseline, for example.
+
+# Define the vectors
+TIMES <- unique(meta_data$time)
+TREATMENTS <- unique(meta_data$TREATMENT)
+
+# Generate all possible combinations
+all_combinations <- expand.grid(TIME = TIMES, TREATMENT = TREATMENTS)
+
+# Function to check if only one term is different
+is_one_term_different <- function(row1, row2) {
+  sum(row1 != row2) == 1
+}
+
+
+
+# Create a list of all combinations
+comb_list <- split(all_combinations, seq(nrow(all_combinations)))
+
+# Generate pairs of combinations
+comb_pairs <- cross2(comb_list, comb_list)
+
+# Filter pairs to ensure only one term is different
+filtered_combinations <- comb_pairs %>%
+  keep(~ is_one_term_different(.x[[1]], .x[[2]])) %>%
+  map(~ c(.x[[1]], .x[[2]]))
+
+
+
+#  Format the combinations with underscores
+concatenate_elements <- function(input_list) {
+  # Concatenate the first three elements
+  vector1 <- paste(input_list[[1]], input_list[[2]], input_list[[3]], sep = "_")
+  
+  # Concatenate the last three elements
+  vector2 <- paste(input_list[[4]], input_list[[5]], input_list[[6]], sep = "_")
+  
+  # Combine into a list of vectors
+  result <- list(vector2, vector1)
+  
+  return(result)
+}
+
+formatted_combinations <- map(filtered_combinations, concatenate_elements)
+
+
+formatted_combinations_df <- tibble(
+  Interest = sapply(formatted_combinations, `[[`, 1),
+  Control = sapply(formatted_combinations, `[[`, 2)
+) 
+
+sort_row <- function(row) {
+  sorted_row <- sort(row)
+  return(sorted_row)
+}
+
+
+formatted_combinations_df <- formatted_combinations_df %>%
+  rowwise() %>%
+  mutate(
+    sorted = list(sort_row(c_across(everything())))
+  ) %>%
+  unnest_wider(sorted, names_sep = "_") %>% 
+  select(-Interest, -Control) %>% 
+  dplyr::rename(Interest = sorted_1,
+                Control = sorted_2) %>% 
+  distinct()
+
+
+# Swap values if "Control" is in column1 but not in column2,
+# or if the same happens with another KEYWORD. Feel free to edit these two variables
+formatted_combinations_df <- formatted_combinations_df %>%
+  rowwise() %>%
+  mutate(
+    swap = str_detect(Interest, "Control") & !str_detect(Control, "Control"),
+    newint = if_else(swap, Control, Interest),
+    newcont = if_else(swap, Interest, Control),
+    swap2 = str_detect(newint, "KEYWORD") & !str_detect(newcont, "KEYWORD"),
+    newint2 = if_else(swap2, newcont, newint),
+    newcont2 = if_else(swap2, newint, newcont),
+  ) %>%
+  ungroup() %>%
+  select(Interest = newint2, Control = newcont2)
+
+# Make a list
+formatted_combinations <- split(formatted_combinations_df, seq(nrow(formatted_combinations_df)))
+
+formatted_combinations <- lapply(formatted_combinations, function(row) {
+  list(as.vector(row$Interest), as.vector(row$Control))
+})
+
+formatted_combinations <- lapply(formatted_combinations, function(x) unlist(x))
+
+# Function to concatenate elements of a vector
+concat_elements <- function(vec) {
+  paste(vec, collapse = "_VS_")
+}
+
+# Apply the function to each element of the list and set names
+names(formatted_combinations) <- sapply(formatted_combinations, concat_elements)
+
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+# Manually specify comparisons
+formatted_combinations <- list(
+   c("T1_Treatment1",	"T1_Control"),
+   c("T2_Treatment1",	"T2_Control"),
+   c("T1_Treatment1",	"T2_Treatment1"))
+
+# Function to concatenate elements of a vector
+concat_elements <- function(vec) {
+  paste(vec, collapse = "_VS_")
+}
+
+# Apply the function to each element of the list and set names
+names(formatted_combinations) <- sapply(formatted_combinations, concat_elements)
+  
+```
+
+### run ANCOM-BC2
+
+Now we actually run ANCOMBC2. it can take a lot of time, so the default running way is to send the script with "sbatch" using 10 threads. However, you might want to check that your script works for a single comparison, so you can run the following chunk manually to make sure that it works.
+My suggestion is to select a comparison for which you expect many differentially expressed taxa (you can see which comparisons diverge the most form the beta_diversity emperor plots generated by nf-core ampliseq or qiime diversity core-metrics).
+
+condition_col is the name of a column with all the relevant information on a sample, like the Condition column that we made before.
+terms_in_formula is a vector of column names with the names of all the columns included in the design.
+For example, if the design is "TIME * TREATMENT", then the condition_col will be the name of a column containing values like:  T1_Treatment1, T2_Treatment1 and so on.
+terms_in_formula will be instead a vector like this: c("TIME", "TREATMENT")
+
+```{r, eval=FALSE}
+#Testing
+ancombc_res <- suppressWarnings(run_ancombc2(phylodata = phyloseq_roots,
+                           comparison =  c("T1_Treatment1",	"T1_Control"),
+                           terms_in_formula = c("TIME", "TREATMENT"),
+                      fix_formula = "TIME * TREATMENT",
+                      condition_col = "Condition",
+                      group="TREATMENT",
+                      tax_level = "Genus",
+                    rand_formula = NULL,
+                    p_adj_method = "holm", pseudo_sens = TRUE,
+                    prv_cut = 0.10, lib_cut = 0, s0_perc = 0.05,
+                     struc_zero = TRUE, neg_lb = FALSE,
+                    alpha = 0.05, n_cl = 1, verbose = TRUE,
+                    global = FALSE, pairwise = FALSE, dunnet = FALSE, trend = FALSE,
+                    iter_control = list(tol = 1e-5, max_iter = 20, 
+                                        verbose = FALSE),
+                    em_control = list(tol = 1e-5, max_iter = 100),
+                    lme_control = NULL, 
+                    mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
+                    trend_control = NULL))
+
+```
+
+
+Now we do the real differential abundance analysis.
+All the results will be saved in a list in a single rds file.
+
+```{r}
+plan(multisession, workers = 10) 
+set.seed(123)
+
+suppressWarnings(
+results_rhizo <- future_map(formatted_combinations_rhizo, function(comparison) {
+
+ancombc_res = run_ancombc2(phylodata = phyloseq_data,
+                      comparison =  comparison,
+                      terms_in_formula = c("TIME", "TREATMENT"),
+                      fix_formula = "TIME * TREATMENT",
+                      condition_col = "Condition",
+                      group="Cultivar",
+                      tax_level = "Genus",
+                    rand_formula = NULL,
+                    p_adj_method = "holm", pseudo_sens = TRUE,
+                    prv_cut = 0.10, lib_cut = 0, s0_perc = 0.05,
+                     struc_zero = TRUE, neg_lb = FALSE,
+                    alpha = 0.05, lfc= 0.5,
+                    n_cl = 1, verbose = TRUE,
+                    global = FALSE, pairwise = FALSE, dunnet = FALSE, trend = FALSE,
+                    iter_control = list(tol = 1e-5, max_iter = 20, 
+                                        verbose = FALSE),
+                    em_control = list(tol = 1e-5, max_iter = 100),
+                    lme_control = NULL, 
+                    mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
+                    trend_control = NULL)
+
+})
+)
+
+saveRDS(results_rhizo, file = here("data/ancombc2/all_results.rds"))
+
+  
+```
+
+Each comparison has three elements in the resulting list:
+all <- all the information produced by ancombc2, including a bias-corrected abundance table using as baseline the values of the second element of the comparison
+res <- the results of the differential abundance analysis, not filtered in any way.
+filtered_res <- the results of the differential abundance analysis, filtered to have maximim adjusted pvalue equal to alpha (specified in the chunk) and minimum log2FC equal to lfc (specified in the chunk). Moreover, the taxa that did not pass the ancombc2 ss threshold are removed (you can find out what it is on the ancombc2 manual. Basically it is a test the removes taxa whose significance is affected by pseudo-counts).
+
+
+
+## SessionInfo
+```{r}
+sessionInfo()
+```
+
+ 
