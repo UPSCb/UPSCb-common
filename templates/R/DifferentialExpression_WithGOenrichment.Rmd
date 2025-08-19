@@ -213,6 +213,9 @@ colnames(all_data)[colnames(all_data) == "...1"] <- "Gene"
 
 write_tsv(all_data, here("data/analysis/DE/All_DEGs.tsv"))
 
+# Save DE results list
+
+saveRDS(results_list, file=here("data/analysis/DE/DE_results_list.rds"))
 
 ````
 
@@ -424,6 +427,9 @@ for(file in files){
 
 write_tsv(all_data, here("data/analysis/DE/All_DEGs_Enrichment.tsv"))
 
+# Save GO results list
+
+saveRDS(results, file=here("data/analysis/DE/GO_results_list.rds"))
 
 ````
 
