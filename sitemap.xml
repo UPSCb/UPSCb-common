@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://upscb.github.io/UPSCb-common/</loc>
+         <lastmod>2025-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://upscb.github.io/UPSCb-common/2.%20Onboarding/</loc>
+         <lastmod>2025-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://upscb.github.io/UPSCb-common/3.%20Resources/</loc>
+         <lastmod>2025-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://upscb.github.io/UPSCb-common/4.%20R/</loc>
+         <lastmod>2025-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://upscb.github.io/UPSCb-common/5.%20nextflow/</loc>
+         <lastmod>2025-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://upscb.github.io/UPSCb-common/6.%20pipeline/</loc>
+         <lastmod>2025-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://upscb.github.io/UPSCb-common/7.%20templates/</loc>
+         <lastmod>2025-08-20</lastmod>
+    </url>
+    <url>
+         <loc>https://upscb.github.io/UPSCb-common/HPC2N/</loc>
+         <lastmod>2025-08-20</lastmod>
+    </url>
+</urlset>
