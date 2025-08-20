@@ -76,6 +76,8 @@ The files ending in "results.csv" contain all DE genes (without any filtering ba
 ````{r DEseq2, include=FALSE}
 dds <- readRDS(file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
 
+## IMPORTANT NOTE: the samples dataframe must have a column called "SampleID" and the values in SampleID must be the same of colnames(dds)
+
 samples <- read_csv(here("doc/samples_merged-tech-reps.csv"),show_col_types = FALSE)
 
 #Set the desired degisn
@@ -211,6 +213,9 @@ colnames(all_data)[colnames(all_data) == "...1"] <- "Gene"
 
 write_tsv(all_data, here("data/analysis/DE/All_DEGs.tsv"))
 
+# Save DE results list
+
+saveRDS(results_list, file=here("data/analysis/DE/DE_results_list.rds"))
 
 ````
 
@@ -422,6 +427,9 @@ for(file in files){
 
 write_tsv(all_data, here("data/analysis/DE/All_DEGs_Enrichment.tsv"))
 
+# Save GO results list
+
+saveRDS(results, file=here("data/analysis/DE/GO_results_list.rds"))
 
 ````
 
