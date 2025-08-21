@@ -1,3 +1,5 @@
+## HAVE some toy example to test - I mean unit test :-)
+
 suppressPackageStartupMessages({
   library(data.table)
   library(DESeq2)
@@ -36,6 +38,8 @@ suppressPackageStartupMessages({
 
 "get_suspicious_genes" <- function(vst,relevant_samples, threshold=10){
   
+  
+  ## column_to_rownames
   vstdf <- as_tibble(vst[,unlist(relevant_samples)], rownames = "Gene")
   
   
@@ -45,9 +49,12 @@ suppressPackageStartupMessages({
   
   
   # Find the maximum length of the vectors in relevant_samples
+  ## UNLIKELY TO NEED AN sapply on LENGTH - R is VECTORISED
+  max(elementNROWS(relevant_samples))
   max_length <- max(sapply(relevant_samples, length))
   
   # Pad the vectors with NA to make them the same length
+  ## THERE IS no need in R to initialise objects
   padded_samples <- lapply(relevant_samples, function(x) {
     length(x) <- max_length
     x
@@ -74,6 +81,7 @@ suppressPackageStartupMessages({
   
   
   # Function to calculate the required values
+  ## TRY to reuse the same object (to avoid duplicating memory usage)
   results <- vstdf_long %>%
     mutate(expression = ifelse(expression == 0, low_value, expression)) %>%
     group_by(Gene, group) %>%
@@ -130,7 +138,7 @@ compare_columns <- function(tibble1, tibble2) {
 
 
 
-## Process a comparison of interest
+# Process a comparison of interest
 
 process_comparison <- function(comparison, Interest_col, variables_interest, output_dir= here("data/analysis/DE"), ...) {
   result_name <- gsub(" ", "", paste(comparison, collapse="vs"))
@@ -278,6 +286,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, out
 
 # Suspicious degs are also returned now, users can autonomolusly decide if they want to keep them (they must be removed from the up and dn lists if that is the case)
 
+## Can we atomise it?
 
 "extract_results" <- function(dds,vst,contrast, relevant_samples,
                               padj=0.01,lfc=0.5,
@@ -663,6 +672,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, out
   print(paste0("The name of the comparison is ", comparison_name))
   print("Baseline values are:")
   
+  ## my religion is NO_FOR_LOOP_EVER_in_R_and_spaghetti_monsters
   for (var in variables_interest) {
     print(values_baseline[[var]])
   }

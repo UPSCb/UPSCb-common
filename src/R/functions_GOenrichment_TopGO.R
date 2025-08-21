@@ -1,13 +1,24 @@
+## Doc (ideally roxygen syntax, us #' and keywords #' title)
+
+
+## diff library vs require
 
 suppressPackageStartupMessages({
-  library(here)
-  library(tidyverse)
-  library(purrr)
-  library(topGO)
+  stopifnot({
+    require(here)
+    require(purrr)
+    require(tidyverse)
+    require(topGO)  
+  })
 })
 
+## S4 functions
+## 1. a generic
+## 2. one or more method
+
 # Prepare annotation object
-prepAnnot <- function(mapping){
+## use key=value for the arguments 
+prepAnnot <- function(mapping=character(0L)){
   annot <- read_delim(mapping,col_names=FALSE,show_col_types=FALSE)
   geneID2GO <- lapply(lapply(unlist(annot[,2],use.names=FALSE),strsplit,"\\|"),unlist)
   names(geneID2GO) <- unlist(annot[,1],use.names=FALSE)
@@ -19,13 +30,15 @@ get_background <- function(results_file) {
   suppressMessages(
     data <- read_csv(results_file, show_col_types = FALSE)
   )
+  
+  ## require all packages
   data <- data %>% dplyr::rename(gene = ...1)
   thres <- min(data[!is.na(data$padj), ]$baseMean)
-  genes <- data %>% 
+  data %<>% 
     filter(baseMean >= thres) %>% 
     dplyr::select(gene) %>% 
     pull()
-  return(genes)
+  return(data)
 }
 
 
@@ -43,11 +56,14 @@ topGO_combined <- function(set,background,annotation,
   
   p.adjust <- match.arg(p.adjust)
   
+  ## more validation of arguments
+  
   # create the allGenes
   allGenes <- factor(as.integer(background %in% set))
   names(allGenes) <- background
   
   # iterate over the ontologies
+  ## longer vaariable names (maybe...)
   lst <- lapply(ontology, function(o,g,a){
     GOdata <- new("topGOdata", 
                   ontology = o, 
@@ -68,7 +84,9 @@ topGO_combined <- function(set,background,annotation,
                                         results,
                                         numChar=1000,
                                         topNodes=n)) %>% 
-        rename_with(function(sel){"FDR"},.cols=last_col())
+        rename_with(~"FDR",.cols=last_col())
+      
+      ## Always spell TRUE and FALSE
       if(getgenes){
         allGO <- genesInTerm(GOdata)
         resultTable <- resultTable %>%
@@ -82,5 +100,6 @@ topGO_combined <- function(set,background,annotation,
   },allGenes,annotation)
   names(lst) <- ontology
   #This last bind_rows was added by me and is not part of the original function
-  return(bind_rows(lst, .id = "GO category"))
+  ## NO space in column / variable names
+  return(bind_rows(lst, .id = "GO_category"))
 }

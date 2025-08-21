@@ -343,10 +343,10 @@ All the results will be saved in a list in a single rds file.
 
 ```{r}
 plan(multisession, workers = 10) 
-set.seed(123)
+set.seed(42)
 
 suppressWarnings(
-results_rhizo <- future_map(formatted_combinations_rhizo, function(comparison) {
+results <- future_map(formatted_combinations, function(comparison) {
 
 ancombc_res = run_ancombc2(phylodata = phyloseq_data,
                       comparison =  comparison,
