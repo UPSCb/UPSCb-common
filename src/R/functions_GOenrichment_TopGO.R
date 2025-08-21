@@ -8,7 +8,8 @@ suppressPackageStartupMessages({
     require(here)
     require(purrr)
     require(tidyverse)
-    require(topGO)  
+    require(topGO)
+    library(methods)
   })
 })
 
@@ -18,12 +19,31 @@ suppressPackageStartupMessages({
 
 # Prepare annotation object
 ## use key=value for the arguments 
-prepAnnot <- function(mapping=character(0L)){
-  annot <- read_delim(mapping,col_names=FALSE,show_col_types=FALSE)
-  geneID2GO <- lapply(lapply(unlist(annot[,2],use.names=FALSE),strsplit,"\\|"),unlist)
-  names(geneID2GO) <- unlist(annot[,1],use.names=FALSE)
+setGeneric(name="prepAnnot",def=function(mapping){
+  standardGeneric("prepAnnot")
+})
+
+setMethod(f="prepAnnot",
+          signature="character",
+          definition=function(mapping=character(0L)){
+            mapping <- read_delim(mapping,col_names=FALSE,show_col_types=FALSE)
+            stopifnot(ncol(mapping) == 2)
+            geneID2GO <- lapply(lapply(unlist(mapping[,2],use.names=FALSE),strsplit,"\\|"),unlist)
+            names(geneID2GO) <- unlist(mapping[,1],use.names=FALSE)
+            return(geneID2GO)
+          })
+
+setMethod(f="prepAnnot",
+         signature="data.frame",
+         definition=function(mapping=data.frame(
+           geneID = c("gene1", "gene2"),GO= c("GO:0008150", "GO:0003674"))){
+  stopifnot(ncol(mapping) == 2)
+  geneID2GO <- lapply(lapply(unlist(mapping[,2],use.names=FALSE),strsplit,"\\|"),unlist)
+  names(geneID2GO) <- unlist(mapping[,1],use.names=FALSE)
   return(geneID2GO)
-}
+})
+
+
 
 # the following function gets a vector of genes with baseMean >= the baseMean of the gene with lower expression with non NA padj
 get_background <- function(results_file) {
@@ -32,7 +52,7 @@ get_background <- function(results_file) {
   )
   
   ## require all packages
-  data <- data %>% dplyr::rename(gene = ...1)
+  data <- data %>% dplyr::rename(gene = 1)
   thres <- min(data[!is.na(data$padj), ]$baseMean)
   data %<>% 
     filter(baseMean >= thres) %>% 

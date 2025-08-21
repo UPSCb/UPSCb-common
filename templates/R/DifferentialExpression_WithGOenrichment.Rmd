@@ -292,12 +292,12 @@ all_genes <- unique(all_data$Gene)
 
 gene_matrix <- data.frame(
   gene = all_genes,
-  C_T89vsSD_T89 = all_genes %in% results_list[["Group1vsControl"]]$up,
-  LD_T89vsC_T89 = all_genes %in% results_list[["Group1vsControl"]]$dn,
-  C_FPF1KOvsSD_FPF1KO = all_genes %in% results_list[["Group2vsControl"]]$up,
-  LD_FPF1KOvsC_FPF1KO = all_genes %in% results_list[["Group2vsControl"]]$dn,
-  C_FPF1OEvsSD_FPF1OE = all_genes %in% results_list[["Group2vsGroup1"]]$up,
-  LD_FPF1OEvsC_FPF1OE = all_genes %in% results_list[["Group2vsGroup1"]]$dn
+  Group1vsControl = all_genes %in% results_list[["Group1vsControl"]]$up,
+  Group1vsControl = all_genes %in% results_list[["Group1vsControl"]]$dn,
+  Group2vsControl = all_genes %in% results_list[["Group2vsControl"]]$up,
+  Group2vsControl = all_genes %in% results_list[["Group2vsControl"]]$dn,
+  Group2vsGroup1 = all_genes %in% results_list[["Group2vsGroup1"]]$up,
+  Group2vsGroup1 = all_genes %in% results_list[["Group2vsGroup1"]]$dn
 )
 
 
@@ -347,7 +347,7 @@ For each comparison, GO enrichment is run on all the differentially expressed ge
 # Loading functions necessary for TopGO run
 source(here("UPSCb-common/src/R/functions_GOenrichment_TopGO.R"))
 
-mapping <- "/mnt/picea/storage/reference/Arabidopsis-thaliana/TAIR10/gopher/tair10_gene_to_go.tsv"
+mapping <- "/mnt/reference/Arabidopsis-thaliana/TAIR10/gopher/tair10_gene_to_go.tsv"
 annotation <- prepAnnot(mapping)
 files <- list.files(path = here("data/analysis/DE/"), pattern = "results\\.csv$", full.names=TRUE)
 

@@ -372,7 +372,7 @@ ancombc_res = run_ancombc2(phylodata = phyloseq_data,
 })
 )
 
-saveRDS(results_rhizo, file = here("data/ancombc2/all_results.rds"))
+saveRDS(results, file = here("data/ancombc2/all_results.rds"))
 
   
 ```
