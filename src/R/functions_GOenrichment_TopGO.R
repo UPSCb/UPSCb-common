@@ -9,16 +9,28 @@ suppressPackageStartupMessages({
     require(purrr)
     require(tidyverse)
     require(topGO)
-    library(methods)
   })
+  library(methods)
 })
 
-## S4 functions
-## 1. a generic
-## 2. one or more method
+#' prepAnnot
+#'
+#' @param mapping A dataframe of two columns: the first one with gene 
+#' names and the second one with the GO terms of that gene, separated by a 
+#' "|". The function also accepts a tsv file containing that dataframe,
+#' without column titles
+#' @returns a named list of vectors. The names are the genes and the vectors 
+#' contain the GO terms of that gene
+#' @export
+#' @import dplyr
+#' @import readr
 
-# Prepare annotation object
-## use key=value for the arguments 
+#' @examples
+#'   {
+#'   prepAnnot(mapping=data.frame(
+#' geneID = c("gene1", "gene2"),GO= c("GO:0008150|GO:0003674", "GO:0003674")))
+#'   }
+#' 
 setGeneric(name="prepAnnot",def=function(mapping){
   standardGeneric("prepAnnot")
 })
@@ -36,7 +48,8 @@ setMethod(f="prepAnnot",
 setMethod(f="prepAnnot",
          signature="data.frame",
          definition=function(mapping=data.frame(
-           geneID = c("gene1", "gene2"),GO= c("GO:0008150", "GO:0003674"))){
+           geneID = c("gene1", "gene2"),GO= c("GO:0008150|GO:0003674",
+                                              "GO:0003674"))){
   stopifnot(ncol(mapping) == 2)
   geneID2GO <- lapply(lapply(unlist(mapping[,2],use.names=FALSE),strsplit,"\\|"),unlist)
   names(geneID2GO) <- unlist(mapping[,1],use.names=FALSE)
