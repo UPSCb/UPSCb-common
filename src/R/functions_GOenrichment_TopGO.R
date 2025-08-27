@@ -119,14 +119,14 @@ topGO_combined <- function(set,background,annotation,
                                         topNodes=n)) %>% 
         rename_with(~"FDR",.cols=last_col())
       
-      ## Always spell TRUE and FALSE
+      ## Always spell TRUE and FALSE -> Done :)
       if(getgenes){
         allGO <- genesInTerm(GOdata)
         resultTable <- resultTable %>%
-          mutate(allgenes = map(GO.ID,function(x){allGO[[x]]})) %>%
-          mutate(siggenes = map(allgenes,function(x){unlist(x)[unlist(x) %in% set]}))  %>%
-          mutate(allgenes = map(allgenes,function(x){paste(x,collapse = "|")}) %>% unlist(use.names = F),
-                 siggenes = map(siggenes,function(x){paste(x,collapse = "|")}) %>% unlist(use.names = F))
+          mutate(allgenes = map(GO.ID, ~ allGO[[.x]])) %>%
+          mutate(siggenes = map(allgenes, ~ unlist(.x)[unlist(.x) %in% set]))  %>%
+          mutate(allgenes = map(allgenes, paste, collapse = "|") %>% unlist(use.names = FALSE),
+                 siggenes = map(siggenes, paste, collapse = "|") %>% unlist(use.names = FALSE))
       }
       resultTable
     }
