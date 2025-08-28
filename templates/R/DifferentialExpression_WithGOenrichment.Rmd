@@ -573,7 +573,7 @@ iwalk(results, function(e,r){
            Count = as.numeric(Significant)) %>%
     group_by(`GO category`) %>%
     arrange(FDR) %>%
-    slice(1:ntop) %>%
+    slice_head(n = ntop) %>%
     ungroup() %>%
     mutate(Term = factor(Term, levels = Term[order(GeneRatio)]))
   p <- ggplot(dat, aes(x =Term, y = GeneRatio, color = FDR, size = Count)) + 
