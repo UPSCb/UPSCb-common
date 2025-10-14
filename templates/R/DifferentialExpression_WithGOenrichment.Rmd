@@ -571,7 +571,7 @@ iwalk(results, function(e,r){
     mutate(FDR = parse_double(sub("<","",FDR)),
            GeneRatio = Significant/Annotated,
            Count = as.numeric(Significant)) %>%
-    group_by(`GO category`) %>%
+    group_by(GO_category) %>%
     arrange(FDR) %>%
     slice_head(n = ntop) %>%
     ungroup() %>%
@@ -582,7 +582,7 @@ iwalk(results, function(e,r){
     theme_bw() + 
     ylab("GeneRatio") + 
     xlab("") + 
-    facet_grid(`GO category` ~ ., scales = "free", space = "free") +
+    facet_grid(GO_category ~ ., scales = "free", space = "free") +
     ggtitle(paste0(r, ": "," GO enrichment")) +
     coord_flip()
   plot(p)
