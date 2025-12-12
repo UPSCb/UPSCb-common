@@ -1,0 +1,16 @@
+ROM ubuntu:24.04
+
+MAINTAINER Nicolas Delhomme (nicolas.delhomme@umu.se)
+
+ARG DMD_VERSION=2.1.16
+
+RUN apt update && apt upgrade -y && apt install -y curl
+
+# Download and extract Diamond
+RUN curl -L -O https://github.com/bbuchfink/diamond/releases/download/v2.1.16/diamond-linux64.tar.gz && \
+    tar -zxf diamond-linux64.tar.gz
+
+# Copy binaries & libraries to system paths
+RUN mv diamond /usr/local/bin/
+
+ENTRYPOINT ["diamond"]
