@@ -159,9 +159,9 @@ design(dds) <- formula(~ VARIABLE1 * VARIABLE2)
 
 # Define your comparisons as a list of vectors, each with two values of INTEREST_COL that you wish to compare
 comparisons <- list(
-  c("Condition1",	"Condition2"),
-  c("Condition1",	"Condition3"),
-  c("Condition2",	"Condition3")
+  c("MaleCones_W1",	"MaleCones_W3"),
+  c("MaleCones_W1",	"Vegetative"),
+  c("MaleCones_July",	"Vegetative"),
 )
 
 
@@ -338,6 +338,29 @@ upset(num_df,
 
 # GO enrichment
 For each comparison, GO enrichment is run on all the differentially expressed genes, but also on just the upregulated and the  downregulated ones, using a parent-child Fisher test with an FDR threshold of 0.05.
+
+
+* Facultative chunk to convert eggNOG emapper annotations to a format compatible with our scripts
+
+````{r convert_emapper, include=FALSE}
+emapper <- read_tsv(here("emapper.annotations.gz"), comment="##")
+
+emapper[["query"]] <- emapper[["#query"]]
+
+emapper <- emapper %>% dplyr::select(query, GOs) %>% 
+  mutate(Gene=str_replace(query, "\\..*", "")) %>% 
+  separate_rows(GOs, sep = ",") %>% 
+  filter(!GOs== "-") %>% 
+  dplyr::select(-query) %>% 
+  distinct() %>% 
+  rename(GO = GOs) %>% 
+  group_by(Gene) %>%
+  summarise(GOs = paste(GO, collapse = "|"), .groups = "drop") %>% 
+  filter(!GOs=="-")
+
+
+write_tsv(emapper, here("gopher_format_annotation.tsv"), col_names=FALSE)
+````
 
 
 * Establish annotation and background
