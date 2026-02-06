@@ -90,6 +90,8 @@ filelist <- list.files(here("SALMON_FOLDER"),
                           recursive = TRUE, 
                           pattern = "quant.sf",
                           full.names = TRUE)
+
+filelist <- filelist[match(samples$SampleID, basename(dirname(filelist)))]
 ````
 
 * Sanity check to ensure that the data is sorted according to the sample info
@@ -148,6 +150,8 @@ ggplot(dat,aes(x,y,fill=Condition)) +
   geom_col() + 
   scale_y_continuous(name="reads") +
   facet_grid(~ factor(Condition), scales = "free") +
+  geom_text(aes(label = paste0(round(n_reads/1e6, 1), "M"), y =0), 
+            angle = 90, hjust = 0) +
   theme_bw() + 
   theme(axis.text.x=element_text(angle=90,size=4),
         axis.title.x=element_blank())
@@ -208,17 +212,13 @@ of the sample tissue and replicate.
  
 
 ````{r}
-samples$Time <- factor(samples$Time)
-samples$Time <- relevel(samples$Time, ref = 'T0')
-
-samples$Treatment <- factor(samples$Treatment)
-samples$Treatment <- relevel(samples$Treatment, ref = 'Control')
-
-samples$Genotype <- factor(samples$Genotype)
-samples$Genotype <- relevel(samples$Genotype, ref = 'Col0')
-
-samples$Condition <- factor(samples$Condition)
-samples$Condition <- relevel(samples$Condition, ref = 'T0_Col0_Control')
+# change based on your metadata, but make sure that the reference level is the one you want to compare to.
+samples <- samples %>%
+  mutate_at(vars(Time, Treatment, Genotype, Condition), as.factor) %>%
+  mutate(Time = relevel(Time, ref = "T0"),
+         Treatment = relevel(Treatment, ref = "Control"),
+         Genotype = relevel(Genotype, ref = "Col0"),
+         Condition = relevel(Condition, ref = "T0_Col0_Control"))
 
 
 dds <- DESeqDataSetFromTximport(
@@ -273,6 +273,8 @@ plot(colMeans(normalizationFactors(dds)),
      log10(colSums(counts(dds))),ylab="log10 raw depth",
      xlab="average scaling factor",
      col=rainbow(n=nlevels(dds$Condition))[as.integer(dds$Condition)],pch=19)
+abline(lm(log10(colSums(counts(dds))) ~ colMeans(normalizationFactors(dds))), 
+       col = "Red", lty = 3)
 legend("bottomright",fill=rainbow(n=nlevels(dds$Condition)),
        legend=levels(dds$Condition),cex=0.6)
 ````
@@ -365,8 +367,9 @@ ggplot(tibble(x=1:length(percent),y=cumsum(percent),p=percent),aes(x=x,y=y)) +
   geom_vline(xintercept=nlevel,colour="orange",linetype="dashed",linewidth=0.5) + 
   geom_hline(yintercept=cumsum(percent)[nlevel],colour="orange",linetype="dashed",linewidth=0.5) +
   geom_vline(xintercept=c(horn$n,elbow),colour="black",linetype="dotted",linewidth=0.5) +
-  geom_label(aes(x = horn$n + 1, y = cumsum(percent)[horn$n],label = 'Horn', vjust = 1)) +
-  geom_label(aes(x = elbow + 1, y = cumsum(percent)[elbow],label = 'Elbow', vjust = 1))
+  geom_label(aes(x = horn$n , y = 100,label = 'Horn', vjust = 0)) +
+  geom_label(aes(x = elbow, y = 100,label = 'Elbow', vjust = 1)) +
+  theme_bw()
 ````
 
 `r emoji("point_right")` **COMMENT.**
