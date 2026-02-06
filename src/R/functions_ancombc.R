@@ -47,7 +47,7 @@ find_difference <- function(interest, control, significant_cols, condition_col, 
   
 }
 
-"run_ancombc2" <- function(phylodata, comparison, terms_in_formula, condition_col, ...) {
+"run_ancombc2" <- function(phylodata, comparison, terms_in_formula, condition_col, lfc=0.5, ...) {
   interest <- comparison[1]
   control <- comparison[2]
   metadata <- as.data.frame(sample_data(phylodata))

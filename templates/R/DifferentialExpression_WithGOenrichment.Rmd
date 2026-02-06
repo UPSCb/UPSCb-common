@@ -64,6 +64,7 @@ hpal <- colorRampPalette(c("blue","white","red"))(100)
 mar <- par("mar")
 ````
 
+</details>
 
 # DESeq2
 
