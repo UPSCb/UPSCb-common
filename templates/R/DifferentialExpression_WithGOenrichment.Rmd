@@ -6,6 +6,7 @@ output:
   html_document:
     fig_width: 12
     fig_height: 9
+    df_print: paged
     toc: true
     number_sections: true
     toc_depth: 3
@@ -239,6 +240,8 @@ df <- do.call(rbind, lapply(seq_along(results_list), function(i) {
 }))
 
 df_melt <- melt(df, id.vars = "list")
+
+df_melt %>% pivot_wider(names_from = variable, values_from = value)
 
 # Create the stacked bar plot
 
