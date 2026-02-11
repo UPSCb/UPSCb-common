@@ -7,6 +7,7 @@ output:
  html_document:
    fig_width: 9
    fig_height: 6
+   df_print: paged
    toc: true
    number_sections: true
    toc_depth: 3
@@ -143,17 +144,17 @@ sprintf("%s%% percent (%s) of %s genes are not expressed",
 * Let us take a look at the sequencing depth, colouring by CHANGEME
 
 ````{r}
-dat <- tibble(x=colnames(counts),y=colSums(counts)) %>% 
-  bind_cols(samples)
+dat <- tibble(SampleID=colnames(counts),n_reads=colSums(counts)) 
 
-ggplot(dat,aes(x,y,fill=Condition)) + 
+samples %<>% left_join(dat)
+
+ggplot(samples,aes(SampleID, n_reads, fill=Batch)) + 
   geom_col() + 
   scale_y_continuous(name="reads") +
-  facet_grid(~ factor(Condition), scales = "free") +
   geom_text(aes(label = paste0(round(n_reads/1e6, 1), "M"), y =0), 
             angle = 90, hjust = 0) +
   theme_bw() + 
-  theme(axis.text.x=element_text(angle=90,size=4),
+  theme(axis.text.x=element_text(angle=90),
         axis.title.x=element_blank())
 ````
 
