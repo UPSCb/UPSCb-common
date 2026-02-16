@@ -148,7 +148,7 @@ dat <- tibble(SampleID=colnames(counts),n_reads=colSums(counts))
 
 samples %<>% left_join(dat)
 
-ggplot(samples,aes(SampleID, n_reads, fill=Batch)) + 
+ggplot(samples,aes(SampleID, n_reads, fill=Condition)) + 
   geom_col() + 
   scale_y_continuous(name="reads") +
   geom_text(aes(label = paste0(round(n_reads/1e6, 1), "M"), y =0), 
