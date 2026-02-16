@@ -389,6 +389,11 @@ background <- map(files, get_background) %>%
   unlist() %>% 
   base::unique()
 
+## Pay attention to the number of annotated genes not in the background.
+## If most or all the genes are missing then your annotation file might be incorrectly formatted (most likely you are using protein names and not gene names)
+
+sprintf("Number of annotated genes in the background is %s (%s percent of annotated genes", sum(names(annotation) %in% background), round(100*sum(names(annotation) %in% background)/length(names(annotation))), 2)
+
 ````
 
 
