@@ -86,6 +86,18 @@ topGO_combined <- function(set,background,annotation,
                            p.adjust=sort(p.adjust.methods),
                            alpha=0.05,
                            getgenes=FALSE){
+
+  missing_genes <- set[!set %in% background]
+  if (length(missing_genes) > 0) {
+    stop(
+      paste0(
+        "Error: Some genes in 'set' are not present in 'background'.\n",
+        "Missing genes (", length(missing_genes), "): ",
+        paste(missing_genes, collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
   
   p.adjust <- match.arg(p.adjust)
   
