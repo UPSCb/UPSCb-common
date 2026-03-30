@@ -42,6 +42,7 @@ shift $((OPTIND - 1))
 # setup
 
 # sanity
+[[ ${ARGs} -eq 0 ]] && [[ $# -gt 0]] && abort "You provided arguments to a script that does not expect any"
 [[ ${ARGs} -gt 0 ]] && [[ $# -ne ${ARGs} ]] && abort "This script expects ${ARGs} arguments"
 
 # cmds container
