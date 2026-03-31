@@ -52,7 +52,7 @@ Files:
 * process.sh
 * semaphore.sh
 
-This is a couple scripts that allows setting up a semaphore to run jobs in parallel in a mostly automated way. This is relevant for tasks where one cannot use a queueing system, such as data transfer between HPCs, ENA data submission, or the like.
+This is a couple scripts that allows setting up a semaphore to run jobs in parallel in a mostly automated way. This is relevant for tasks where one cannot use a queueing system, such as data transfer between HPCs, ENA data submission, or the like. The `semaphore.sh` is best run inside a `screen` or as `nohup` to ensure it proceeds even when the primary X window session is gone.
 
 ### Singularity runner
 
