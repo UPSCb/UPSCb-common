@@ -71,7 +71,6 @@ read -r -a FILELIST <<< $(find "${DATA}" -mindepth 1 -maxdepth 1 -type f -name "
 # EDIT THE FOLLOWING TO PASS THE RIGHT NUMBER OF ARGUMENTS AND ADJUST OPTIONS TO THE TASK SCRIPT
 cmds+=("sbatch --array=${START}-${LEND} jobArrayTask.sh -d [options] ${DATA} <arguments>
 ")
-done
 
 # shellcheck disable=SC2086
 if [ ${DO} -eq 1 ]; then
