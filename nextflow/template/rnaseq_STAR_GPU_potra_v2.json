@@ -1,0 +1,16 @@
+{
+  "input": "doc/sample_sheet.csv",
+  "outdir": "data/backup",
+  "fasta": "data/nobackup/reference/Populus-tremula/v2.2/fasta/Potra02_genome.fasta.gz",
+  "gtf": "data/nobackup/reference/Populus-tremula/v2.2/gtf/Potra02_genes.gtf.gz",
+  "transcript_fasta": "data/nobackup/reference/Populus-tremula/v2.2/fasta/Potra02_transcripts.fasta.gz",
+  "save_reference": true,
+  "salmon_index": "data/nobackup/reference/Populus-tremula/v2.2/indices/Potra02_transcripts_with-decoy_salmon-version-1-dot-8-dot0",
+  "remove_ribo_rna": true,
+  "pseudo_aligner": "salmon",
+  "extra_salmon_quant_args": "--dumpEq --numGibbsSamples 30 --gcBias --seqBias --posBias",
+  "save_non_ribo_reads": true,
+  "skip_alignment": false,
+  "skip_stringtie": false,
+  "use_parabricks_star": true
+}
