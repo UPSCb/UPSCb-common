@@ -294,26 +294,19 @@ library(UpSetR)
 all_genes <- unique(all_data$Gene)
 
 
-gene_matrix <- 
-  imap_dfr(results_list, ~ {
-  tibble(
-    comparison = .y,
-    category   = names(.x),
-    gene      = .x
-  ) %>%
-    unnest(gene)
-}) %>%
-  filter(category %in% c("up", "dn")) %>%
-  mutate(value = TRUE) %>%
-  unite("comp_cat", comparison,category ) %>%
-  pivot_wider(names_from = comp_cat, 
-              values_from = value,
-              values_fill = FALSE)
-  
+gene_matrix <- data.frame(
+  gene = all_genes,
+  Group1vsControl = all_genes %in% results_list[["Group1vsControl"]]$up,
+  Group1vsControl = all_genes %in% results_list[["Group1vsControl"]]$dn,
+  Group2vsControl = all_genes %in% results_list[["Group2vsControl"]]$up,
+  Group2vsControl = all_genes %in% results_list[["Group2vsControl"]]$dn,
+  Group2vsGroup1 = all_genes %in% results_list[["Group2vsGroup1"]]$up,
+  Group2vsGroup1 = all_genes %in% results_list[["Group2vsGroup1"]]$dn
+)
 
 
-num_df <- gene_matrix %>% 
-  dplyr::select(-gene) %>% 
+num_df <- gene_matrix %>%
+  dplyr::select(-gene) %>%
   mutate(across(everything(), as.integer))
 
 # Identify all-zero columns
@@ -331,7 +324,7 @@ cat("Dropped comparisons with no DEGs:", paste(all_zero_cols, collapse = ", "), 
 }
 
 
-upset(num_df, 
+upset(num_df,
       sets = colnames(num_df),   # Use column names as sets
       keep.order = TRUE,
       order.by = "freq",             # Order by frequency of intersection
@@ -343,7 +336,6 @@ upset(num_df,
       point.size = 2.3,                # Adjust point size
       line.size = 0.8               # Adjust line size
 )
-
 
 ````
 
