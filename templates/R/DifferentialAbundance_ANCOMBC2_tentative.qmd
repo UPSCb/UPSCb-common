@@ -136,7 +136,7 @@ Get_table_ancombc2 <- function(taxon_level, phylodata) {
   output <- ancombc2(data = phylodata, tax_level = taxon_level,
                      fix_formula = "TIME*TREATMENT",
                      rand_formula = NULL,
-                     p_adj_method = "holm", pseudo_sens = TRUE,
+                     p_adj_method = "BH", pseudo_sens = TRUE,
                      prv_cut = 0.10, lib_cut = 0, s0_perc = 0.05,
                      group = "TREATMENT", struc_zero = TRUE, neg_lb = FALSE,
                      alpha = 0.05, n_cl = 2, verbose = TRUE,
@@ -145,7 +145,7 @@ Get_table_ancombc2 <- function(taxon_level, phylodata) {
                                          verbose = FALSE),
                      em_control = list(tol = 1e-5, max_iter = 100),
                      lme_control = NULL, 
-                     mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
+                     mdfdr_control = list(fwer_ctrl_method = "hochberg", B = 100), 
                      trend_control = NULL)
   
   bias_correct_log_table = output$bias_correct_log_table
@@ -323,7 +323,7 @@ ancombc_res <- suppressWarnings(run_ancombc2(phylodata = phyloseq_roots,
                       group="TREATMENT",
                       tax_level = "Genus",
                     rand_formula = NULL,
-                    p_adj_method = "holm", pseudo_sens = TRUE,
+                    p_adj_method = "BH", pseudo_sens = TRUE,
                     prv_cut = 0.10, lib_cut = 0, s0_perc = 0.05,
                      struc_zero = TRUE, neg_lb = FALSE,
                     alpha = 0.05, n_cl = 1, verbose = TRUE,
@@ -332,7 +332,7 @@ ancombc_res <- suppressWarnings(run_ancombc2(phylodata = phyloseq_roots,
                                         verbose = FALSE),
                     em_control = list(tol = 1e-5, max_iter = 100),
                     lme_control = NULL, 
-                    mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
+                    mdfdr_control = list(fwer_ctrl_method = "hochberg", B = 100), 
                     trend_control = NULL))
 
 ```
@@ -356,7 +356,7 @@ ancombc_res = run_ancombc2(phylodata = phyloseq_data,
                       group="TREATMENT",
                       tax_level = "Genus",
                     rand_formula = NULL,
-                    p_adj_method = "holm", pseudo_sens = TRUE,
+                    p_adj_method = "BH", pseudo_sens = TRUE,
                     prv_cut = 0.10, lib_cut = 0, s0_perc = 0.05,
                      struc_zero = TRUE, neg_lb = FALSE,
                     alpha = 0.05, lfc= 0.5,
@@ -366,7 +366,7 @@ ancombc_res = run_ancombc2(phylodata = phyloseq_data,
                                         verbose = FALSE),
                     em_control = list(tol = 1e-5, max_iter = 100),
                     lme_control = NULL, 
-                    mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
+                    mdfdr_control = list(fwer_ctrl_method = "hochberg", B = 100), 
                     trend_control = NULL)
 
 })
