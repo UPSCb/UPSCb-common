@@ -621,6 +621,77 @@ iwalk(results, function(e,r){
 ````
 </details>
 
+## GSEA
+
+<details><summary>GSEA</summary>
+
+````{r GSEA}
+library(ggridges)
+library(clusterProfiler)
+
+path <- here("data/analysis/")
+  
+# Get a list of all csv files in the directory
+files <- list.files(path, pattern = "*genes.csv")
+
+
+
+suppressMessages(
+plots <- map(files, ~ {
+  data <- read_csv(paste0(path, "/", .x), show_col_types = FALSE)
+  # Add a new column with the file name
+  data$Comparison <- .x
+  
+  set.seed(42)
+  
+data <- data %>% 
+  dplyr::rename(Gene = 1) %>% 
+  dplyr::filter(Gene %in% term2gene$GeneID) %>%
+  dplyr::arrange(desc(log2FoldChange)) %>% 
+  mutate(Comparison = str_replace(Comparison, "_genes.csv", ""),
+         Comparison = str_replace(Comparison, "vs", " vs "),
+         Comparison = str_replace(Comparison, "^DE-", "")) 
+
+ranked_genes <- data %>% 
+  { setNames(.$log2FoldChange, .$Gene) }
+
+
+Contrast <- data$Comparison %>% unique()
+  
+
+gsea_go <- GSEA(ranked_genes,
+                TERM2GENE     = term2gene,
+                TERM2NAME     = term2name,
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.05,
+                minGSSize     = 5,
+                maxGSSize     = 500,
+                seed          = 42)
+
+
+
+if (!is.null(gsea_go) && nrow(gsea_go) > 0) {
+
+  ridgeplot(gsea_go, showCategory = 20, fill = "p.adjust") +
+    labs(title = "GSEA — GO terms",
+         subtitle = Contrast,
+         x = "log2 fold change") +
+    theme_bw() +
+    theme(axis.text.y = element_text(size = 7))
+  
+
+} else {
+  paste0("No significantly enriched GO gene sets found for ", Contrast)
+}
+})
+ )
+
+walk(plots, print)
+
+
+````
+</details>
+
 # Session Info
 <details><summary>Setup</summary>
  ````{r session info, echo=FALSE}
