@@ -377,6 +377,21 @@ mapping <- "/mnt/reference/Arabidopsis-thaliana/TAIR10/gopher/tair10_gene_to_go.
 annotation <- prepAnnot(mapping)
 files <- list.files(path = here("data/analysis/DE/"), pattern = "results\\.csv$", full.names=TRUE)
 
+term2gene <- read_tsv(mapping, col_names=c("GeneID", "go_terms")) %>%
+  separate_rows(go_terms, sep = "\\|") %>% 
+  dplyr::select(go_terms, GeneID) 
+
+
+term2name <- AnnotationDbi::select(GO.db,
+                                   keys   = unique(term2gene$go_terms),
+                                   columns = c("GOID", "TERM"),
+                                   keytype = "GOID") %>%
+  dplyr::select(GOID, TERM) %>% 
+  filter(!is.na(TERM))
+
+term2gene <- term2gene %>% 
+  filter(go_terms %in% term2name$GOID)
+
 background <- map(files, get_background) %>% 
   unlist() %>% 
   base::unique()
