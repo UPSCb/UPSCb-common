@@ -343,26 +343,123 @@ upset(num_df,
 For each comparison, GO enrichment is run on all the differentially expressed genes, but also on just the upregulated and the  downregulated ones, using a parent-child Fisher test with an FDR threshold of 0.05.
 
 
-* Facultative chunk to convert eggNOG emapper annotations to a format compatible with our scripts
+* Facultative chunk to convert eggNOG emapper and interproscan annotations to a format compatible with our scripts
 
-````{r convert_emapper, include=FALSE}
-emapper <- read_tsv(here("emapper.annotations.gz"), comment="##")
+````{r, include=FALSE, eval=FALSE }
 
-emapper[["query"]] <- emapper[["#query"]]
+# interpro
+ipr_cols <- c("protein_id", "md5", "length", "analysis", "sig_acc",
+              "sig_desc", "start", "stop", "score", "status", "date",
+              "ipr_acc", "ipr_desc", "go_terms", "pathways")
 
-emapper <- emapper %>% dplyr::select(query, GOs) %>% 
-  mutate(Gene=str_replace(query, "\\..*", "")) %>% 
+interpro_raw <- read_tsv(
+  here("interproscan.tsv"),
+  col_names = ipr_cols,
+  col_types = cols(.default = "c"),
+  na = "-"
+)
+
+interpro_tbl <- interpro_raw %>%
+  group_by(protein_id) %>%
+  summarise(
+    interpro_GO = {
+      terms <- go_terms %>%
+        discard(is.na) %>%
+        str_split("\\|") %>%
+        unlist() %>%
+        str_remove("\\([A-Za-z]+\\)$") %>%   # strip "(InterPro)" style tags
+        unique() %>%
+        sort()
+      if (length(terms) == 0) NA_character_ else paste(terms, collapse = ";")
+    },
+    ipr_domains = {
+      d <- unique(na.omit(ipr_desc))
+      if (length(d) == 0) NA_character_ else paste(d, collapse = ";")
+    },
+    ipr_codes = {
+      d <- unique(na.omit(ipr_acc))
+      if (length(d) == 0) NA_character_ else paste(d, collapse = ";")
+    },
+    other_protein_domains = {
+      d <- unique(na.omit(sig_acc))
+      if (length(d) == 0) NA_character_ else paste(d, collapse = ";")
+    },
+    pathways= {
+      paths <- pathways %>%
+        discard(is.na) %>%
+        str_split("\\|") %>%
+        unlist() %>%
+        unique() %>%
+        sort()
+      if (length(pathways) == 0) NA_character_ else paste(pathways, collapse = ";")
+    },
+    .groups = "drop"
+  )
+
+
+# Eggnog
+emapper <- read_tsv(here("emapper.annotations"), comment="##")
+
+#Remove GOs not present in arabidopsis
+allowed_GOs <- read_tsv("Arabidopsis-thaliana/ARAPORT11/annotation/annotation_091024_gopher-format.tsv",
+                        col_names=c("Gene", "GO")) %>% 
+  separate_rows(GO, sep = "\\|") %>% 
+  dplyr::select(GO) %>% 
+  dplyr::pull() %>% 
+  unique()
+
+allowed_GOs <- c("-", allowed_GOs)
+
+emapper <- emapper  %>% 
   separate_rows(GOs, sep = ",") %>% 
-  filter(!GOs== "-") %>% 
-  dplyr::select(-query) %>% 
+  mutate(GOs= ifelse(is.na(GOs), "-", GOs)) %>% 
+  filter(GOs %in% allowed_GOs) %>% 
+  group_by(across(-GOs)) %>%
+  summarise(GOs = paste(GOs, collapse = ";"), .groups = "drop")
+  
+
+# Add protein names
+
+gene_names <- read_tsv(here("file.gff"), comment="#", col_names = FALSE) %>% 
+  filter(grepl("protein_id", X9)) %>% 
+  mutate(gene_id= str_extract(X9, "gene=[^;]*"),
+         protein_id= str_extract(X9, "protein_id=[^;]*")) %>% 
+  dplyr::select(gene_id, protein_id) %>% 
+  mutate(
+    gene_id= str_replace(gene_id, ".*=", ""),
+    protein_id= str_replace(protein_id, ".*=", "")
+  ) %>% 
+  distinct()
+  
+
+# Merging and addind gene names
+
+merged_annot <- interpro_tbl %>% 
+  full_join(emapper, by=c("protein_id"="#query")) %>% 
+  dplyr::select(-PFAMs) %>% 
+  left_join(gene_names, by="protein_id") %>% 
+  dplyr::select(gene_id, protein_id, everything)
+
+# export annotation
+
+write_tsv(merged_annot, here("data/nobackup/emapper_interpro_annot.tsv"))
+
+# export gopher format
+
+gopher <- merged_annot %>% 
+  mutate(interpro_GO= ifelse(is.na(interpro_GO), "-", interpro_GO)) %>% 
+  mutate(allGO = paste0(GOs, ";", interpro_GO)) %>% 
+  dplyr::select(gene_id, allGO) %>% 
+  separate_rows(allGO, sep = ";") %>% 
+  filter(!allGO=="-") %>% 
   distinct() %>% 
-  rename(GO = GOs) %>% 
-  group_by(Gene) %>%
-  summarise(GOs = paste(GO, collapse = "|"), .groups = "drop") %>% 
-  filter(!GOs=="-")
+  group_by(gene_id) %>% 
+  summarise(allGO = paste(allGO, collapse = "|"), .groups = "drop")
+  
+  
 
+write_tsv(gopher, here("emapper_interpro_annot_GopherFormat.tsv"), col_names=FALSE)
 
-write_tsv(emapper, here("gopher_format_annotation.tsv"), col_names=FALSE)
 ````
 
 
@@ -644,7 +741,7 @@ iwalk(results, function(e,r){
 library(ggridges)
 library(clusterProfiler)
 
-path <- here("data/analysis/")
+path <- here("data/analysis/DE")
   
 # Get a list of all csv files in the directory
 files <- list.files(path, pattern = "*genes.csv")
