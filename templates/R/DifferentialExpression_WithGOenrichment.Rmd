@@ -438,11 +438,36 @@ merged_annot <- interpro_tbl %>%
   full_join(emapper, by=c("protein_id"="#query")) %>% 
   dplyr::select(-PFAMs) %>% 
   left_join(gene_names, by="protein_id") %>% 
-  dplyr::select(gene_id, protein_id, everything)
+  dplyr::select(gene_id, protein_id, everything) %>% 
+  mutate(KEGG_ko = str_replace_all(KEGG_ko, ",", ";"),
+         KEGG_Pathway = str_replace_all(KEGG_Pathway, ",", ";"),
+         KEGG_Module = str_replace_all(KEGG_Module, ",", ";"),
+         KEGG_Reaction = str_replace_all(KEGG_Reaction, ",", ";"),
+         KEGG_rclass = str_replace_all(KEGG_rclass, ",", ";"),
+         KEGG_TC = str_replace_all(KEGG_TC, ",", ";"),
+         CAZy = str_replace_all(CAZy, ",", ";"),
+         BRITE = str_replace_all(BRITE, ",", ";")))
 
 # export annotation
 
 write_tsv(merged_annot, here("data/nobackup/emapper_interpro_annot.tsv"))
+
+# Export gene_wise annotation
+condensed_annot <- merged_annot %>%  group_by(gene_id) %>%
+  summarise(
+    across(
+      everything(),
+      ~ str_split(., ";") %>%
+        unlist() %>%
+        str_trim() %>%
+        unique() %>%
+        na.omit() %>% 
+        paste(collapse = ";")
+    ),
+    .groups = "drop"
+  )
+
+write_tsv(condensed_annot, here("data/nobackup/emapper_interpro_annot_genewise.tsv"))
 
 # export gopher format
 
