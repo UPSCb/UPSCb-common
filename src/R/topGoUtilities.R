@@ -73,6 +73,7 @@ topGO <- function(set,background,annotation,
                   statistic="fisher",
                   p.adjust=sort(p.adjust.methods),
                   alpha=0.01,
+                  nChar = 1000,
                   getgenes=FALSE){
   
   p.adjust <- match.arg(p.adjust)
@@ -101,7 +102,8 @@ topGO <- function(set,background,annotation,
     } else{
       resultTable <- as_tibble(GenTable(GOdata,
                                         results,
-                                        topNodes=n)) %>% 
+                                        topNodes = n,
+                                        numChar = nChar)) %>% 
                        rename_with(function(sel){"FDR"},.cols=last_col())
       if(getgenes){
         resultTable <- resultTable %>%
