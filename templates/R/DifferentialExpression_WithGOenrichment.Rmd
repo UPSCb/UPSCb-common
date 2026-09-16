@@ -547,6 +547,11 @@ res <- Filter(function(x) length(x) > 1, res)
 # Apply topGO_combined to each element in res
 results <- map(res, ~ topGO_combined(.x, background, annotation))
 
+# Note:
+# The default algorithm is parentChild with Fisher's statistic.
+# If the enrichment result turns out too broad, alternative algorithms, such as weight01, are worth trying.
+# All possible options for algorithm and statistical test are available in the topGO manual https://bioconductor.posit.co/packages/3.19/bioc/vignettes/topGO/inst/doc/topGO.pdf
+
 # Remove tibbles with 0 rows from results
 results <- discard(results, ~ nrow(.x) == 0)
 
