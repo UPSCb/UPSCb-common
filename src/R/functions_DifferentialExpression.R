@@ -284,8 +284,6 @@ process_comparison <- function(comparison, Interest_col, variables_interest, out
 
 ## Extract the DE results. Default cutoffs are from Schurch _et al._, RNA, 2016
 
-# Suspicious degs are also returned now, users can autonomolusly decide if they want to keep them (they must be removed from the up and dn lists if that is the case)
-
 ## Can we atomise it?
 
 "extract_results" <- function(dds,vst,contrast, relevant_samples,
@@ -296,8 +294,6 @@ process_comparison <- function(comparison, Interest_col, variables_interest, out
                               labels=colnames(dds),
                               sample_sel=1:ncol(dds),
                               cooks_percentile = 0.99,
-                              cook_optimization = FALSE,
-                              plot_cooks_threshold_effect = FALSE,
                               expression_cutoff=0,
                               debug=FALSE,filter=c("median",NULL),
                               double_step_filter=TRUE, ...){
@@ -391,104 +387,6 @@ process_comparison <- function(comparison, Interest_col, variables_interest, out
     res$padj[rownames(res) %in% genes_to_remove] <- NA
   }
   
-  #Find suspicious genes
-  
-  
-  suspicious_genes <- get_suspicious_genes(vst, relevant_samples, threshold=10)
-  
-  thres <- padj
-  
-  suspicious_degs <- as_tibble(res, rownames = "Gene") %>%
-    filter(Gene %in% suspicious_genes) %>%
-    filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
-    filter(!is.na(padj)) %>%
-    filter(padj < thres) %>%
-    dplyr::select(Gene) %>%
-    pull()
-  
-  
-  #Set maximum number of suspicious degs that I wnat to accept after the optimization phase, only if the suspicious degs are more than 10
-  message(sprintf("The number of suspicious DEGs is %s",
-                  length(suspicious_degs)))
-  
-  if (length(suspicious_degs) > 10 & plot_cooks_threshold_effect == TRUE) {
-    maximum_suspicious <- length(suspicious_degs)/5
-    
-    
-    # Checking for cooks optimization in any case, just to do the plots
-    
-    # Define a function to check the condition and update results
-    optimize_cooks <- function(cooks_percentile) {
-      cooks_cutoff <- qf(cooks_percentile, p, m - p)
-      res <- if (length(contrast) == 1) {
-        results(dds, name = contrast, filter = filter, cooksCutoff = cooks_cutoff)
-      } else {
-        results(dds, contrast = contrast, filter = filter, cooksCutoff = cooks_cutoff)
-      }
-      
-      suspicious_DEGs <- as_tibble(res, rownames = "Gene") %>%
-        filter(Gene %in% suspicious_genes) %>%
-        filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
-        filter(!is.na(padj)) %>%
-        filter(padj < thres) %>%
-        dplyr::select(Gene) %>%
-        pull() %>%
-        length()
-      
-      DEGs <- as_tibble(res, rownames="Gene") %>%
-        filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
-        filter(!is.na(padj)) %>%
-        filter(padj < thres) %>%
-        dplyr::select(Gene) %>%
-        pull() %>%
-        length()
-      
-      list(res = res, DEGs=DEGs, suspicious = suspicious_DEGs, percentile = cooks_percentile)
-    }
-    
-    # Use map to iterate over cooks_percentile values
-    results_cooks_list <- map(seq(0.99, 0.50, by = -0.01), optimize_cooks)
-    
-    # Extract the count of suspicious genes from results
-    counts_suspicious <- map_dbl(results_cooks_list, ~ .x$suspicious)
-    
-    
-    
-    if (cook_optimization == TRUE) {
-      # Find the index where the condition is met
-      index <- which(counts_suspicious < maximum_suspicious)
-      
-      #Get the less stringent threshold that meets the condition, or the most stringent one if no threshold meets it
-      
-      if (length(index) > 0) {
-        res <- results_cooks_list[[index[1]]]$res
-        cooks_percentile <- results_cooks_list[[index[1]]]$percentile
-      } else {
-        res <- tail(results_cooks_list, 1)[[1]]$res
-        cooks_percentile <- tail(results_cooks_list, 1)[[1]]$percentile
-      }
-      
-      suspicious_degs <- as_tibble(res, rownames = "Gene") %>%
-        filter(Gene %in% suspicious_genes) %>%
-        filter(log2FoldChange > lfc | log2FoldChange < -lfc) %>%
-        filter(!is.na(padj)) %>%
-        filter(padj < thres) %>%
-        dplyr::select(Gene) %>%
-        pull()
-      
-    }
-    
-    
-    print(paste0("The cooks percentile was ", cooks_percentile, ", corresponding to a cooks cutoff of ", qf(cooks_percentile, p, m - p)))
-    
-    
-    # Also do plots about the cooks cutoff optimization
-    
-    if(plot){
-      plot_cooks_cutoffs(results_cooks_list=results_cooks_list, lfc=lfc, thres=padj)
-    }
-    
-  }
   
   if(plot){
     par(mar=c(5,5,5,5))
@@ -619,8 +517,7 @@ process_comparison <- function(comparison, Interest_col, variables_interest, out
   }
   return(list(all=rownames(res[sel,]),
               up=rownames(res[sel & res$log2FoldChange > 0,]),
-              dn=rownames(res[sel & res$log2FoldChange < 0,]),
-              suspicious=suspicious_degs))
+              dn=rownames(res[sel & res$log2FoldChange < 0,])))
 }
 
 
