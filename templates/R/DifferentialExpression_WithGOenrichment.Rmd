@@ -113,7 +113,6 @@ plotDispEsts(dds)
 
 ## Extracting results
 
-Remember to remove suspicious DEGs from the results if you do not want to keep them
 
 ````{r contrasts}
 
