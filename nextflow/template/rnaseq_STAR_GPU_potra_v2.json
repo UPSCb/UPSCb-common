@@ -12,5 +12,7 @@
   "save_non_ribo_reads": true,
   "skip_alignment": false,
   "skip_stringtie": false,
-  "use_parabricks_star": true
+  "use_parabricks_star": true,
+  "use_gpu_ribodetector": true,
+  "ribo_removal_tool": "ribodetector"
 }
