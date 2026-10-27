@@ -1,0 +1,575 @@
+---
+title: "Calculating co-expression network with WGCNA"
+subtitle: ""
+author: ""
+date: "`r Sys.Date()`"
+output:
+ html_document:
+   fig_width: 9
+   fig_height: 6
+   df_print: paged
+   toc: true
+   number_sections: true
+   toc_depth: 4
+   toc_float:
+     collapsed: TRUE
+     smooth_scroll: TRUE
+   code_folding: hide
+   theme: "flatly"
+   highlight: pygments
+---
+
+## Setup
+This section and the next are relevant for reproducibility purposes.
+
+* Libraries
+```{r load-lib}
+suppressPackageStartupMessages(suppressWarnings({
+  library(naturalsort)
+  library(tidyverse)
+  library(dplyr)
+  library(tidyr)
+  library(cowplot)
+  library(patchwork)
+  library(ggplot2)
+  library(ggdendro)
+  library(ggnewscale)
+  library(uwot)
+  library(WGCNA)
+}))
+```
+
+* WGCNA settings
+```{r wgcna-settings}
+# the following setting is important, do not omit.
+options(stringsAsFactors = FALSE)
+
+# permit multiple cores where they are available. leave blank to take all availible or specify how many to use
+n_threads <- 8 # SET VALUE
+allowWGCNAThreads(nThreads = n_threads)
+```
+
+
+* Paths
+
+Two data files are needed:
+
+1. expression_file: a tab-delimited expression matrix with one row per sample 
+  and one column per gene, plus a leading column that names each sample. 
+
+  Note: WGCNA expects this orientation (samples in rows, genes in columns). 
+  Values are typically normalized, e.g. variance-stabilized (VST) or log-transformed counts, 
+  not raw counts.
+  
+2. sample trait_file: a tab-delimited table with one row per sample and one column per trait. 
+  the sample column should be names in the same way as in the expression_file.
+  
+3. gene trait_file: a tab-delimited table with one row per sample and one column per trait.
+
+```{r set-paths}
+working_dir <- "" # SET VALUE
+expression_file <- "expression_matrix.tsv" # SET VALUE, shape: samples x genes
+sample_id_column <- "sample_id" # name of the column that contains the sample identifier
+```
+
+<br>
+* Set working directory
+```{r set-wd}
+setwd(working_dir)
+```
+
+
+## Co-expression network calculation
+
+### Read and prepare the expression data
+Read in the raw data. 
+
+Print dimensions, the first value is number of samples and second number of genes (if the data is in the correct format).
+
+```{r load-raw-data}
+expr_raw <- data.table::fread(expression_file, data.table = FALSE)
+rownames(expr_raw) <- expr_raw[[sample_id_column]]
+print(dim(expr_raw))
+```
+
+<br>
+Make the expression matrix
+
+```{r make-expt-matrix}
+expr <- as.matrix(expr_raw[, setdiff(colnames(expr_raw), sample_id_column)])
+rownames(expr) <- expr_raw[[sample_id_column]]
+```
+
+<br>
+If your data have several biological replicates per group and you wish to analyses group means, average the replicates here before continuing.
+
+```{r merge-bio-reps}
+
+```
+
+
+**Filter out bad samples and bad genes from the data**
+
+First we remove check for possible outlier samples. This we do by clustering samples with hclust on the expression data and cutting the tree by eye or with `cutreeStatic`.
+
+Lets cluster the samples to look for obvious outliers.
+
+```{r hclust-samples}
+sampleTree <- hclust(dist(expr), method = "average")
+
+# Plot the sample tree
+dd <- dendro_data(sampleTree, type = "rectangle")
+
+ggplot() +
+  geom_segment(data = segment(dd), aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_text(
+    data = label(dd), aes(x = x, y = y, label = label),
+    angle = 90, hjust = 1, size = 3
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.05))) +
+  labs(y = "Height", x = "Sample") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), panel.grid = element_blank())
+```
+
+<br>
+Based on the tree above, if there are outlier samples to be removed run the following two block.  
+
+First, set a cutoff value (from the y axis), `value_cutoff`.
+```{r print-hclust-filter}
+value_cutoff <- 225 # SET VALUE
+
+# Determine cluster under the line
+clust <- cutreeStatic(sampleTree, cutHeight = value_cutoff, minSize = 10)
+print(table(clust))
+```
+
+<br>
+Based on the table above, which cluster contains the samples to keep. set `cluster_ID_keep` to that number.
+
+```{r filter-sample-outliers}
+cluster_ID_keep <- 1 # SET VALUE
+
+keepSamples <- (clust == cluster_ID_keep)
+expr <- expr[keepSamples, ]
+nGenes <- ncol(expr)
+nSamples <- nrow(expr)
+```
+
+<br>
+`goodSamplesGenes()` is a missing-data and zero-variance filter. It does not detect outliers. It loops two checks until neither one removes anything more.
+
+1. Gene check (internally `goodGenes()`). A gene (column) is kept if:
+
+- It has at least `minNSamples` non-missing values (default 4),
+- The non-missing values make up at least `minFraction` of samples (default 0.5),
+- Its variance across the current good samples is above a small tolerance, so constant genes are dropped. The tolerance tol defaults to about 1e-10 * max(abs(datExpr)), and variance is compared against tol^2.
+- If weights are given, it must also have enough samples whose relative weight is at least `minRelativeWeight`.
+
+2. Sample check (internally `goodSamples()`). Using only the genes that passed, a sample (row) is kept if:
+
+- It has at least `minNGenes` non-missing values (default 4),
+- The non-missing values make up at least `minFraction` of the good genes.
+
+3. Iterate. Dropping samples can make a gene constant or too sparse, and dropping genes changes each sample's missing fraction. So it repeats steps 1 and 2 until nothing changes.
+
+Returns a list with:
+
+- goodGenes: a logical vector over genes,
+- goodSamples: a logical vector over samples,
+- allOK: TRUE if nothing was flagged.
+
+If `gsg$allOK` returns TRUE, all genes and samples have passed the cuts. If not, we remove the offending genes and samples from the data
+
+```{r filter-data}
+print(dim(expr))
+
+gsg <- goodSamplesGenes(
+  expr,
+  minFraction = 0.5,
+  minNSamples = 4,
+  minNGenes = 50,
+  weights = NULL,
+  minRelativeWeight = 0.1,
+  verbose = 3
+)
+
+print(gsg$allOK)
+
+if (!gsg$allOK) {
+  # Remove the offending genes and samples from the data:
+  expr <- expr[gsg$goodSamples, gsg$goodGenes]
+}
+
+print(dim(expr))
+```
+
+<br>
+The variable `expr` now contains the expression data ready for network analysis.
+
+### Network construction and module detection
+
+#### Choosing the soft-thresholding power
+
+The function `pickSoftThreshold` scans candidate powers: choose the lowest power whose scale-free-fit index (SFT.R.sq) reaches roughly 0.8-0.9 while the mean
+connectivity (mean.k.) is still reasonable. Inspect the printed table, and ideally plot SFT.R.sq against power, rather than trusting a single value. 
+
+Check the `sft$powerEstimate` against the plot. If the value seems reasonable set it as `soft_power`.
+
+**Choosing networkType** 
+
+| Option | Adjacency formula | Effect |
+|  :--   |        :-:        |   :--  |
+| "unsigned" (default) | $\|cor\|^β$ | Strong positive and strong negative correlations count equally. |
+| "signed" | $((1 + cor) / 2)^β$ | Positive correlations score high and negative correlations end up near 0. |
+| "signed hybrid" | $cor^β$ if $cor > 0$, otherwise $0$ | Like "signed", but negative correlations are set to exactly 0. |
+
+```{r soft-power-calc}
+powers <- c(c(1:10), seq(from = 12, to = 20, by = 2))
+
+sft <- pickSoftThreshold(
+  data = expr,
+  powerVector = powers,
+  blockSize = 5000,
+  networkType = "signed",
+  dataIsExpr = TRUE,
+  weights = NULL,
+  RsquaredCut = 0.85,
+  removeFirst = FALSE,
+  nBreaks = 10,
+  corFnc = WGCNA::cor,
+  corOptions = list(use = "p"),
+  moreNetworkConcepts = FALSE,
+  gcInterval = NULL,
+  verbose = 2
+)
+
+print(sft$fitIndices[, c("Power", "SFT.R.sq", "mean.k.")])
+
+print(paste0("powerEstimate: ", sft$powerEstimate))
+```
+
+<br>
+Plot
+
+```{r plot-soft-power}
+sft_fit <- sft$fitIndices[, c("Power", "SFT.R.sq", "slope", "mean.k.")] |>
+  dplyr::rename(mean_connectivity = mean.k.) |>
+  mutate(scale_independence = -sign(slope) * SFT.R.sq)
+
+p1 <- ggplot(sft_fit, aes(x = Power, y = scale_independence)) +
+  geom_vline(xintercept = sft$powerEstimate, color = "#ff0000", linetype = "dashed") +
+  geom_hline(yintercept = sft_fit[sft$fit$Power == sft$powerEstimate, ]$SFT.R.sq, color = "#ff0000", linetype = "dashed") +
+  geom_text(aes(label = Power)) +
+  expand_limits(y = 1) +
+  labs(y = "Scale Free Topology Model Fit,signed R^2", x = "Soft Threshold (power)") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+
+
+p2 <- ggplot(sft_fit, aes(x = Power, y = mean_connectivity)) +
+  geom_vline(xintercept = sft$powerEstimate, color = "#ff0000", linetype = "dashed") +
+  geom_hline(yintercept = sft_fit[sft$fit$Power == sft$powerEstimate, ]$mean_connectivity, color = "#ff0000", linetype = "dashed") +
+  geom_text(aes(label = Power)) +
+  labs(y = "Mean Connectivity", x = "Soft Threshold (power)") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+
+
+p1 + p2
+```
+
+
+
+```{r pick-soft-power}
+soft_power <- sft$powerEstimate # SET VALUE. if another value is wanted. default:
+
+# a common default if no power meets the fit
+if (is.na(soft_power)) soft_power <- 6
+
+cat("chosen soft-thresholding power:", soft_power, "\n")
+```
+
+
+<br>
+Make a scale free topology plot.
+
+What we want to see:
+
+- Points lie close to a straight line.
+- The line slopes downward: many low-connectivity genes and few hubs.
+- $R² ≳ 0.8–0.9$.
+- Slope roughly $−1$ to $−2$.
+
+What we dont want to see:
+
+- Flat or positive slope. Many genes are highly connected, often because one giant module dominates. This typically comes from batch effects, outlier samples, or a strong biological driver like sex or tissue.
+- Curved or hump-shaped points. The distribution isn't power-law-like; points may drop off steeply at high k, or rise and then fall.
+- Scattered points with low R² (e.g., < 0.5). The line doesn't describe the data.
+- Very few points. Too few bins make the fit unreliable, which can happen if β is so high that almost all genes have near-zero connectivity.
+
+```{r plot-scale-free}
+k <- softConnectivity(expr, power = soft_power) # connectivity vector
+
+scaleFreePlot(k, main = paste("soft threshold, soft power=", soft_power, "\n"))
+```
+
+
+#### Block-wise network construction and module detection
+
+In case the data set ins large it is good to implement the block-wise network construction in WGCNA. The basic idea is to use a two-level clustering. 
+
+1. A fast computationally inexpensive and relatively crude clustering method to pre-cluster genes into blocks of size close to
+and not exceeding the maximum of `maxBlockSize` genes.
+2. Perform a full network analysis in each block separately. 
+3. At the end, modules whose eigengenes are highly correlated are merged. 
+
+The advantage of the block-wise approach is a much smaller memory footprint and a significant speed-up of the calculations. 
+
+The trade-off is that due to using a simpler clustering to obtain blocks, the blocks may not be optimal, causing some outlying genes to be assigned to a different module than they would
+be in a full network analysis.
+
+**Tree and block options**
+
+| Option | Explanation |
+|  :--   |    :--      |
+| deepSplit | Integer value between 0 and 4. Provides a simplified control over how sensitive module detection should be to module splitting, with 0 least and 4 most sensitive. |
+| pamRespectsDendro | Logical, only used when pamStage is TRUE. If TRUE, the PAM stage will respect the dendrogram in the sense an object can be PAM-assigned only to clusters that lie below it on the branch that the object is merged into. |
+| detectCutHeight | Dendrogram cut height for module detection. |
+| minModuleSize | Minimum module size for module detection. |
+| reassignThreshold | p-value ratio threshold for reassigning genes between modules. |
+| mergeCutHeight | Dendrogram cut height for module merging. |
+
+**TOMtype options**
+
+| Option | Formula | Effect |
+| :--  | :-:  | :-- |
+| "none" | $TOM = a_ij$ | Skips TOM and clusters on the adjacency directly. |
+| "unsigned" (default) | Standard formula with $\|a\|$ everywhere | The sign is ignored. Range 0 to 1. |
+| "signed" | $\|l_ij + a_ij\| / (min(k_i, k_j) + 1 − \|a_ij\|)$, with signed $a$ in the numerator | Neighbours with opposing correlations cancel out. Result is the absolute value, range 0 to 1. |
+| "signed Nowick" | $(l_ij + a_ij) / (min(k_i, k_j) + 1 − \|a_ij\|)$, with signed $a$ and no absolute value | The sign is kept in the result, range −1 to 1. |
+| "unsigned 2", "signed 2", "signed Nowick 2" | A modified version of the TOM formula | Same signed/unsigned logic as the versions above. I’m not certain of the exact formula, so check ?TOMsimilarityFromExpr in your installed version. |
+
+TOM interaction with networkType (`pickSoftThreshol()`). `networkType` decides whether the adjacency is signed in the first place. 
+If `networkType` = "signed", the adjacency is already non-negative and anti-correlated genes are close to 0. 
+In that case TOMType = "unsigned" and "signed" give the same result.
+TOMType matters most when the adjacency keeps sign information, as with networkType = "unsigned" or "signed hybrid".
+
+A common recommended setup is networkType = "signed", TOMType = "signed", which keeps positively and negatively correlated genes in separate modules.
+
+**A word of caution** The function blockwiseModules has many parameters, all who have their default value. The result of 
+attempting to provide reasonable default values, but they may not be appropriate for the particular data set
+one wishes to analyze. It is encouraged to read the help file provided within the package in the R environment and experiment 
+with tweaking the network construction and module detection parameters. Note: `minModuleSize` (the smallest module kept) and 
+`mergeCutHeight` (how aggressively similar modules are merged) are the two parameters most often tuned.
+
+**A second word of caution** concerning block size. In particular, the parameter maxBlockSize tells the function
+how large the largest block can be. This should be adapted based on the machine one will run the network analysis on. 
+A rule of thumb: 
+- A 4GB standard desktop or a laptop may handle up to 8000-10000 probes.
+- A 16GB workstation should handle up to 20000 probes
+- A 32GB workstation should handle perhaps 30000.
+
+```{r blockwise-module-assignment}
+# Fix namespace clash for cor. save whats currently assigned to cor and assing WGCNAs cor to cor
+temp_cor <- cor
+cor <- WGCNA::cor
+
+tom_dir <- file.path(working_dir, "TOM")
+dir.create(tom_dir, showWarnings = FALSE)
+
+net <- blockwiseModules(
+  # == Input data ==
+  datExp = expr,
+  weights = NULL,
+  # == Adjacency Function ==
+  power = soft_power,
+  networkType = "signed",
+  # == Tree and Block Options ==
+  deepSplit = 2,
+  pamRespectsDendro = F,
+  detectCutHeight = 0.995,
+  minModuleSize = 30,
+  maxBlockSize = 10000,
+  # == Module Adjustments ==
+  reassignThreshold = 0,
+  mergeCutHeight = 0.25,
+  # == TOM == Archive the run results in TOM file (saves time)
+  TOMType = "signed",
+  saveTOMs = TRUE,
+  saveTOMFileBase = file.path(tom_dir, "blockwiseTOM"),
+  # == Output Options
+  numericLabels = TRUE,
+  verbose = 2,
+  # == Other Options
+  nThreads = n_threads
+)
+
+saveRDS(net, paste0(working_dir, "/net.rds"))
+
+cor <- temp_cor # Reset the cor function to original namespace
+
+module_of_gene <- net$colors # numeric module label per gene (0 = unassigned)
+module_eigengenes <- net$MEs # one eigengene column per module
+rownames(module_eigengenes) <- rownames(expr)
+
+cat("modules found:", length(setdiff(unique(module_of_gene), 0)), "\n")
+write.table(data.frame(gene = colnames(expr), module = module_of_gene),
+  paste0(working_dir, "/net_gene-modules.tsv"),
+  row.names = FALSE,
+  sep = "\t"
+)
+
+write.table(module_eigengenes |> rownames_to_column(var = sample_id_column),
+  paste0(working_dir, "/net_MEs.tsv"),
+  row.names = FALSE,
+  sep = "\t"
+)
+
+n_unassigned <- sum(net$colors == 0)
+n_total <- length(net$colors)
+cat(sprintf(
+  "Unassigned genes: %d of %d (%.1f%%)\n",
+  n_unassigned, n_total, 100 * n_unassigned / n_total
+))
+```
+
+
+<br>
+Plot gene dendrogram and modules. 
+Shows a tree-like diagram where similar genes are clustered together. 
+The colored bar at the bottom shows which module each gene belongs to (turquoise, blue, brown, etc.).
+
+```{r plot-module-dendro}
+mergedColors <- labels2colors(net$colors)
+
+plotDendroAndColors(
+  net$dendrograms[[1]],
+  mergedColors[net$blockGenes[[1]]],
+  "Module colors",
+  dendroLabels = FALSE,
+  hang = 0.03,
+  addGuide = TRUE,
+  guideHang = 0.05
+)
+```
+
+<br>
+Plot module size.
+
+A bar chart showing how many genes are in each module. 
+Helps in understanding the scale of each module.
+
+```{r plot-module-size}
+mod_sizes <- as.data.frame(table(module = net$colors))
+mod_sizes <- mod_sizes[mod_sizes$module != 0, ] # drop unassigned
+mod_sizes$color <- labels2colors(as.integer(as.character(mod_sizes$module)))
+mod_sizes$module <- factor(paste0("ME-", mod_sizes$module),
+  levels = paste0("ME-", mod_sizes$module)
+)
+
+ggplot(mod_sizes, aes(x = module, y = Freq, fill = color)) +
+  geom_col() +
+  scale_fill_identity() +
+  labs(x = NULL, y = "Number of genes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+
+<br>
+Cluster the data using UMAP.
+
+Color by module to see if genes from the same module group together
+
+```{r umap-assignment}
+keep <- net$colors != 0 # remove unassigned genes to reduce the number of points plotted
+X <- t(expr[, keep]) # change to: genes x samples
+
+set.seed(42)
+um <- umap(X,
+  n_neighbors = 15,
+  min_dist = 0.1,
+  metric = "correlation",
+  n_threads = n_threads
+)
+
+umap_df <- data.frame(
+  UMAP1  = um[, 1],
+  UMAP2  = um[, 2],
+  module = net$colors[keep],
+  color  = labels2colors(net$colors[keep])
+)
+
+ggplot(umap_df, aes(UMAP1, UMAP2, colour = color)) +
+  geom_point() +
+  scale_colour_identity() +
+  coord_equal() +
+  theme_minimal()
+```
+
+
+### Write cytoscope files for each module
+
+```{r write-cytoscape-files}
+out_dir <- file.path(working_dir, "cytoscape_files")
+dir.create(out_dir, showWarnings = FALSE)
+
+moduleColors <- labels2colors(net$colors)
+moduleLabels <- net$colors
+genes <- colnames(expr)
+
+for (b in seq_along(net$blockGenes)) {
+  idx <- net$blockGenes[[b]]
+
+  env <- new.env()
+  load(net$TOMFiles[b], envir = env)
+  TOM <- as.matrix(env$TOM)
+  rm(env)
+  dimnames(TOM) <- list(genes[idx], genes[idx])
+
+  for (mod in setdiff(unique(moduleLabels[idx]), 0)) {
+    inMod <- moduleLabels[idx] == mod
+    exportNetworkToCytoscape(
+      TOM[inMod, inMod],
+      edgeFile = file.path(out_dir, sprintf("edges_module-%d_block-%d.txt", mod, b)),
+      nodeFile = file.path(out_dir, sprintf("nodes_module-%d_block-%d.txt", mod, b)),
+      weighted = TRUE,
+      threshold = 0.02,
+      nodeNames = genes[idx][inMod],
+      nodeAttr = moduleColors[idx][inMod]
+    )
+  }
+  rm(TOM)
+  gc()
+}
+```
+
+### Compute module connectivity
+
+In co-expression network analysis, we often want to focus on the “hub genes”, 
+those which are highly connected within each module.
+Therefore we wish to determine the eigengene-based connectivity, also known as kME, of each gene. 
+
+```{r write-kme}
+kME <- signedKME(expr, module_eigengenes)
+
+write.table(kME |> rownames_to_column(var = "gene_id"),
+  paste0(working_dir, "/net_kME.tsv"),
+  row.names = FALSE,
+  sep = "\t"
+)
+```
+
+
+## Session Info
+
+<details><summary>Session Info</summary>
+```{r session info}
+cat("WGCNA example complete.\nOutputs written to:", normalizePath(working_dir))
+
+sessionInfo()
+```
+</details>
+  
+&nbsp;
