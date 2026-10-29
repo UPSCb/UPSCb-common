@@ -36,10 +36,12 @@ knitr::opts_chunk$set(warning = FALSE)
 suppressPackageStartupMessages({
     library(data.table)
     library(DESeq2)
+    library(edgeR)
     library(emoji)
     library(gplots)
     library(here)
     library(hyperSpec)
+    library(limma)
     library(RColorBrewer)
     library(tidyverse)
     library(VennDiagram)
@@ -54,6 +56,9 @@ suppressMessages({
     source(here("UPSCb-common/src/R/featureSelection.R"))
     source(here("UPSCb-common/src/R/volcanoPlot.R"))
     source(here("UPSCb-common/src/R/functions_DifferentialExpression.R"))
+    # must come after functions_DifferentialExpression.R: replaces extract_results()
+    # and adds fit_voomQWB(); adjust the path if you keep the file elsewhere
+ #   source(here("UPSCb-common/src/R/functions_DifferentialExpression_voomQWB.R"))
 })
 ````
 
@@ -65,13 +70,100 @@ hpal <- colorRampPalette(c("blue","white","red"))(100)
 mar <- par("mar")
 ````
 
+* Analysis settings
+
+All analysis choices are made here; apart from the Venn diagrams and upset plots, the rest of the document should not need editing.
+
+````{r settings}
+## Design ----
+# The DESeq2 design (also used for the VST). To block a batch effect, add the batch
+# variable as an additive term, e.g. ~ VARIABLE1 * VARIABLE2 + BATCH; voomQWB picks
+# it up automatically (any design variable that varies within an INTEREST_COL group).
+DESIGN <- ~ VARIABLE1 * VARIABLE2
+
+# INTEREST_COL is the name of a column of the samples table with one value per group,
+# combining the variables of interest. For voomQWB, one sample weight is estimated per
+# value of this column.
+# VARIABLES_INTEREST is a vector with the names of the columns combined in INTEREST_COL.
+# Do not include a batch variable here.
+
+# Example samplesheet
+# Samp  | Time   | Treatment
+# samp1 | spring | control
+# samp2 | spring | drought
+# samp3 | winter | control
+# samp4 | winter | drought
+
+# If the design is ~ Treatment, then INTEREST_COL is Treatment, and VARIABLES_INTEREST is c("Treatment").
+# Then the comparison is
+# comparisons <- list(
+#   c("drought",	"control"))
+# It's recommended that the second element is the baseline, in this case = control
+
+# If the design is ~ Time*Treatment, then you need to make a new column combining both together like
+# Samp  | Time   | Treatment | Time_Treatment
+# samp1 | spring | control   | spring_control
+# samp2 | spring | drought   | spring_drought
+# samp3 | winter | control   | winter_control
+# samp4 | winter | drought   | winter_drought
+# Then, INTEREST_COL is Time_Treatment, and VARIABLES_INTEREST is c("Time","Treatment")
+# Then the comparison is
+# comparisons <- list(
+#   c("spring_drought",	"spring_control"),
+#   c("winter_drought",	"winter_control"),
+#   c("spring_drought",	"winter_drought"))
+# It's recommended that the second element is the baseline, in this case = spring_control, winter_control and winter_drought, respectively for our three comparisons
+
+INTEREST_COL <- "INTEREST_COL"
+VARIABLES_INTEREST <- c("VARIABLE1", "VARIABLE2")
+
+# Define your comparisons as a list of vectors, each with two values of INTEREST_COL that you wish to compare.
+# With DE_METHOD = "DESeq2", the two groups of a comparison must differ in only one of VARIABLES_INTEREST.
+comparisons <- list(
+  c("MaleCones_W1",	"MaleCones_W3"),
+  c("MaleCones_W1",	"Vegetative"),
+  c("MaleCones_July",	"Vegetative")
+)
+
+## DE method ----
+# "voomQWB": limma voomWithQualityWeights with one sample weight per INTEREST_COL group,
+#            fitted once on all samples; use when replicate variability differs between groups. IMORTANT NOTE: The voomQWB method was produced by Claude and was not exhaustively tested by UPSCb. It should work, but use it at your own risk.
+# "DESeq2":  DESeq2 Wald test, one dispersion per gene shared by all groups
+DE_METHOD <- "DESeq2"
+
+# voomQWB only: "TMM" (edgeR) or "DESeq2" (DESeq2 size factors as library sizes)
+NORM <- "DESeq2"
+
+# DESeq2 only, statistic for the independent filtering:
+# "comparison_mean" (mean over the samples of the two groups compared), "comparison_median",
+# "mean" (DESeq2 default, all samples) or "median" (previous default, all samples)
+# voomQWB filters genes once for all comparisons with edgeR::filterByExpr
+FILTER <- "comparison_mean"
+
+## Thresholds ----
+PADJ <- 0.01
+LFC <- 0.5
+# TRUE: test against |log2FC| > LFC (limma treat / DESeq2 lfcThreshold)
+# FALSE: test against 0, then keep genes with |log2FC| >= LFC
+LFC_TEST <- FALSE
+
+## Output ----
+# One folder per method, so DESeq2 and voomQWB results can be kept side by side
+OUT_DIR <- here("data/analysis/DE", DE_METHOD)
+dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
+
+qwb <- NULL  # the voomQWB fit, made in the voomQWB section
+````
+
 </details>
 
 # DESeq2
 
-All output files can be found in the DE_results folder, where files ending in "genes.csv" contain gene list which have been filtered based on a FDR threshold of 0.01 and a minumum log2FC of 0.5.
+Differential expression was tested with `r if (DE_METHOD == "voomQWB") "limma voomWithQualityWeights, with one sample weight per group (voomQWB)" else "DESeq2"`. The DESeq2 model below provides the variance-stabilised data used for the heatmaps, and the mean normalised expression (baseMean) reported in the tables.
 
-The files ending in "results.csv" contain all DE genes (without any filtering based on quality criteria). 
+All output files can be found in the `r file.path("data/analysis/DE", DE_METHOD)` folder, where files ending in "genes.csv" contain the genes called DE, at a FDR threshold of `r PADJ` and a minimum absolute log2FC of `r LFC`.
+
+The files ending in "results.csv" contain the results for all genes. Genes without an adjusted p-value were not tested (removed by the expression filter or, for DESeq2, flagged as outliers by Cook's distance). 
 
 * Running the pipeline
 
@@ -81,9 +173,10 @@ dds <- readRDS(file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
 ## IMPORTANT NOTE: the samples dataframe must have a column called "SampleID" and the values in SampleID must be the same of colnames(dds)
 
 samples <- read_csv(here("doc/samples_merged-tech-reps.csv"),show_col_types = FALSE)
+stopifnot(all(colnames(dds) %in% samples$SampleID))
 
-#Set the desired degisn
-design(dds) <- formula(~ VARIABLE1 * VARIABLE2)
+#Set the desired design
+design(dds) <- DESIGN
 
 vsd <- varianceStabilizingTransformation(dds,blind=FALSE)
 vst <- assay(vsd)
@@ -109,6 +202,30 @@ plotDispEsts(dds)
 
 </details>
 
+# voomQWB
+
+`r if (DE_METHOD == "voomQWB") "The limma model is fitted once on all samples, with one coefficient per group and any additional design variable (e.g. a batch) as a covariate. Each group receives a sample weight estimated from all genes, so a group with variable replicates contributes less and a group with consistent replicates more. Every pairwise comparison is then tested from this one fit." else "DE_METHOD is set to DESeq2, so this section is not run."`
+
+````{r voomQWB, fig.cap="Left, voom mean-variance trend. Right, sample weights."}
+if (DE_METHOD == "voomQWB") {
+  group <- samples[[INTEREST_COL]][match(colnames(dds), samples$SampleID)]
+  qwb <- fit_voomQWB(dds, group = group, norm = NORM, plot = TRUE)
+  qwb$stage_weights
+}
+````
+
+````{r voomQWB_weights, fig.cap="Variance of replicate samples in each group, relative to the average over all groups (the inverse of the group weight)."}
+if (DE_METHOD == "voomQWB") {
+  qwb$stage_weights %>%
+    ggplot(aes(x = fct_reorder(group, relative_variance), y = relative_variance)) +
+    geom_col(fill = pal[1]) +
+    geom_hline(yintercept = 1, linetype = "dashed") +
+    labs(x = INTEREST_COL, y = "Relative replicate variance") +
+    coord_flip() +
+    theme_minimal()
+}
+````
+
 <details><summary>Results graphs per contrast</summary>
 
 ## Extracting results
@@ -116,64 +233,24 @@ plotDispEsts(dds)
 
 ````{r contrasts}
 
+# process_comparison() -> apply_extract_results() -> extract_results()
+# The settings (design, comparisons, method, filter, thresholds) are in the Setup section.
+# With DE_METHOD = "voomQWB", each comparison is tested from the voomQWB fit (qwb); the
+# heatmaps, baseMean and exported tables are built from DESeq2 as before.
+# Notice that double_step_filter=TRUE will not block any confounding factors when checking which outliers are removed using cooks distance
 
-
-#Reload dds object
-dds <- readRDS(file=here("data/analysis/salmon/dds_merged-tech-reps.rds"))
-
-
-# Use map to apply the function to each comparison
-# INTEREST_COL is the name of a column with all the relevant information on a sample.
-# variables_interest is a vector of column names with the names of all the columns included in the design.
-# For example, if the design is "time * treatment", then the INTEREST_COL will be the name of a column containing values like:  time1_treatment1, time2_treatment1 and so on
-# variables_interest will be instead a vector like this: c("time", "treatment")
-
-# Example samplesheet
-# Samp  | Time   | Treatment
-# samp1 | spring | control
-# samp2 | spring | drought
-# samp3 | winter | control
-# samp4 | winter | drought
-
-# If the design is ~ Treatment, then Interest_Col is Treatment, and variables_interest is c("Treatment").
-# Then the comparison is
-# comparisons <- list(
-#   c("drought",	"control"))
-# It's recommended that the second element is the baseline, in this case = control
-
-# If the design is ~ Time*Treatment, then you need to make a new column combining both together like
-# Samp  | Time   | Treatment | Time_Treatment
-# samp1 | spring | control   | spring_control
-# samp2 | spring | drought   | spring_drought
-# samp3 | winter | control   | winter_control
-# samp4 | winter | drought   | winter_drought
-# Then, Interest_Col is Time_Treatment, and variables_interest is c("Time","Treatment")
-# Then the comparison is
-# comparisons <- list(
-#   c("spring_drought",	"spring_control"),
-#   c("winter_drought",	"winter_control"),
-#   c("spring_drought",	"winter_drought"))
-# It's recommended that the second element is the baseline, in this case = spring_control, winter_control and winter_drought, respectively for our three comparisons
-
-#Set the desired degisn
-design(dds) <- formula(~ VARIABLE1 * VARIABLE2)
-
-# Define your comparisons as a list of vectors, each with two values of INTEREST_COL that you wish to compare
-comparisons <- list(
-  c("MaleCones_W1",	"MaleCones_W3"),
-  c("MaleCones_W1",	"Vegetative"),
-  c("MaleCones_July",	"Vegetative"),
-)
-
-
-results_list <- map(comparisons, ~ process_comparison(.x, "INTEREST_COL", c("VARIABLE1", "VARIABLE2"), dds=dds, samples=samples, lfc=0.5, padj=0.01, output_dir=here("data/analysis/DE")))
-
+results_list <- map(comparisons, ~ process_comparison(.x, INTEREST_COL, VARIABLES_INTEREST,
+                                                      dds = dds, samples = samples,
+                                                      method = DE_METHOD, voom_fit = qwb,
+                                                      filter = FILTER, lfc_test = LFC_TEST,
+                                                      lfc = LFC, padj = PADJ,
+                                                      output_dir = OUT_DIR,
+                                                      double_step_filter=TRUE))
 
 # Set names for the results list
 names(results_list) <- map_chr(comparisons, function(comparison) {
   gsub(" ", "", paste(comparison, collapse="vs"))
 })
-  
 
 ````
 
@@ -181,7 +258,7 @@ names(results_list) <- map_chr(comparisons, function(comparison) {
 
 ````{r grouping}
 
-path <- here("data/analysis/DE/")
+path <- OUT_DIR
   
 # Get a list of all csv files in the directory
 files <- list.files(path, pattern = "*genes.csv")
@@ -197,6 +274,7 @@ for(file in files){
   
   # Add a new column with the file name
   data$Comparison <- file
+  data$Method <- DE_METHOD
   
   # Bind the data to the existing data frame
   all_data <- bind_rows(all_data, data)
@@ -212,11 +290,11 @@ all_data$control <- sapply(split_data, function(x) sub("_genes.csv", "", x[2]))
 # Rename the first column
 colnames(all_data)[colnames(all_data) == "...1"] <- "Gene"
 
-write_tsv(all_data, here("data/analysis/DE/All_DEGs.tsv"))
+write_tsv(all_data, file.path(OUT_DIR, "All_DEGs.tsv"))
 
 # Save DE results list
 
-saveRDS(results_list, file=here("data/analysis/DE/DE_results_list.rds"))
+saveRDS(results_list, file=file.path(OUT_DIR, "DE_results_list.rds"))
 
 ````
 
@@ -295,12 +373,12 @@ all_genes <- unique(all_data$Gene)
 
 gene_matrix <- data.frame(
   gene = all_genes,
-  Group1vsControl = all_genes %in% results_list[["Group1vsControl"]]$up,
-  Group1vsControl = all_genes %in% results_list[["Group1vsControl"]]$dn,
-  Group2vsControl = all_genes %in% results_list[["Group2vsControl"]]$up,
-  Group2vsControl = all_genes %in% results_list[["Group2vsControl"]]$dn,
-  Group2vsGroup1 = all_genes %in% results_list[["Group2vsGroup1"]]$up,
-  Group2vsGroup1 = all_genes %in% results_list[["Group2vsGroup1"]]$dn
+  Group1vsControl_up = all_genes %in% results_list[["Group1vsControl"]]$up,
+  Group1vsControl_dn = all_genes %in% results_list[["Group1vsControl"]]$dn,
+  Group2vsControl_up = all_genes %in% results_list[["Group2vsControl"]]$up,
+  Group2vsControl_dn = all_genes %in% results_list[["Group2vsControl"]]$dn,
+  Group2vsGroup1_up = all_genes %in% results_list[["Group2vsGroup1"]]$up,
+  Group2vsGroup1_dn = all_genes %in% results_list[["Group2vsGroup1"]]$dn
 )
 
 
@@ -496,7 +574,25 @@ source(here("UPSCb-common/src/R/functions_GOenrichment_TopGO.R"))
 
 mapping <- "/mnt/reference/Arabidopsis-thaliana/TAIR10/gopher/tair10_gene_to_go.tsv"
 annotation <- prepAnnot(mapping)
-files <- list.files(path = here("data/analysis/DE/"), pattern = "results\\.csv$", full.names=TRUE)
+
+# Background: the genes tested in each comparison (those with an adjusted p-value).
+# get_background() keeps every gene with a baseMean above the lowest one tested, which
+# assumes DESeq2's default baseMean filter. With the comparison-wise filters or with
+# filterByExpr (voomQWB), it would include genes that were never tested.
+get_tested_genes <- function(results_file) {
+  suppressMessages(read_csv(results_file, show_col_types = FALSE)) %>%
+    dplyr::rename(gene = 1) %>%
+    filter(!is.na(padj)) %>%
+    pull(gene)
+}
+
+result_files <- file.path(OUT_DIR, paste0("DE-", names(results_list), "_results.csv")) %>%
+  set_names(names(results_list))
+# extract_results() writes no files for comparisons without DE genes
+result_files <- result_files[file.exists(result_files)]
+backgrounds <- map(result_files, get_tested_genes)
+# To use one background for all comparisons, as in the previous template:
+# backgrounds <- map(backgrounds, ~ reduce(backgrounds, union))
 
 term2gene <- read_tsv(mapping, col_names=c("GeneID", "go_terms")) %>%
   separate_rows(go_terms, sep = "\\|") %>% 
@@ -513,9 +609,7 @@ term2name <- AnnotationDbi::select(GO.db,
 term2gene <- term2gene %>% 
   filter(go_terms %in% term2name$GOID)
 
-background <- map(files, get_background) %>% 
-  unlist() %>% 
-  base::unique()
+background <- reduce(backgrounds, union)
 
 ## Pay attention to the number of annotated genes not in the background.
 ## If most or all the genes are missing then your annotation file might be incorrectly formatted (most likely you are using protein names and not gene names)
@@ -531,20 +625,18 @@ library(topGO)
 library(purrr)
 
 # Making a list of the vectors I want to test for enrichment
-# By default, the upregulated and downregulated genes from every contrast are tested.
-res <- list()
-for (name in names(results_list)) {
-  res[[paste0(name, "_all")]] <- results_list[[name]]$all
-  res[[paste0(name, "_up")]] <- results_list[[name]]$up
-  res[[paste0(name, "_dn")]] <- results_list[[name]]$dn
-}
-
+# By default, all, upregulated and downregulated genes from every contrast are tested,
+# each against the background of its own comparison.
+res <- results_list[names(backgrounds)] %>%
+  map(~ .x[c("all", "up", "dn")]) %>%
+  list_flatten()   # names: <comparison>_all, _up, _dn
+res_background <- backgrounds[str_remove(names(res), "_(all|up|dn)$")]
 
 #Removing empty lists
-res <- Filter(function(x) length(x) > 1, res)
+keep <- lengths(res) > 1
 
 # Apply topGO_combined to each element in res
-results <- map(res, ~ topGO_combined(.x, background, annotation))
+results <- map2(res[keep], res_background[keep], ~ topGO_combined(.x, .y, annotation))
 
 # Note:
 # The default algorithm is parentChild with Fisher's statistic.
@@ -555,7 +647,7 @@ results <- map(res, ~ topGO_combined(.x, background, annotation))
 results <- discard(results, ~ nrow(.x) == 0)
 
 # Export each tibble in results to a TSV file
-walk2(results, names(results), ~ write_tsv(.x, file = here(paste0("data/analysis/DE/GO-enr_", .y, ".tsv"))))
+walk2(results, names(results), ~ write_tsv(.x, file = file.path(OUT_DIR, paste0("GO-enr_", .y, ".tsv"))))
 
 
 
@@ -567,7 +659,7 @@ walk2(results, names(results), ~ write_tsv(.x, file = here(paste0("data/analysis
 
 ````{r grouping_enr}
 
-path <- here("data/analysis/DE/")
+path <- OUT_DIR
   
 # Get a list of all csv files in the directory
 files <- list.files(path, pattern = "GO-enr.*.tsv")
@@ -597,11 +689,11 @@ for(file in files){
 
 
 
-write_tsv(all_data, here("data/analysis/DE/All_DEGs_Enrichment.tsv"))
+write_tsv(all_data, file.path(OUT_DIR, "All_DEGs_Enrichment.tsv"))
 
 # Save GO results list
 
-saveRDS(results, file=here("data/analysis/DE/GO_results_list.rds"))
+saveRDS(results, file=file.path(OUT_DIR, "GO_results_list.rds"))
 
 ````
 
@@ -770,7 +862,7 @@ iwalk(results, function(e,r){
 library(ggridges)
 library(clusterProfiler)
 
-path <- here("data/analysis/DE")
+path <- OUT_DIR
   
 # Get a list of all csv files in the directory
 files <- list.files(path, pattern = "*genes.csv")
