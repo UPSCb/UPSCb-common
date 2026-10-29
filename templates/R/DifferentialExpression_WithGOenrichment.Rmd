@@ -56,9 +56,6 @@ suppressMessages({
     source(here("UPSCb-common/src/R/featureSelection.R"))
     source(here("UPSCb-common/src/R/volcanoPlot.R"))
     source(here("UPSCb-common/src/R/functions_DifferentialExpression.R"))
-    # must come after functions_DifferentialExpression.R: replaces extract_results()
-    # and adds fit_voomQWB(); adjust the path if you keep the file elsewhere
- #   source(here("UPSCb-common/src/R/functions_DifferentialExpression_voomQWB.R"))
 })
 ````
 
