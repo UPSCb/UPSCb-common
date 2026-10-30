@@ -135,7 +135,7 @@ NORM <- "DESeq2"
 # "comparison_mean" (mean over the samples of the two groups compared), "comparison_median",
 # "mean" (DESeq2 default, all samples) or "median" (previous default, all samples)
 # voomQWB filters genes once for all comparisons with edgeR::filterByExpr
-FILTER <- "comparison_mean"
+FILTER <- "median"
 
 ## Thresholds ----
 PADJ <- 0.01
