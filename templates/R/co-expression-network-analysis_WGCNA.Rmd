@@ -39,6 +39,8 @@ suppressPackageStartupMessages(suppressWarnings({
 }))
 ```
 
+
+
 * WGCNA settings
 ```{r wgcna-settings}
 # the following setting is important, do not omit.
@@ -52,23 +54,22 @@ allowWGCNAThreads(nThreads = n_threads)
 
 * Paths
 
-Two data files are needed:
+Parameters needed:
 
-1. expression_file: a tab-delimited expression matrix with one row per sample 
+1. Path to working directory, Past without ending in '/', e.g. `/path/to/dir`
+
+2. Path to `expression_file`: a tab-delimited expression matrix with one row per sample 
   and one column per gene, plus a leading column that names each sample. 
 
   Note: WGCNA expects this orientation (samples in rows, genes in columns). 
   Values are typically normalized, e.g. variance-stabilized (VST) or log-transformed counts, 
   not raw counts.
   
-2. sample trait_file: a tab-delimited table with one row per sample and one column per trait. 
-  the sample column should be names in the same way as in the expression_file.
-  
-3. gene trait_file: a tab-delimited table with one row per sample and one column per trait.
+3. Column name of the column that holds the sample identifier.
 
 ```{r set-paths}
-working_dir <- "" # SET VALUE
-expression_file <- "expression_matrix.tsv" # SET VALUE, shape: samples x genes
+working_dir <- "/home/mier0006/Documents/projects/play_around_training/WGCNA/data/test" # SET VALUE
+expression_file <- "/home/mier0006/Documents/projects/play_around_training/WGCNA/data/wgcna_example/expression_matrix.tsv" # SET VALUE, shape: samples x genes
 sample_id_column <- "sample_id" # name of the column that contains the sample identifier
 ```
 
@@ -78,6 +79,24 @@ sample_id_column <- "sample_id" # name of the column that contains the sample id
 setwd(working_dir)
 ```
 
+* Functions
+
+- `dist_subset` - subset the TOM files when writing the cytoscape files 
+```{r}
+dist_subset <- function(d, keep) {
+  n <- attr(d, "Size")
+  keep <- sort(keep)
+  m <- length(keep)
+  out <- matrix(0, m, m)
+  pr <- which(lower.tri(out), arr.ind = TRUE)
+  i <- as.numeric(keep[pr[, 2]]) # column (smaller index)
+  j <- as.numeric(keep[pr[, 1]]) # row (larger index)
+  k <- n * (i - 1) - i * (i - 1) / 2 + (j - i) # doubles: no overflow
+  out[pr] <- d[k]
+  out[pr[, 2:1]] <- d[k]
+  out
+}
+```
 
 ## Co-expression network calculation
 
@@ -243,8 +262,6 @@ sft <- pickSoftThreshold(
   gcInterval = NULL,
   verbose = 2
 )
-
-print(sft$fitIndices[, c("Power", "SFT.R.sq", "mean.k.")])
 
 print(paste0("powerEstimate: ", sft$powerEstimate))
 ```
@@ -441,11 +458,11 @@ Shows a tree-like diagram where similar genes are clustered together.
 The colored bar at the bottom shows which module each gene belongs to (turquoise, blue, brown, etc.).
 
 ```{r plot-module-dendro}
-mergedColors <- labels2colors(net$colors)
+moduleColors <- labels2colors(net$colors)
 
 plotDendroAndColors(
   net$dendrograms[[1]],
-  mergedColors[net$blockGenes[[1]]],
+  moduleColors[net$blockGenes[[1]]],
   "Module colors",
   dendroLabels = FALSE,
   hang = 0.03,
@@ -515,8 +532,6 @@ ggplot(umap_df, aes(UMAP1, UMAP2, colour = color)) +
 out_dir <- file.path(working_dir, "cytoscape_files")
 dir.create(out_dir, showWarnings = FALSE)
 
-moduleColors <- labels2colors(net$colors)
-moduleLabels <- net$colors
 genes <- colnames(expr)
 
 for (b in seq_along(net$blockGenes)) {
@@ -524,23 +539,25 @@ for (b in seq_along(net$blockGenes)) {
 
   env <- new.env()
   load(net$TOMFiles[b], envir = env)
-  TOM <- as.matrix(env$TOM)
+  TOMd <- env$TOM # keep as dist, no as.matrix()
   rm(env)
-  dimnames(TOM) <- list(genes[idx], genes[idx])
 
-  for (mod in setdiff(unique(moduleLabels[idx]), 0)) {
-    inMod <- moduleLabels[idx] == mod
+  for (mod in setdiff(unique(module_of_gene[idx]), 0)) {
+    inMod <- which(module_of_gene[idx] == mod)
+    modTOM <- dist_subset(TOMd, inMod)
+    dimnames(modTOM) <- list(genes[idx][inMod], genes[idx][inMod])
+
     exportNetworkToCytoscape(
-      TOM[inMod, inMod],
-      edgeFile = file.path(out_dir, sprintf("edges_module-%d_block-%d.txt", mod, b)),
-      nodeFile = file.path(out_dir, sprintf("nodes_module-%d_block-%d.txt", mod, b)),
-      weighted = TRUE,
+      modTOM,
+      edgeFile  = file.path(out_dir, sprintf("edges_module-%d_block-%d.txt", mod, b)),
+      nodeFile  = file.path(out_dir, sprintf("nodes_module-%d_block-%d.txt", mod, b)),
+      weighted  = TRUE,
       threshold = 0.02,
       nodeNames = genes[idx][inMod],
-      nodeAttr = moduleColors[idx][inMod]
+      nodeAttr  = moduleColors[idx][inMod]
     )
   }
-  rm(TOM)
+  rm(TOMd)
   gc()
 }
 ```
