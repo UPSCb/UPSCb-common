@@ -1,7 +1,7 @@
 ---
 title: "Project title"
 subtitle: "Biological QA"
-author: "Edoardo Piombo"
+author: "Insert author name"
 date: "`r Sys.Date()`"
 output:
  html_document:
@@ -665,6 +665,8 @@ Basically, each sampls will be assigned a gene factor equal to the number of exp
 Then, the size factors assigned by DESeq2 to the sample will be divided by the gene factor. In this way, if a sample has more genes than the average, its size factors will become lower, therefore increasing the normalized expression of its genes when DESeq2 calculates the differential expression.
 
 IMPORTANT: if you are already blocking a batch effect (design= something + Batch), and the difference in the number of expressed genes is part of the batch effect (all the samples of Batch1 have more expressed genes than Batch2, or viceversa), then DESeq2 will already correct for this just by using the "something + Batch" design, and therefore you do not need to use the following code.
+
+IMPORTANT2: If you plan on using the voomQWB DE method in the next template, then this step is not necessary as limma does not need all samples to express the same number of genes.
 
 ````{r, include=FALSE}
 # Plotting the number of genes that are expressed (at any level)
