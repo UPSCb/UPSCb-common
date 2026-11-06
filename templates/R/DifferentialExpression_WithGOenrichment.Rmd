@@ -71,6 +71,8 @@ mar <- par("mar")
 
 All analysis choices are made here; apart from the Venn diagrams and upset plots, the rest of the document should not need editing.
 
+Here you also find the list of comparisons that will be tested for differential expression. For each comparison, the second element will be used as denominator.
+
 ````{r settings}
 ## Design ----
 # The DESeq2 design (also used for the VST). To block a batch effect, add the batch
@@ -227,6 +229,7 @@ if (DE_METHOD == "voomQWB") {
 
 ## Extracting results
 
+For each comparison, the second element will be the denominator.
 
 ````{r contrasts}
 

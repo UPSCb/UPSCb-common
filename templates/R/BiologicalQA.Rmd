@@ -514,10 +514,25 @@ The point of these two plots is to assert whether the number of genes expressed 
 conds <- samples %>% 
   select(Condition) %>% pull() %>% factor()
 
+minimum_rep_number <- samples %>% group_by(Condition) %>% summarise(sum= n()) %>% select(sum) %>% pull() %>% min()
 
-dev.null <- rangeSamplesSummary(counts=vst,
+dds <- DESeq(dds)
+noise_genes <- results(dds) %>% as.data.frame() %>% as_tibble(rownames="Genes") %>% filter(is.na(padj)) %>% filter(!is.na(pvalue)) %>% select(Genes) %>% pull()
+
+vst_denoised <- as_tibble(vst, rownames="Genes") %>% 
+  filter(!Genes %in% noise_genes) %>% 
+  as.data.frame()
+
+rownames(vst_denoised) <- vst_denoised$Genes
+
+vst_denoised$Genes <- NULL
+
+vst_denoised <- as.matrix(vst_denoised)
+
+dev.null <- rangeSamplesSummary(counts=vst_denoised,
                                 conditions=conds,
-                                nrep=3)
+                                nrep=minimum_rep_number)
+
 ````
 
 `r emoji("point_right")` **The number of expressed genes does not seem to vary between sample groups**
@@ -525,7 +540,7 @@ dev.null <- rangeSamplesSummary(counts=vst,
 Plotting the number of genes that are expressed (at any level)
 
 ````{r}
-(nrow(vst) - colSums(vst==0)) %>% 
+(nrow(vst_denoised) - colSums(vst_denoised==0)) %>% 
   as.data.frame() %>% 
   rownames_to_column("SampleID") %>% 
   rename("ExpressedGenes"=".") %>% 
@@ -551,9 +566,9 @@ Note that a sweet spot for computation is around 20 thousand genes, as building 
 
 ````{r}
 
-sels <- rangeFeatureSelect(counts=vst,
+sels <- rangeFeatureSelect(counts=vst_denoised,
                            conditions=conds,
-                           nrep=3) %>% 
+                           nrep=minimum_rep_number) %>% 
   suppressWarnings()
 ````
 
@@ -562,8 +577,8 @@ sels <- rangeFeatureSelect(counts=vst,
 ````{r}
 vst.cutoff <- 1
 
-nn <- nrow(vst[sels[[vst.cutoff+1]],])
-tn <- nrow(vst)
+nn <- nrow(vst_denoised[sels[[vst.cutoff+1]],])
+tn <- nrow(vst_denoised)
 pn <- round(nn * 100/ tn, digits=1)
 ````
 
@@ -572,7 +587,7 @@ pn <- round(nn * 100/ tn, digits=1)
  
 
 ````{r}
-mat <- t(scale(t(vst[sels[[vst.cutoff+1]],])))
+mat <- t(scale(t(vst_denoised[sels[[vst.cutoff+1]],])))
 hm <- pheatmap(mat,
                color = hpal,
                border_color = NA,
@@ -597,7 +612,7 @@ Below we assess the previous dendrogram's reproducibility and plot the clusters 
 
 
 ````{r}
-hm.pvclust <- pvclust(data = t(scale(t(vst[sels[[vst.cutoff+1]],]))),
+hm.pvclust <- pvclust(data = t(scale(t(vst_denoised[sels[[vst.cutoff+1]],]))),
                        method.hclust = "ward.D2", 
                        nboot = 100, parallel = TRUE)
 
@@ -653,7 +668,7 @@ IMPORTANT: if you are already blocking a batch effect (design= something + Batch
 
 ````{r, include=FALSE}
 # Plotting the number of genes that are expressed (at any level)
-expressed_genes <- (nrow(vst) - colSums(vst==0)) %>% 
+expressed_genes <- (nrow(vst_denoised) - colSums(vst_denoised==0)) %>% 
   as.data.frame() %>% 
   rownames_to_column("SampleID") %>% 
   rename("ExpressedGenes"=".") %>% 
