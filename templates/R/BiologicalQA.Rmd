@@ -35,7 +35,9 @@ This section and the next are relevant for reproducibility purposes. For results
 suppressPackageStartupMessages({
   library(data.table)
   library(DESeq2)
+  library(edgeR)
   library(emoji)
+  library(ggrepel)
   library(gplots)
   library(gtools)
   library(here)
@@ -314,6 +316,67 @@ no dependency of variance on mean (homoscedastic).
 
 <hr />
 &nbsp;
+
+## Replicate variability by condition: is one dispersion for all conditions appropriate?
+
+DESeq2 with `design = ~ Condition` estimates one dispersion per gene from all libraries and uses it in
+every contrast. That is appropriate when the replicates of all conditions vary to a similar extent. When
+some conditions are much noisier than others, contrasts involving them are tested against too small a
+variance (noisy single-condition calls), and contrasts among quiet conditions against too large a one.
+Cook's distance does not catch this, because it looks for one aberrant library, not a noisy condition.
+
+Note that the following plots will mislead if you are blocking a batch effect (`design = ~ time * treatment + batch` or `design = ~ Condition + batch`), as the functions only consider the Condition column and do not know about extra factors such as batch that you could have added to the design. Adding the batch to the voom design fixes plots 1 and 2. Plot 3 can only be fixed where a condition has more libraries than batches. With three libraries in three batches, there’s nothing left to estimate that condition’s own dispersion once the batch is accounted for.
+
+If you use an additive design (~ treatment + time), plot 3’s reference is also wrong. An additive model’s dispersion also absorbs whatever interaction the model leaves out.
+
+````{r dispersion diagnostics}
+source(here("UPSCb-common/src/R/dispersionDiagnostics.R"))
+cv <- conditionVariance(dds, condition = "Condition")
+lw <- libraryWeights(dds, condition = "Condition")
+dc <- dispersionByCondition(dds, condition = "Condition")
+````
+
+### Replicate variance per condition
+
+One weight per condition from `limma::voomWithQualityWeights(var.group = Condition)`; the plot shows
+1 / weight, the replicate variance of each condition relative to the average (1). The grey band is
+0.5-2 x the average.
+The bands marked with outside_band are conditions whose replicates vary more than twice as much, or less than half as much, as the average condition.
+
+````{r condition variance, fig.height=max(4, 0.25 * nlevels(factor(dds$Condition)))}
+cv$plot
+knitr::kable(cv$table, digits = 2)
+````
+
+### Library weights
+
+The same model with one weight per library. A single low library in an otherwise normal condition
+points to one aberrant library (check it in the PCA and sample-distance plots below); a whole
+condition of low libraries points to a noisy condition.
+
+````{r library weights, fig.height=max(4, 0.25 * nlevels(factor(dds$Condition)))}
+lw$plot
+````
+
+### Each condition's own dispersion against the pooled dispersion
+
+For each condition with at least three libraries, gene-wise dispersions are estimated from that
+condition's libraries only and divided by the pooled dispersion that `~ Condition` uses. Estimates from
+three libraries are noisy and biased low, so compare conditions with the same number of libraries with
+each other rather than reading the absolute value.
+
+````{r dispersion by condition, fig.height=max(4, 0.25 * nlevels(factor(dds$Condition)))}
+dc$plot
+knitr::kable(dc$table, digits = 2)
+````
+
+`r emoji("point_right")` **Replicate variance spans a `r round(cv$fold_range, 1)`-fold range across
+conditions; `r sum(cv$table$outside_band)` of `r nrow(cv$table)` conditions fall outside 0.5-2 x the
+average.** If conditions fall outside the band, examine the contrasts that involve them before relying on
+a single `~ Condition` fit: refit each such comparison on the libraries of its own conditions and compare
+the calls, or use limma-voom with `var.group`. If a single library drives a condition's variance, decide
+about that library first.
+
 
 ## QC on the normalised data
 ### PCA
